@@ -1,0 +1,122 @@
+[
+  {
+    "id": "spokeo",
+    "name": "Spokeo",
+    "url": "https://www.spokeo.com",
+    "search_url": "https://www.spokeo.com/search?q={query}",
+    "search_type": "name",
+    "result_selector": ".search-result",
+    "fields": ["name", "address", "phone", "relatives", "age"],
+    "opt_out_url": "https://www.spokeo.com/optout",
+    "dsar_eligible": true,
+    "deadline_days": 30
+  },
+  {
+    "id": "whitepages",
+    "name": "WhitePages",
+    "url": "https://www.whitepages.com",
+    "search_url": "https://www.whitepages.com/name/{query}",
+    "search_type": "name",
+    "result_selector": ".card--premium",
+    "fields": ["name", "address", "phone", "age"],
+    "opt_out_url": "https://www.whitepages.com/suppression_requests/new",
+    "dsar_eligible": true,
+    "deadline_days": 45
+  },
+  {
+    "id": "beenverified",
+    "name": "BeenVerified",
+    "url": "https://www.beenverified.com",
+    "search_url": "https://www.beenverified.com/people/{query}",
+    "search_type": "name",
+    "result_selector": ".results-list__item",
+    "fields": ["name", "address", "phone", "email", "relatives", "criminal records"],
+    "opt_out_url": "https://www.beenverified.com/app/optout/search",
+    "dsar_eligible": true,
+    "deadline_days": 30
+  },
+  {
+    "id": "intelius",
+    "name": "Intelius",
+    "url": "https://www.intelius.com",
+    "search_url": "https://www.intelius.com/people-search/results/?firstName={query}",
+    "search_type": "name",
+    "result_selector": ".result-card",
+    "fields": ["name", "address", "phone", "email", "relatives"],
+    "opt_out_url": "https://www.intelius.com/opt-out",
+    "dsar_eligible": true,
+    "deadline_days": 30
+  },
+  {
+    "id": "peoplefinder",
+    "name": "PeopleFinder",
+    "url": "https://www.peoplefinder.com",
+    "search_url": "https://www.peoplefinder.com/people/{query}/",
+    "search_type": "name",
+    "result_selector": ".record",
+    "fields": ["name", "address", "phone", "relatives"],
+    "opt_out_url": "https://www.peoplefinder.com/optout.php",
+    "dsar_eligible": false,
+    "deadline_days": 30
+  },
+  {
+    "id": "radaris",
+    "name": "Radaris",
+    "url": "https://radaris.com",
+    "search_url": "https://radaris.com/p/{query}/",
+    "search_type": "name",
+    "result_selector": ".search-item",
+    "fields": ["name", "address", "phone", "email", "social profiles"],
+    "opt_out_url": "https://radaris.com/control/privacy",
+    "dsar_eligible": true,
+    "deadline_days": 30
+  },
+  {
+    "id": "truthfinder",
+    "name": "TruthFinder",
+    "url": "https://www.truthfinder.com",
+    "search_url": "https://www.truthfinder.com/people-search/?firstName={query}",
+    "search_type": "name",
+    "result_selector": ".result-list-item",
+    "fields": ["name", "address", "phone", "email", "criminal records", "social profiles"],
+    "opt_out_url": "https://www.truthfinder.com/opt-out/",
+    "dsar_eligible": true,
+    "deadline_days": 45
+  },
+  {
+    "id": "usphonebook",
+    "name": "USPhoneBook",
+    "url": "https://www.usphonebook.com",
+    "search_url": "https://www.usphonebook.com/{query}",
+    "search_type": "phone",
+    "result_selector": ".v-card",
+    "fields": ["name", "address", "phone"],
+    "opt_out_url": "https://www.usphonebook.com/opt-out",
+    "dsar_eligible": false,
+    "deadline_days": 30
+  },
+  {
+    "id": "fastpeoplesearch",
+    "name": "FastPeopleSearch",
+    "url": "https://www.fastpeoplesearch.com",
+    "search_url": "https://www.fastpeoplesearch.com/name/{query}",
+    "search_type": "name",
+    "result_selector": ".card-block",
+    "fields": ["name", "address", "phone", "relatives", "age"],
+    "opt_out_url": "https://www.fastpeoplesearch.com/removal",
+    "dsar_eligible": false,
+    "deadline_days": 30
+  },
+  {
+    "id": "mylife",
+    "name": "MyLife",
+    "url": "https://www.mylife.com",
+    "search_url": "https://www.mylife.com/find-people/{query}",
+    "search_type": "name",
+    "result_selector": ".profile-card",
+    "fields": ["name", "address", "phone", "email", "reputation score", "inferred income"],
+    "opt_out_url": "https://www.mylife.com/remove-my-information/",
+    "dsar_eligible": true,
+    "deadline_days": 30
+  }
+]
