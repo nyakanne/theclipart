@@ -11,12 +11,16 @@ __pycache__/
 venv/
 *.egg-info/
 
-# Env
+# Env / secrets — NEVER commit these
 .env
 .env.local
 .env.*.local
+backend/.env
 *.tfvars
 !*.tfvars.example
+secrets.json
+*_secrets.json
+*.secret
 
 # Terraform
 .terraform/
