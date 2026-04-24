@@ -34,9 +34,8 @@ http.interceptors.response.use(
 
 export const api = {
   auth: {
-    /** URL to redirect the browser to for Google OAuth. */
+    /** Redirects browser to Google consent via Netlify Function */
     googleLoginUrl: () => `${BASE}/api/v1/auth/google`,
-
     me: (): Promise<AuthUser> =>
       http.get<AuthUser>('/auth/me').then(r => r.data),
   },

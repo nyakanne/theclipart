@@ -1,19 +1,36 @@
 # ─────────────────────────────────────────────────────────────────────────────
-# Netlify configuration for DataGuard
-#
-# Frontend (React/Vite) is built and served as a static site.
-# All /api/* calls are proxied to your backend (set VITE_API_URL in Netlify UI).
+# Netlify — DataGuard
+# Frontend: React/Vite static site
+# Backend:  Netlify Functions (TypeScript, Node 20)
+# Database: Supabase (set env vars in Netlify UI)
 # ─────────────────────────────────────────────────────────────────────────────
 
 [build]
-  base    = "frontend"
-  command = "npm ci && npm run build"
-  publish = "dist"
+  base    = "."
+  command = "cd frontend && npm ci && npm run build && cd ../netlify/functions && npm ci"
+  publish = "frontend/dist"
 
 [build.environment]
   NODE_VERSION = "20"
 
-# ── SPA routing — send every non-asset path to index.html ────────────────────
+# ── Function config ───────────────────────────────────────────────────────────
+[functions]
+  directory         = "netlify/functions"
+  node_bundler      = "esbuild"
+  included_files    = ["netlify/functions/_shared/**"]
+
+# ── API routing → Netlify Functions ──────────────────────────────────────────
+[[redirects]]
+  from   = "/api/v1/auth/*"
+  to     = "/.netlify/functions/auth/:splat"
+  status = 200
+
+[[redirects]]
+  from   = "/api/v1/scans*"
+  to     = "/.netlify/functions/scans:splat"
+  status = 200
+
+# ── SPA routing — all other paths → index.html ───────────────────────────────
 [[redirects]]
   from   = "/*"
   to     = "/index.html"
@@ -23,14 +40,13 @@
 [[headers]]
   for = "/*"
   [headers.values]
-    X-Frame-Options              = "DENY"
-    X-Content-Type-Options       = "nosniff"
-    Referrer-Policy              = "strict-origin-when-cross-origin"
-    Permissions-Policy           = "geolocation=(), microphone=(), camera=()"
-    Strict-Transport-Security    = "max-age=63072000; includeSubDomains; preload"
-    Content-Security-Policy      = "default-src 'self'; script-src 'self' 'unsafe-inline' accounts.google.com; style-src 'self' 'unsafe-inline' fonts.googleapis.com; font-src 'self' fonts.gstatic.com; img-src 'self' data: https://lh3.googleusercontent.com; connect-src 'self' https:;"
+    X-Frame-Options           = "DENY"
+    X-Content-Type-Options    = "nosniff"
+    Referrer-Policy           = "strict-origin-when-cross-origin"
+    Permissions-Policy        = "geolocation=(), microphone=(), camera=()"
+    Strict-Transport-Security = "max-age=63072000; includeSubDomains; preload"
+    Content-Security-Policy   = "default-src 'self'; script-src 'self' 'unsafe-inline' accounts.google.com; style-src 'self' 'unsafe-inline' fonts.googleapis.com; font-src 'self' fonts.gstatic.com; img-src 'self' data: https://lh3.googleusercontent.com; connect-src 'self' https:;"
 
-# Long-cache for hashed static assets
 [[headers]]
   for = "/assets/*"
   [headers.values]
