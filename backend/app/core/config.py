@@ -56,6 +56,13 @@ class Settings(BaseSettings):
     HONEY_DOMAIN: str = 'honey.dataguard.example.com'
     MAILGUN_API_KEY: str = ''
 
+    # Google OAuth
+    GOOGLE_CLIENT_ID: str = ''
+    GOOGLE_CLIENT_SECRET: str = ''
+    GOOGLE_REDIRECT_URI: str = ''   # override in prod; auto-detected in dev
+
+    FRONTEND_URL: str = 'http://localhost:3000'
+
     MAX_CONCURRENT_PLAYWRIGHT: int = 5
     SCAN_TIMEOUT_SECONDS: int = 300
     BROKER_LIST_PATH: str = '/app/data/brokers.json'

@@ -9,7 +9,7 @@ import structlog
 
 from app.core.config import get_settings
 from app.core.database import engine, Base
-from app.api.v1 import scans, webhooks
+from app.api.v1 import scans, webhooks, auth as auth_router
 
 settings = get_settings()
 
@@ -89,6 +89,7 @@ async def limit_request_size(request: Request, call_next) -> Response:
 # ── Metrics (internal only — put behind VPC/auth in prod) ────────────────────
 Instrumentator().instrument(app).expose(app, endpoint='/metrics', include_in_schema=False)
 
+app.include_router(auth_router.router, prefix='/api/v1')
 app.include_router(scans.router, prefix='/api/v1')
 app.include_router(webhooks.router, prefix='/api/v1')
 
