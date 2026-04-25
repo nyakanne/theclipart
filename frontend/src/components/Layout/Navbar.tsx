@@ -71,7 +71,7 @@ export function Navbar() {
               </>
             ) : (
               <a
-                href={api.auth.googleLoginUrl()}
+                href={api.auth.loginUrl()}
                 className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-gray-300 bg-gray-800 hover:bg-gray-700 transition-colors"
               >
                 <LogIn className="h-4 w-4" />
