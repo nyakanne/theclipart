@@ -72,21 +72,22 @@ async def _log_call_event(
 
 
 def build_livekit_token(room_name: str, participant_name: str) -> Optional[str]:
-    """Generate a LiveKit access token for a call room."""
+    """Generate a LiveKit access token for a call room (livekit-api v1.x)."""
     if not settings.LIVEKIT_API_KEY or not settings.LIVEKIT_API_SECRET:
         logger.warning("LiveKit credentials not configured")
         return None
     try:
-        from livekit.api import AccessToken, VideoGrants
+        from livekit import api as livekit_api
         token = (
-            AccessToken(settings.LIVEKIT_API_KEY, settings.LIVEKIT_API_SECRET)
+            livekit_api.AccessToken(settings.LIVEKIT_API_KEY, settings.LIVEKIT_API_SECRET)
             .with_identity(participant_name)
             .with_name(participant_name)
-            .with_grants(VideoGrants(room_join=True, room=room_name))
+            .with_grants(livekit_api.VideoGrants(room_join=True, room=room_name))
         )
+        # to_jwt() is sync in livekit-api v1.x
         return token.to_jwt()
     except ImportError:
-        logger.warning("livekit package not installed")
+        logger.warning("livekit package not installed — voice calls will not connect")
         return None
     except Exception as exc:
         logger.error("LiveKit token generation failed: %s", exc)

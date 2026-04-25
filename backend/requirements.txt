@@ -1,51 +1,49 @@
 # ── Web framework ─────────────────────────────────────────────────────────────
-fastapi==0.111.0
-uvicorn[standard]==0.29.0
-python-multipart==0.0.9
+fastapi>=0.111.0
+uvicorn[standard]>=0.29.0
+python-multipart>=0.0.9
 
 # ── Database ──────────────────────────────────────────────────────────────────
-sqlalchemy==2.0.30
-asyncpg==0.29.0
-alembic==1.13.1
-psycopg2-binary==2.9.9
-pgvector==0.2.5
+sqlalchemy>=2.0.30
+asyncpg>=0.29.0
+alembic>=1.13.0
+psycopg2-binary>=2.9.9
+pgvector>=0.2.5
 
 # ── AI: Claude ────────────────────────────────────────────────────────────────
-anthropic==0.28.0
+anthropic>=0.28.0
 
-# ── AI: Embeddings ────────────────────────────────────────────────────────────
-openai==1.30.0
-sentence-transformers==3.0.0
+# ── AI: Embeddings (OpenAI — default, requires OPENAI_API_KEY) ────────────────
+openai>=1.30.0
+# For local embeddings (no API key, but adds ~2GB to image):
+#   pip install sentence-transformers
+# Then set EMBED_PROVIDER=local and EMBED_DIM=384 in .env
 
 # ── Queue / Scheduling ────────────────────────────────────────────────────────
-redis==5.0.4
-celery==5.4.0
-apscheduler==3.10.4
+redis>=5.0.4
+apscheduler>=3.10.4,<4.0
 
 # ── HTTP ──────────────────────────────────────────────────────────────────────
-httpx==0.27.0
-aiohttp==3.9.5
+httpx>=0.27.0
 
 # ── File processing ───────────────────────────────────────────────────────────
-python-magic==0.4.27
-pypdf==4.2.0
-python-docx==1.1.2
-markdown==3.6
+pypdf>=4.0.0
+python-docx>=1.1.0
+markdown>=3.6
 
 # ── Config / Validation ───────────────────────────────────────────────────────
-pydantic[email]==2.7.1
-pydantic-settings==2.2.1
-python-dotenv==1.0.1
+pydantic[email]>=2.7.0
+pydantic-settings>=2.2.0
+python-dotenv>=1.0.0
 
-# ── Voice ─────────────────────────────────────────────────────────────────────
-livekit==0.11.1
-livekit-api==0.6.1
-twilio==9.2.0
+# ── Voice (optional — system works without credentials) ───────────────────────
+livekit>=1.0.0
+livekit-api>=1.0.0
+twilio>=8.0.0
 
 # ── Monitoring ────────────────────────────────────────────────────────────────
-structlog==24.1.0
-prometheus-fastapi-instrumentator==7.0.0
+structlog>=24.1.0
 
 # ── Testing ───────────────────────────────────────────────────────────────────
-pytest==8.2.0
-pytest-asyncio==0.23.6
+pytest>=8.0.0
+pytest-asyncio>=0.23.0

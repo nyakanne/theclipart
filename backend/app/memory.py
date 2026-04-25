@@ -1,5 +1,6 @@
 """Memory engine: embed, store, and search memory chunks using pgvector."""
 
+import asyncio
 import logging
 import uuid
 from typing import Any
@@ -30,21 +31,38 @@ def _get_openai():
 def _get_local_model():
     global _local_model
     if _local_model is None:
-        from sentence_transformers import SentenceTransformer
-        _local_model = SentenceTransformer(settings.LOCAL_EMBED_MODEL)
+        try:
+            from sentence_transformers import SentenceTransformer
+            _local_model = SentenceTransformer(settings.LOCAL_EMBED_MODEL)
+        except ImportError:
+            raise ImportError(
+                "sentence-transformers is required for local embeddings. "
+                "Install it with: pip install sentence-transformers\n"
+                "Or switch to OpenAI embeddings: EMBED_PROVIDER=openai in .env"
+            )
     return _local_model
 
 
-def embed(text_input: str) -> list[float]:
+def _embed_sync(text_input: str) -> list[float]:
+    """Synchronous embedding — do not call directly from async code."""
     if settings.EMBED_PROVIDER == "openai":
-        resp = _get_openai().embeddings.create(model=settings.EMBED_MODEL, input=text_input)
+        resp = _get_openai().embeddings.create(
+            model=settings.EMBED_MODEL,
+            input=text_input,
+        )
         return resp.data[0].embedding
     else:
         model = _get_local_model()
         return model.encode(text_input, normalize_embeddings=True).tolist()
 
 
-# ── Storage ────────────────────────────────────────────────────────────────────
+async def embed(text_input: str) -> list[float]:
+    """Async embedding — runs sync work in a thread pool to avoid blocking the event loop."""
+    loop = asyncio.get_running_loop()
+    return await loop.run_in_executor(None, _embed_sync, text_input)
+
+
+# ── Text chunking ──────────────────────────────────────────────────────────────
 
 def _chunk_text(text_input: str, chunk_size: int = 300, overlap: int = 30) -> list[str]:
     words = text_input.split()
@@ -55,9 +73,13 @@ def _chunk_text(text_input: str, chunk_size: int = 300, overlap: int = 30) -> li
         chunk = " ".join(words[start:end])
         if chunk.strip():
             chunks.append(chunk)
+        if end >= len(words):
+            break
         start = end - overlap
     return chunks
 
+
+# ── Storage ────────────────────────────────────────────────────────────────────
 
 async def store_memory(
     session: AsyncSession,
@@ -84,17 +106,17 @@ async def store_memory(
     await session.flush()
 
     chunks = _chunk_text(content, chunk_size=chunk_size)
-    for i, chunk_text in enumerate(chunks):
+    for i, chunk_text_str in enumerate(chunks):
         try:
-            vec = embed(chunk_text)
+            vec = await embed(chunk_text_str)
         except Exception as exc:
-            logger.warning("Embedding failed for chunk %d: %s", i, exc)
+            logger.warning("Embedding failed for chunk %d: %s — using zero vector", i, exc)
             vec = [0.0] * settings.EMBED_DIM
 
         chunk = MemoryChunk(
             id=uuid.uuid4(),
             memory_id=mem.id,
-            content=chunk_text,
+            content=chunk_text_str,
             embedding=vec,
             chunk_index=i,
         )
@@ -105,6 +127,8 @@ async def store_memory(
     return mem
 
 
+# ── Search ─────────────────────────────────────────────────────────────────────
+
 async def search_chunks(
     session: AsyncSession,
     query: str,
@@ -112,12 +136,12 @@ async def search_chunks(
     threshold: float = 0.3,
 ) -> list[tuple[MemoryChunk, float]]:
     try:
-        query_vec = embed(query)
+        query_vec = await embed(query)
     except Exception as exc:
         logger.error("Embedding query failed: %s", exc)
         return []
 
-    # pgvector cosine distance; lower = more similar, so we negate for score
+    # pgvector cosine similarity: 1 - cosine_distance
     result = await session.execute(
         text(
             """
@@ -143,6 +167,8 @@ async def search_chunks(
 
     return chunks
 
+
+# ── CRUD helpers ───────────────────────────────────────────────────────────────
 
 async def get_memory(session: AsyncSession, memory_id: uuid.UUID) -> Memory | None:
     result = await session.execute(select(Memory).where(Memory.id == memory_id))

@@ -125,6 +125,21 @@ class AgentRecord(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
 
+class Project(Base):
+    __tablename__ = "projects"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    name: Mapped[str] = mapped_column(String(255))
+    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    status: Mapped[str] = mapped_column(String(50), default="active")
+    tags: Mapped[list] = mapped_column(JSON, default=list)
+    metadata_: Mapped[dict] = mapped_column("metadata", JSON, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    tasks: Mapped[list["Task"]] = relationship("Task", back_populates="project", cascade="all, delete-orphan")
+
+
 class Task(Base):
     __tablename__ = "tasks"
 
@@ -141,22 +156,7 @@ class Task(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
-
-class Project(Base):
-    __tablename__ = "projects"
-
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    name: Mapped[str] = mapped_column(String(255))
-    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    status: Mapped[str] = mapped_column(String(50), default="active")
-    tags: Mapped[list] = mapped_column(JSON, default=list)
-    metadata_: Mapped[dict] = mapped_column("metadata", JSON, default=dict)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-
-    tasks: Mapped[list["Task"]] = relationship(back_populates="project", cascade="all, delete-orphan")
-
-Task.project = relationship("Project", back_populates="tasks")
+    project: Mapped[Optional["Project"]] = relationship("Project", back_populates="tasks")
 
 
 class Contact(Base):

@@ -107,7 +107,6 @@ async def ingest_uploaded_file(
         metadata={"filename": filename, "content_type": content_type, **(metadata or {})},
         chunk_size=chunk_size,
     )
-    doc.source_document_id = doc.id  # self-reference not needed; stored on memory
     await session.commit()
     return doc, mem
 
