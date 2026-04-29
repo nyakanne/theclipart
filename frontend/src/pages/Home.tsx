@@ -191,7 +191,7 @@ export function Home({ initialTab = 'scan' }: { initialTab?: 'scan' | 'optout' |
   const [query, setQuery] = useState('')
   const [queryError, setQueryError] = useState('')
   const [introKey, setIntroKey] = useState(0)
-  const [introSettled, setIntroSettled] = useState(!!reduceMotion)
+  const [introSettled, setIntroSettled] = useState(false)
   const [completed, setCompleted] = useState<Record<string, boolean>>(() => {
     if (typeof window === 'undefined') return {}
     const saved = window.localStorage.getItem('dataguard-command-progress')
@@ -214,13 +214,8 @@ export function Home({ initialTab = 'scan' }: { initialTab?: 'scan' | 'optout' |
   const reportPacket = useMemo(() => buildIncidentPacket(incident), [incident])
 
   useEffect(() => {
-    if (reduceMotion) {
-      setIntroSettled(true)
-      return
-    }
-
     setIntroSettled(false)
-    const timer = window.setTimeout(() => setIntroSettled(true), 2800)
+    const timer = window.setTimeout(() => setIntroSettled(true), reduceMotion ? 1600 : 2800)
     return () => window.clearTimeout(timer)
   }, [introKey, reduceMotion])
 
