@@ -2,23 +2,30 @@ import json
 import logging
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
+from app.core.auth import get_current_user_id
 from app.core.database import get_db
 from app.core.security import encrypt_pii, generate_scan_id
 from app.models.scan import Scan, BreachRecord, BrokerListing, HoneyToken, HoneyTokenHit, DsarRequest, ComplianceResult
-from app.schemas.scan import ScanRequest, ScanJobOut, ScanResultOut, DsarRequestOut, ReportPackageOut
+from app.schemas.scan import ScanRequest, ScanJobOut, ScanResultOut, DsarRequestOut, ReportPackageOut, OptOutConfirmIn, OptOutQueueOut
 from app.workers.tasks import run_scan, send_dsar, generate_report
+from app.core.config import get_settings
 
 log = logging.getLogger(__name__)
 router = APIRouter(prefix='/scans', tags=['scans'])
+settings = get_settings()
 
 
 @router.post('', response_model=ScanJobOut, status_code=201)
-async def create_scan(body: ScanRequest, db: AsyncSession = Depends(get_db)):
+async def create_scan(
+    body: ScanRequest,
+    db: AsyncSession = Depends(get_db),
+    user_id: str | None = Depends(get_current_user_id),
+):
     if not body.has_any_identifier():
         raise HTTPException(400, 'Provide at least one identifier (email, phone, username, or full_name)')
 
@@ -28,9 +35,11 @@ async def create_scan(body: ScanRequest, db: AsyncSession = Depends(get_db)):
         id=scan_id,
         query_enc=encrypt_pii(json.dumps(query)),
         notify_email_enc=encrypt_pii(body.notify_email) if body.notify_email else None,
+        user_id=user_id,
     )
     db.add(scan)
     await db.flush()
+    await db.commit()
 
     run_scan.apply_async(args=[scan_id], task_id=f'scan-{scan_id}')
     log.info('Scan %s queued', scan_id)
@@ -45,10 +54,14 @@ async def create_scan(body: ScanRequest, db: AsyncSession = Depends(get_db)):
 
 
 @router.get('', response_model=list[ScanJobOut])
-async def list_scans(db: AsyncSession = Depends(get_db)):
-    result = await db.execute(
-        select(Scan).order_by(Scan.created_at.desc()).limit(50)
-    )
+async def list_scans(
+    db: AsyncSession = Depends(get_db),
+    user_id: str | None = Depends(get_current_user_id),
+):
+    stmt = select(Scan).order_by(Scan.created_at.desc()).limit(50)
+    if user_id is not None:
+        stmt = stmt.where(Scan.user_id == user_id)
+    result = await db.execute(stmt)
     scans = result.scalars().all()
     return [ScanJobOut(
         scan_id=s.id, status=s.status, progress=s.progress,
@@ -58,8 +71,12 @@ async def list_scans(db: AsyncSession = Depends(get_db)):
 
 
 @router.get('/{scan_id}/status', response_model=ScanJobOut)
-async def scan_status(scan_id: str, db: AsyncSession = Depends(get_db)):
-    scan = await _get_scan(scan_id, db)
+async def scan_status(
+    scan_id: str,
+    db: AsyncSession = Depends(get_db),
+    user_id: str | None = Depends(get_current_user_id),
+):
+    scan = await _get_scan(scan_id, db, user_id)
     return ScanJobOut(
         scan_id=scan.id, status=scan.status, progress=scan.progress,
         current_stage=scan.current_stage, estimated_seconds=scan.estimated_seconds,
@@ -68,7 +85,11 @@ async def scan_status(scan_id: str, db: AsyncSession = Depends(get_db)):
 
 
 @router.get('/{scan_id}', response_model=ScanResultOut)
-async def get_scan_result(scan_id: str, db: AsyncSession = Depends(get_db)):
+async def get_scan_result(
+    scan_id: str,
+    db: AsyncSession = Depends(get_db),
+    user_id: str | None = Depends(get_current_user_id),
+):
     result = await db.execute(
         select(Scan)
         .where(Scan.id == scan_id)
@@ -82,6 +103,7 @@ async def get_scan_result(scan_id: str, db: AsyncSession = Depends(get_db)):
     scan = result.scalar_one_or_none()
     if not scan:
         raise HTTPException(404, 'Scan not found')
+    _assert_scan_owner(scan, user_id)
 
     honey_hits = []
     for token in scan.honey_tokens:
@@ -122,8 +144,12 @@ async def get_scan_result(scan_id: str, db: AsyncSession = Depends(get_db)):
 
 
 @router.get('/{scan_id}/dsar', response_model=list[DsarRequestOut])
-async def list_dsar(scan_id: str, db: AsyncSession = Depends(get_db)):
-    await _get_scan(scan_id, db)
+async def list_dsar(
+    scan_id: str,
+    db: AsyncSession = Depends(get_db),
+    user_id: str | None = Depends(get_current_user_id),
+):
+    await _get_scan(scan_id, db, user_id)
     result = await db.execute(
         select(DsarRequest).where(DsarRequest.scan_id == scan_id)
     )
@@ -131,72 +157,169 @@ async def list_dsar(scan_id: str, db: AsyncSession = Depends(get_db)):
 
 
 @router.post('/{scan_id}/dsar/{broker_id}/send', response_model=DsarRequestOut)
-async def send_single_dsar(scan_id: str, broker_id: str, db: AsyncSession = Depends(get_db)):
-    await _get_scan(scan_id, db)
+async def send_single_dsar(
+    scan_id: str,
+    broker_id: str,
+    body: OptOutConfirmIn,
+    db: AsyncSession = Depends(get_db),
+    user_id: str | None = Depends(get_current_user_id),
+):
+    _assert_real_opt_out_confirmed(body)
+    await _get_scan(scan_id, db, user_id)
     result = await db.execute(select(BrokerListing).where(BrokerListing.id == broker_id, BrokerListing.scan_id == scan_id))
     listing = result.scalar_one_or_none()
     if not listing:
         raise HTTPException(404, 'Broker listing not found')
 
-    dsar = DsarRequest(scan_id=scan_id, broker_listing_id=broker_id, broker_name=listing.broker_name)
-    db.add(dsar)
-    await db.flush()
-    send_dsar.delay(scan_id, broker_id)
+    dsar = await _ensure_dsar(scan_id, listing, db)
+    dsar.status = 'queued'
+    listing.opt_out_status = 'in_progress'
+    await db.commit()
+    send_dsar.delay(scan_id, listing.id)
     return dsar
 
 
-@router.post('/{scan_id}/dsar/send-all')
-async def send_all_dsar(scan_id: str, db: AsyncSession = Depends(get_db)):
-    await _get_scan(scan_id, db)
+@router.post('/{scan_id}/dsar/send-all', response_model=OptOutQueueOut)
+async def send_all_dsar(
+    scan_id: str,
+    body: OptOutConfirmIn,
+    db: AsyncSession = Depends(get_db),
+    user_id: str | None = Depends(get_current_user_id),
+):
+    _assert_real_opt_out_confirmed(body)
+    await _get_scan(scan_id, db, user_id)
     result = await db.execute(
         select(BrokerListing)
         .where(BrokerListing.scan_id == scan_id, BrokerListing.dsar_eligible == True)
     )
     listings = result.scalars().all()
-    created = []
+    queued = 0
     for listing in listings:
-        dsar = DsarRequest(scan_id=scan_id, broker_listing_id=listing.id, broker_name=listing.broker_name)
-        db.add(dsar)
-        await db.flush()
+        dsar = await _ensure_dsar(scan_id, listing, db)
+        dsar.status = 'queued'
+        listing.opt_out_status = 'in_progress'
+        queued += 1
+    await db.commit()
+    for listing in listings:
         send_dsar.delay(scan_id, listing.id)
-        created.append(dsar)
-    return created
+    return OptOutQueueOut(
+        queued=queued,
+        skipped=0,
+        status='queued',
+        message='Real opt-out requests queued for delivery.',
+    )
 
 
 @router.post('/{scan_id}/opt-out/{broker_id}')
-async def opt_out_broker(scan_id: str, broker_id: str, db: AsyncSession = Depends(get_db)):
+async def opt_out_broker(
+    scan_id: str,
+    broker_id: str,
+    body: OptOutConfirmIn,
+    db: AsyncSession = Depends(get_db),
+    user_id: str | None = Depends(get_current_user_id),
+):
+    _assert_real_opt_out_confirmed(body)
+    await _get_scan(scan_id, db, user_id)
     result = await db.execute(select(BrokerListing).where(BrokerListing.id == broker_id, BrokerListing.scan_id == scan_id))
     listing = result.scalar_one_or_none()
     if not listing:
         raise HTTPException(404, 'Broker listing not found')
+    dsar = await _ensure_dsar(scan_id, listing, db)
+    dsar.status = 'queued'
     listing.opt_out_status = 'in_progress'
-    send_dsar.delay(scan_id, broker_id)
-    return {'status': 'in_progress'}
+    await db.commit()
+    send_dsar.delay(scan_id, listing.id)
+    return {'status': 'queued', 'dsar_request_id': dsar.id}
 
 
-@router.post('/{scan_id}/opt-out/all')
-async def opt_out_all(scan_id: str, db: AsyncSession = Depends(get_db)):
+@router.post('/{scan_id}/opt-out/all', response_model=OptOutQueueOut)
+async def opt_out_all(
+    scan_id: str,
+    body: OptOutConfirmIn,
+    db: AsyncSession = Depends(get_db),
+    user_id: str | None = Depends(get_current_user_id),
+):
+    _assert_real_opt_out_confirmed(body)
+    await _get_scan(scan_id, db, user_id)
     result = await db.execute(
         select(BrokerListing).where(BrokerListing.scan_id == scan_id, BrokerListing.opt_out_status == 'not_started')
     )
     listings = result.scalars().all()
+    queued = 0
     for listing in listings:
+        dsar = await _ensure_dsar(scan_id, listing, db)
+        dsar.status = 'queued'
         listing.opt_out_status = 'in_progress'
+        queued += 1
+    await db.commit()
+    for listing in listings:
         send_dsar.delay(scan_id, listing.id)
-    return {'queued': len(listings)}
+    return OptOutQueueOut(
+        queued=queued,
+        skipped=0,
+        status='queued',
+        message='One-stop opt-out requests queued for delivery.',
+    )
 
 
 @router.post('/{scan_id}/report', response_model=ReportPackageOut)
-async def create_report(scan_id: str, body: dict, db: AsyncSession = Depends(get_db)):
-    await _get_scan(scan_id, db)
+async def create_report(
+    scan_id: str,
+    body: dict,
+    db: AsyncSession = Depends(get_db),
+    user_id: str | None = Depends(get_current_user_id),
+):
+    await _get_scan(scan_id, db, user_id)
     fmt = body.get('format', 'pdf')
     result = generate_report.delay(scan_id, fmt).get(timeout=120)
     return result
 
 
-async def _get_scan(scan_id: str, db: AsyncSession) -> Scan:
+async def _get_scan(scan_id: str, db: AsyncSession, user_id: str | None = None) -> Scan:
     result = await db.execute(select(Scan).where(Scan.id == scan_id))
     scan = result.scalar_one_or_none()
     if not scan:
         raise HTTPException(404, 'Scan not found')
+    _assert_scan_owner(scan, user_id)
     return scan
+
+
+def _assert_scan_owner(scan: Scan, user_id: str | None) -> None:
+    if user_id is None:
+        return
+    if scan.user_id != user_id:
+        raise HTTPException(404, 'Scan not found')
+
+
+def _assert_real_opt_out_confirmed(body: OptOutConfirmIn) -> None:
+    if not settings.ALLOW_REAL_OPT_OUTS:
+        raise HTTPException(
+            409,
+            'Real opt-out delivery is disabled. Set ALLOW_REAL_OPT_OUTS=true and configure SES/email credentials before sending.',
+        )
+    if not body.confirmed:
+        raise HTTPException(
+            400,
+            'Explicit confirmation is required before transmitting personal data to broker privacy contacts.',
+        )
+
+
+async def _ensure_dsar(scan_id: str, listing: BrokerListing, db: AsyncSession) -> DsarRequest:
+    result = await db.execute(
+        select(DsarRequest).where(
+            DsarRequest.scan_id == scan_id,
+            DsarRequest.broker_listing_id == listing.id,
+        )
+    )
+    dsar = result.scalar_one_or_none()
+    if dsar:
+        return dsar
+    dsar = DsarRequest(
+        scan_id=scan_id,
+        broker_listing_id=listing.id,
+        broker_name=listing.broker_name,
+        status='draft',
+    )
+    db.add(dsar)
+    await db.flush()
+    return dsar

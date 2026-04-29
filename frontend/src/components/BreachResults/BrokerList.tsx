@@ -20,22 +20,38 @@ export function BrokerList({ listings, scanId, onUpdate }: {
 }) {
   const [loading, setLoading] = useState<string | null>(null)
   const [submittingAll, setSubmittingAll] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const handleOptOut = async (brokerId: string) => {
+    const listing = listings.find(item => item.id === brokerId)
+    const confirmed = window.confirm(
+      `Send a real removal request to ${listing?.broker_name ?? 'this broker'}?\n\nThis will transmit the scan identifiers you provided, such as name, email, phone, or username, to the broker privacy contact so they can process deletion.`
+    )
+    if (!confirmed) return
     setLoading(brokerId)
+    setError(null)
     try {
       await api.optOut.initiate(scanId, brokerId)
       onUpdate?.()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Opt-out request failed')
     } finally {
       setLoading(null)
     }
   }
 
   const handleOptOutAll = async () => {
+    const confirmed = window.confirm(
+      `Send real removal requests to ${pendingCount} broker contacts?\n\nThis will transmit the personal identifiers from this scan to broker privacy contacts. Use this only for yourself or someone who authorized you.`
+    )
+    if (!confirmed) return
     setSubmittingAll(true)
+    setError(null)
     try {
       await api.optOut.initiateAll(scanId)
       onUpdate?.()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'One-stop opt-out failed')
     } finally {
       setSubmittingAll(false)
     }
@@ -57,7 +73,7 @@ export function BrokerList({ listings, scanId, onUpdate }: {
       {pendingCount > 0 && (
         <div className="flex items-center justify-between border border-orange-500/30 bg-orange-950/20 px-4 py-3">
           <span className="text-sm text-yellow-300">
-            {pendingCount} brokers still need action. Open the opt-out site, submit the broker flow, then request deletion here.
+            {pendingCount} brokers still need action. One-stop opt-out sends real deletion requests when backend email delivery is configured.
           </span>
           <Button
             size="sm"
@@ -65,8 +81,14 @@ export function BrokerList({ listings, scanId, onUpdate }: {
             loading={submittingAll}
             onClick={handleOptOutAll}
           >
-            Purge All
+            One-Stop Opt Out
           </Button>
+        </div>
+      )}
+
+      {error && (
+        <div className="rounded-lg border border-red-500/35 bg-red-950/25 px-4 py-3 text-sm leading-6 text-red-100">
+          {error}
         </div>
       )}
 

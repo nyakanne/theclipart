@@ -23,6 +23,7 @@ class Scan(Base):
 
     # Encrypted PII vault (KMS envelope)
     query_enc: Mapped[str] = mapped_column(Text)
+    user_id: Mapped[str | None] = mapped_column(String(128), index=True, nullable=True)
 
     risk_score: Mapped[float] = mapped_column(Float, default=0.0)
     total_exposures: Mapped[int] = mapped_column(Integer, default=0)

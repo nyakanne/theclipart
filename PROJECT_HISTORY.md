@@ -152,3 +152,16 @@ http://127.0.0.1:3000/
 - The local Git remote is `https://github.com/nyakanne/theclipart.git`.
 - Publishing to GitHub uploads this code externally.
 - Confirm repo target and visibility before pushing.
+
+## 12. Production Lock-In Pass
+
+- Added a production deployment guide in `DEPLOYMENT.md`.
+- Added frontend and backend env templates for Supabase, real opt-out delivery, and safe secret handling.
+- Added Supabase JWT ownership checks in the backend.
+- Added a Supabase magic-link account page in the frontend.
+- Added API bearer-token forwarding from the frontend to the backend.
+- Added `user_id` ownership on scans and an Alembic migration for existing databases.
+- Hardened PII encryption so non-KMS deployments use a Fernet key derived from `SECRET_KEY` instead of storing the encryption key beside the ciphertext.
+- Made real opt-out endpoints require `confirmed: true` before transmitting identifiers to broker contacts.
+- Fixed the real opt-out path so single and one-stop opt-outs create persistent DSAR/removal request rows before queueing Celery delivery jobs.
+- Added runtime safety checks so production cannot run with demo mode or default secrets.

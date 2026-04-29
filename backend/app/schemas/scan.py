@@ -110,6 +110,17 @@ class DsarRequestOut(BaseModel):
     model_config = {'from_attributes': True}
 
 
+class OptOutConfirmIn(BaseModel):
+    confirmed: bool = False
+
+
+class OptOutQueueOut(BaseModel):
+    queued: int
+    skipped: int = 0
+    status: str
+    message: str
+
+
 class ScanResultOut(BaseModel):
     scan_id: str
     status: ScanStatus

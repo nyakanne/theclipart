@@ -2,7 +2,7 @@ import hashlib
 import hmac
 import secrets
 import boto3
-from base64 import b64encode, b64decode
+from base64 import b64encode, b64decode, urlsafe_b64encode
 from cryptography.fernet import Fernet
 from .config import get_settings
 
@@ -18,11 +18,15 @@ def _kms_client():
     )
 
 
+def _local_fernet() -> Fernet:
+    key = urlsafe_b64encode(hashlib.sha256(settings.SECRET_KEY.encode()).digest())
+    return Fernet(key)
+
+
 def encrypt_pii(plaintext: str) -> str:
-    """Envelope-encrypt PII with KMS data key. Falls back to Fernet in dev."""
+    """Encrypt PII with KMS when configured, otherwise with local Fernet."""
     if not settings.KMS_KEY_ID:
-        key = Fernet.generate_key()
-        return 'dev:' + b64encode(key + b'|' + Fernet(key).encrypt(plaintext.encode())).decode()
+        return 'local:' + _local_fernet().encrypt(plaintext.encode()).decode()
     kms = _kms_client()
     resp = kms.generate_data_key(KeyId=settings.KMS_KEY_ID, KeySpec='AES_256')
     plaintext_key = resp['Plaintext']
@@ -33,6 +37,8 @@ def encrypt_pii(plaintext: str) -> str:
 
 
 def decrypt_pii(token: str) -> str:
+    if token.startswith('local:'):
+        return _local_fernet().decrypt(token[6:].encode()).decode()
     if token.startswith('dev:'):
         raw = b64decode(token[4:])
         key, ciphertext = raw[:44], raw[45:]

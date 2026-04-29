@@ -4,6 +4,7 @@ import { Navbar } from '@/components/Layout/Navbar'
 import { Home } from '@/pages/Home'
 import { ScanPage } from '@/pages/ScanPage'
 import { Dashboard } from '@/pages/Dashboard'
+import { Account } from '@/pages/Account'
 
 const qc = new QueryClient({
   defaultOptions: {
@@ -27,6 +28,7 @@ export default function App() {
               <Route path="/opt-out" element={<Home initialTab="optout" />} />
               <Route path="/image-search" element={<Home initialTab="image" />} />
               <Route path="/reports" element={<Home initialTab="authority" />} />
+              <Route path="/account" element={<Account />} />
               <Route path="/scan/:scanId" element={<ScanPage />} />
               <Route path="/dashboard" element={<Dashboard />} />
             </Routes>

@@ -92,7 +92,7 @@ export interface DsarRequest {
   scan_id: string
   broker_listing_id: string
   broker_name: string
-  status: 'draft' | 'sent' | 'acknowledged' | 'fulfilled' | 'denied' | 'overdue'
+  status: 'draft' | 'queued' | 'sent' | 'acknowledged' | 'fulfilled' | 'denied' | 'overdue' | 'failed'
   sent_at?: string
   deadline_at?: string
   response?: string

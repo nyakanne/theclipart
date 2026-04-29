@@ -39,6 +39,8 @@ services:
       redis:
         condition: service_healthy
     environment:
+      DEMO_MODE: "false"
+      PUBLIC_APP_URL: http://localhost:3000
       DATABASE_URL: postgresql+asyncpg://dataguard:secret@postgres:5432/dataguard
       SYNC_DATABASE_URL: postgresql://dataguard:secret@postgres:5432/dataguard
       REDIS_URL: redis://redis:6379/0
@@ -64,6 +66,7 @@ services:
       redis:
         condition: service_healthy
     environment:
+      DEMO_MODE: "false"
       DATABASE_URL: postgresql+asyncpg://dataguard:secret@postgres:5432/dataguard
       SYNC_DATABASE_URL: postgresql://dataguard:secret@postgres:5432/dataguard
       REDIS_URL: redis://redis:6379/0
@@ -89,6 +92,7 @@ services:
       postgres:
         condition: service_healthy
     environment:
+      DEMO_MODE: "false"
       DATABASE_URL: postgresql+asyncpg://dataguard:secret@postgres:5432/dataguard
       SYNC_DATABASE_URL: postgresql://dataguard:secret@postgres:5432/dataguard
       REDIS_URL: redis://redis:6379/0
@@ -120,6 +124,9 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      args:
+        VITE_SUPABASE_URL: ${VITE_SUPABASE_URL:-}
+        VITE_SUPABASE_ANON_KEY: ${VITE_SUPABASE_ANON_KEY:-}
     restart: unless-stopped
     depends_on:
       - backend

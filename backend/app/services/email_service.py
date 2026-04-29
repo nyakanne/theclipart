@@ -6,7 +6,7 @@ from __future__ import annotations
 import logging
 
 import boto3
-from botocore.exceptions import ClientError
+from botocore.exceptions import BotoCoreError, ClientError
 from jinja2 import Environment, BaseLoader
 
 from app.core.config import get_settings
@@ -70,17 +70,20 @@ def send_scan_complete(notify_email: str, scan_id: str, risk_score: float, breac
         f'Your DataGuard scan ({scan_id}) is complete.\n\n'
         f'Risk score: {risk_score:.0f}/100\n'
         f'Breach records found: {breach_count}\n\n'
-        f'View your full report at: https://dataguard.example.com/scan/{scan_id}\n'
+        f'View your full report at: {settings.PUBLIC_APP_URL.rstrip("/")}/scan/{scan_id}\n'
     )
     return _send(notify_email, subject, body)
 
 
 def _send(to: str, subject: str, body: str) -> bool:
-    if not settings.AWS_ACCESS_KEY_ID:
-        log.info('SES not configured, skipping email to %s', to)
-        return False
     try:
-        ses = boto3.client('ses', region_name=settings.AWS_REGION)
+        ses_kwargs = {'region_name': settings.AWS_REGION}
+        if settings.AWS_ACCESS_KEY_ID and settings.AWS_SECRET_ACCESS_KEY:
+            ses_kwargs.update(
+                aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
+                aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
+            )
+        ses = boto3.client('ses', **ses_kwargs)
         ses.send_email(
             Source=settings.SES_FROM_EMAIL,
             Destination={'ToAddresses': [to]},
@@ -91,6 +94,6 @@ def _send(to: str, subject: str, body: str) -> bool:
         )
         log.info('Email sent to %s', to)
         return True
-    except ClientError as e:
+    except (BotoCoreError, ClientError) as e:
         log.error('SES send failed: %s', e)
         return False

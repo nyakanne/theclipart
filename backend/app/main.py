@@ -10,6 +10,7 @@ import structlog
 from app.core.config import get_settings
 
 settings = get_settings()
+settings.validate_runtime_safety()
 
 structlog.configure(
     processors=[
@@ -65,7 +66,7 @@ else:
 
 @app.get('/', include_in_schema=False)
 async def root():
-    return RedirectResponse(url='http://127.0.0.1:3000/')
+    return RedirectResponse(url=settings.PUBLIC_APP_URL)
 
 
 @app.get('/health')

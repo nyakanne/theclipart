@@ -14,6 +14,7 @@ The current app combines:
 - A compliance and authority report center for CCPA/CPRA, California Delete Act, FTC Act Section 5, cyberstalking, NCII/NDII signals, IC3, state AG, CCRI, and platform reporting.
 
 See [PROJECT_HISTORY.md](./PROJECT_HISTORY.md) for the step-by-step build record.
+See [DEPLOYMENT.md](./DEPLOYMENT.md) for Supabase, secret storage, production auth, and real opt-out hosting steps.
 
 ## Run Locally
 
@@ -48,6 +49,8 @@ Useful routes:
 ## Production-Style Stack
 
 The repository also includes Dockerfiles and `docker-compose.yml` for the full stack with Postgres, Redis, Celery workers, and the production frontend container. The production path expects Docker to be running.
+
+For a live internet deployment, run the app with `DEMO_MODE=false`, Supabase Auth, Postgres, Redis, and verified email delivery. Real one-stop opt-out delivery is intentionally gated behind `ALLOW_REAL_OPT_OUTS=true` plus an in-app user confirmation because it transmits personal identifiers to broker privacy contacts.
 
 ## GitHub Publishing
 

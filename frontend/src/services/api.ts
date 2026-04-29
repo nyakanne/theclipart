@@ -2,6 +2,7 @@ import axios from 'axios'
 import type {
   ScanRequest, ScanJob, ScanResult, DsarRequest, ReportPackage
 } from '@/types'
+import { getSupabaseAccessToken } from '@/services/supabase'
 
 const http = axios.create({
   baseURL: '/api/v1',
@@ -16,6 +17,14 @@ http.interceptors.response.use(
     return Promise.reject(new Error(msg))
   }
 )
+
+http.interceptors.request.use(async config => {
+  const token = await getSupabaseAccessToken()
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`
+  }
+  return config
+})
 
 export const api = {
   scan: {
@@ -37,10 +46,10 @@ export const api = {
       http.get<DsarRequest[]>(`/scans/${scanId}/dsar`).then(r => r.data),
 
     send: (scanId: string, brokerId: string) =>
-      http.post<DsarRequest>(`/scans/${scanId}/dsar/${brokerId}/send`).then(r => r.data),
+      http.post<DsarRequest>(`/scans/${scanId}/dsar/${brokerId}/send`, { confirmed: true }).then(r => r.data),
 
     sendAll: (scanId: string) =>
-      http.post<DsarRequest[]>(`/scans/${scanId}/dsar/send-all`).then(r => r.data),
+      http.post<{ queued: number; skipped: number; status: string; message: string }>(`/scans/${scanId}/dsar/send-all`, { confirmed: true }).then(r => r.data),
   },
 
   report: {
@@ -50,9 +59,9 @@ export const api = {
 
   optOut: {
     initiate: (scanId: string, brokerId: string) =>
-      http.post(`/scans/${scanId}/opt-out/${brokerId}`).then(r => r.data),
+      http.post(`/scans/${scanId}/opt-out/${brokerId}`, { confirmed: true }).then(r => r.data),
 
     initiateAll: (scanId: string) =>
-      http.post(`/scans/${scanId}/opt-out/all`).then(r => r.data),
+      http.post<{ queued: number; skipped: number; status: string; message: string }>(`/scans/${scanId}/opt-out/all`, { confirmed: true }).then(r => r.data),
   },
 }

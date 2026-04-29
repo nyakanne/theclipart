@@ -41,7 +41,7 @@ export function Navbar() {
           </div>
 
           <div className="flex items-center gap-4">
-            <Link to="/reports" className="hidden text-sm font-medium text-gray-300 transition-colors hover:text-white sm:inline-flex">
+            <Link to="/account" className="hidden text-sm font-medium text-gray-300 transition-colors hover:text-white sm:inline-flex">
               Log in
             </Link>
             <Link

@@ -23,6 +23,10 @@ class Settings(BaseSettings):
     S3_BUCKET: str = 'dataguard-artefacts'
     KMS_KEY_ID: str = ''
     SES_FROM_EMAIL: str = 'noreply@dataguard.example.com'
+    PUBLIC_APP_URL: str = 'http://localhost:3000'
+    ALLOW_REAL_OPT_OUTS: bool = False
+    REQUIRE_AUTH: bool = False
+    SUPABASE_JWT_SECRET: str = ''
 
     HIBP_API_KEY: str = ''
 
@@ -48,6 +52,16 @@ class Settings(BaseSettings):
     @property
     def is_production(self) -> bool:
         return self.APP_ENV == 'production'
+
+    def validate_runtime_safety(self) -> None:
+        if self.is_production and self.DEMO_MODE:
+            raise RuntimeError('DEMO_MODE cannot be enabled in production.')
+        if self.is_production and self.SECRET_KEY in {'dev-secret-change-me', 'change-me-32-chars-minimum-please'}:
+            raise RuntimeError('Set a strong SECRET_KEY before running in production.')
+        if self.is_production and self.REQUIRE_AUTH and not self.SUPABASE_JWT_SECRET:
+            raise RuntimeError('Set SUPABASE_JWT_SECRET when REQUIRE_AUTH=true.')
+        if self.ALLOW_REAL_OPT_OUTS and not self.SES_FROM_EMAIL:
+            raise RuntimeError('SES_FROM_EMAIL is required when ALLOW_REAL_OPT_OUTS=true.')
 
 
 @lru_cache
