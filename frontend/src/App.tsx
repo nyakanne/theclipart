@@ -27,6 +27,7 @@ export default function App() {
               <Route path="/lookup" element={<Home initialTab="find" />} />
               <Route path="/opt-out" element={<Home initialTab="optout" />} />
               <Route path="/image-search" element={<Home initialTab="image" />} />
+              <Route path="/track" element={<Home initialTab="monitor" />} />
               <Route path="/reports" element={<Home initialTab="authority" />} />
               <Route path="/account" element={<Account />} />
               <Route path="/scan/:scanId" element={<ScanPage />} />

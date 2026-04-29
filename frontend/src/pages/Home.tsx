@@ -12,7 +12,9 @@ import {
   Gavel,
   Hash,
   LifeBuoy,
+  Link2,
   Lock,
+  Map,
   Mail,
   Network,
   PhoneCall,
@@ -25,7 +27,9 @@ import {
   ShieldAlert,
   ShieldCheck,
   Siren,
+  Target,
   Upload,
+  UserSearch,
 } from 'lucide-react'
 import { clsx } from 'clsx'
 import { ExposureLookupPanel } from '@/components/Investigation/ExposureLookupPanel'
@@ -82,6 +86,15 @@ const SUPPORT_RESOURCES = [
   { name: 'NCMEC Take It Down', url: 'https://takeitdown.ncmec.org/', detail: 'Under-18 intimate image hash protection with NCMEC' },
 ] as const
 
+const TRACK_RESOURCES = [
+  { name: 'Google Alerts', url: 'https://alerts.google.com', type: 'Monitoring', note: 'Monitor your name, known abusive handles, public URLs, and exact phrases from threats.' },
+  { name: 'WhatsMyName', url: 'https://whatsmyname.app', type: 'Username check', note: 'Check known public usernames across platforms. Do not use this for harassment or doxxing.' },
+  { name: 'Epieos', url: 'https://epieos.com', type: 'Authorized lookup', note: 'Use only for accounts you own, manage, or have explicit permission to investigate.' },
+  { name: 'TinEye', url: 'https://tineye.com', type: 'Image evidence', note: 'Reverse-search profile or incident images you are allowed to use as evidence.' },
+  { name: 'Google Lens', url: 'https://lens.google.com', type: 'Image evidence', note: 'Find reposts or visual matches for report documentation.' },
+  { name: 'IC3', url: 'https://www.ic3.gov/', type: 'Authority report', note: 'Use for cyberstalking, sextortion, extortion, identity theft, or account compromise.' },
+] as const
+
 const DEFAULT_REMOVAL_PROFILE = {
   fullName: '',
   email: '',
@@ -104,7 +117,19 @@ const DEFAULT_INCIDENT = {
 }
 type IncidentDraft = typeof DEFAULT_INCIDENT
 
-type HomeSection = 'overview' | 'lookup' | 'removal' | 'shield' | 'reports' | 'support'
+const DEFAULT_ACTOR_TRACKER = {
+  actorLabel: '',
+  knownAccounts: '',
+  knownEmails: '',
+  knownPhones: '',
+  incidentUrls: '',
+  timeline: '',
+  evidenceNotes: '',
+  reportNumbers: '',
+}
+type ActorTrackerDraft = typeof DEFAULT_ACTOR_TRACKER
+
+type HomeSection = 'overview' | 'lookup' | 'track' | 'removal' | 'shield' | 'reports' | 'support'
 
 const PRIORITY_STYLES = {
   CRITICAL: 'border-red-500/40 bg-red-950/30 text-red-200',
@@ -177,6 +202,31 @@ function buildIncidentPacket(incident: IncidentDraft) {
   ].join('\n')
 }
 
+function buildActorPacket(tracker: ActorTrackerDraft) {
+  const fallback = (value: string, label: string) => value.trim() || `[${label}]`
+  return [
+    'DATA GUARD ACTOR EVIDENCE TRACKER',
+    '',
+    `Actor / case label: ${fallback(tracker.actorLabel, 'known name, alias, or case label')}`,
+    `Known accounts: ${fallback(tracker.knownAccounts, 'public profile URLs, usernames, user IDs')}`,
+    `Known emails: ${fallback(tracker.knownEmails, 'known emails only, if already available')}`,
+    `Known phones: ${fallback(tracker.knownPhones, 'known phone numbers only, if already available')}`,
+    `Incident URLs: ${fallback(tracker.incidentUrls, 'posts, messages, profiles, image URLs, broker listings')}`,
+    '',
+    'Timeline:',
+    fallback(tracker.timeline, 'dates, times, platform actions, report submissions'),
+    '',
+    'Evidence notes:',
+    fallback(tracker.evidenceNotes, 'screenshots, hashes, filenames, witnesses, context'),
+    '',
+    'Report / ticket numbers:',
+    fallback(tracker.reportNumbers, 'platform, IC3, police, school, employer, attorney, or advocate reference numbers'),
+    '',
+    'Safety boundary:',
+    'Use this tracker to preserve evidence and organize reports. Do not attempt physical tracking, credential access, harassment, or doxxing.',
+  ].join('\n')
+}
+
 export function Home({ initialTab = 'scan' }: { initialTab?: 'scan' | 'optout' | 'find' | 'image' | 'authority' | 'monitor' }) {
   const navigate = useNavigate()
   const reduceMotion = useReducedMotion()
@@ -186,6 +236,7 @@ export function Home({ initialTab = 'scan' }: { initialTab?: 'scan' | 'optout' |
       : initialTab === 'optout' ? 'removal'
         : initialTab === 'find' ? 'lookup'
           : initialTab === 'image' ? 'shield'
+            : initialTab === 'monitor' ? 'track'
             : 'overview'
   const [section, setSection] = useState<HomeSection>(initialSection)
   const [query, setQuery] = useState('')
@@ -199,6 +250,7 @@ export function Home({ initialTab = 'scan' }: { initialTab?: 'scan' | 'optout' |
   })
   const [removalProfile, setRemovalProfile] = useState<RemovalProfile>(DEFAULT_REMOVAL_PROFILE)
   const [incident, setIncident] = useState<IncidentDraft>(DEFAULT_INCIDENT)
+  const [actorTracker, setActorTracker] = useState<ActorTrackerDraft>(DEFAULT_ACTOR_TRACKER)
   const [copied, setCopied] = useState<string | null>(null)
   const [hashReceipt, setHashReceipt] = useState<null | {
     fileName: string
@@ -212,12 +264,24 @@ export function Home({ initialTab = 'scan' }: { initialTab?: 'scan' | 'optout' |
   const completion = Math.round((brokerDone / DATA_BROKERS.length) * 100)
 
   const reportPacket = useMemo(() => buildIncidentPacket(incident), [incident])
+  const actorPacket = useMemo(() => buildActorPacket(actorTracker), [actorTracker])
 
   useEffect(() => {
     setIntroSettled(false)
     const timer = window.setTimeout(() => setIntroSettled(true), reduceMotion ? 1600 : 2800)
     return () => window.clearTimeout(timer)
   }, [introKey, reduceMotion])
+
+  useEffect(() => {
+    if (initialTab === 'scan') return
+    const timer = window.setTimeout(() => {
+      document.getElementById('command-center')?.scrollIntoView({
+        behavior: reduceMotion ? 'auto' : 'smooth',
+        block: 'start',
+      })
+    }, reduceMotion ? 100 : 450)
+    return () => window.clearTimeout(timer)
+  }, [initialTab, reduceMotion])
 
   const runScan = async (event: FormEvent) => {
     event.preventDefault()
@@ -269,6 +333,11 @@ export function Home({ initialTab = 'scan' }: { initialTab?: 'scan' | 'optout' |
     markCopied('incident-report')
   }
 
+  const copyActorPacket = async () => {
+    await copyText(actorPacket)
+    markCopied('actor-packet')
+  }
+
   const hashFile = async (file: File) => {
     const buffer = await file.arrayBuffer()
     const digest = await crypto.subtle.digest('SHA-256', buffer)
@@ -299,6 +368,7 @@ export function Home({ initialTab = 'scan' }: { initialTab?: 'scan' | 'optout' |
   const sections = [
     { id: 'overview' as const, label: 'Dashboard', icon: Shield },
     { id: 'lookup' as const, label: 'Find Yourself', icon: Search },
+    { id: 'track' as const, label: 'Track Him', icon: Target },
     { id: 'removal' as const, label: 'Removals', icon: ClipboardCheck },
     { id: 'shield' as const, label: 'Image Search', icon: Hash },
     { id: 'reports' as const, label: 'Reports', icon: Gavel },
@@ -408,8 +478,10 @@ export function Home({ initialTab = 'scan' }: { initialTab?: 'scan' | 'optout' |
         </div>
       </section>
 
-      <section className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
-        <div className="mb-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-6">
+      <FullDataMap />
+
+      <section id="command-center" className="mx-auto max-w-7xl scroll-mt-24 px-4 py-10 sm:px-6 lg:px-8">
+        <div className="mb-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-7">
           {sections.map(({ id, label, icon: Icon }) => (
             <button
               key={id}
@@ -467,6 +539,16 @@ export function Home({ initialTab = 'scan' }: { initialTab?: 'scan' | 'optout' |
         )}
 
         {section === 'lookup' && <ExposureLookupPanel />}
+
+        {section === 'track' && (
+          <ActorTracker
+            tracker={actorTracker}
+            setTracker={setActorTracker}
+            actorPacket={actorPacket}
+            copyActorPacket={copyActorPacket}
+            copied={copied}
+          />
+        )}
 
         {section === 'removal' && (
           <RemovalHub
@@ -622,6 +704,157 @@ function SidePanel({ title, value, body }: { title: string; value: string; body:
       <div className="mt-3 text-4xl font-black text-red-500">{value}</div>
       <p className="mt-2 text-sm leading-6 text-gray-400">{body}</p>
     </div>
+  )
+}
+
+function FullDataMap() {
+  const mapSignals = [
+    { label: 'People search', value: '23', icon: UserSearch },
+    { label: 'Broker sites', value: '47', icon: Database },
+    { label: 'Public records', value: '12', icon: Gavel },
+    { label: 'Social profiles', value: '19', icon: Network },
+    { label: 'Breach data', value: '6', icon: ShieldAlert },
+    { label: 'Ad networks', value: '89', icon: Link2 },
+  ]
+
+  return (
+    <section id="data-map" className="border-b border-white/10 bg-black">
+      <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
+        <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.26em] text-red-300">In-house exposure graph</p>
+            <h2 className="mt-2 text-3xl font-black text-white">Full Data Map</h2>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-gray-400">
+              The map stays on the page: brokers, people-search sites, public records, breach traces, social profiles, and report pathways connect into one command view.
+            </p>
+          </div>
+          <a href="#command-center" className="inline-flex items-center gap-2 rounded-lg border border-red-500/40 bg-red-950/25 px-4 py-3 text-sm font-bold text-red-100 transition-colors hover:border-red-400 hover:bg-red-900/35">
+            <Map className="h-4 w-4" />
+            Open command center
+          </a>
+        </div>
+
+        <div className="grid gap-5 lg:grid-cols-[1fr_360px]">
+          <div className="glass-panel overflow-hidden rounded-xl">
+            <ExposureGraph focused totalSources={273} className="min-h-[640px]" />
+          </div>
+          <div className="space-y-3">
+            {mapSignals.map(({ label, value, icon: Icon }) => (
+              <div key={label} className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <span className="grid h-10 w-10 place-items-center rounded-full border border-red-500/35 bg-red-950/20 text-red-300">
+                      <Icon className="h-5 w-5" />
+                    </span>
+                    <div>
+                      <div className="font-bold text-white">{label}</div>
+                      <div className="text-xs uppercase tracking-[0.14em] text-gray-500">linked source group</div>
+                    </div>
+                  </div>
+                  <div className="text-3xl font-black text-red-400">{value}</div>
+                </div>
+              </div>
+            ))}
+            <div className="rounded-xl border border-red-500/25 bg-red-950/15 p-4">
+              <div className="text-xs font-bold uppercase tracking-[0.18em] text-red-200">Map output</div>
+              <p className="mt-2 text-sm leading-6 text-gray-300">
+                Every confirmed source can become either a broker removal, image-search evidence item, actor evidence note, or authority report line.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  )
+}
+
+function ActorTracker({
+  tracker,
+  setTracker,
+  actorPacket,
+  copyActorPacket,
+  copied,
+}: {
+  tracker: ActorTrackerDraft
+  setTracker: (tracker: ActorTrackerDraft) => void
+  actorPacket: string
+  copyActorPacket: () => void
+  copied: string | null
+}) {
+  const update = (field: keyof ActorTrackerDraft, value: string) => setTracker({ ...tracker, [field]: value })
+
+  return (
+    <motion.div id="track-him" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="grid gap-5 scroll-mt-24 lg:grid-cols-[390px_1fr]">
+      <aside className="glass-panel rounded-xl p-5">
+        <div className="flex items-center gap-3 border-b border-white/10 pb-4">
+          <Target className="h-6 w-6 text-red-300" />
+          <div>
+            <h2 className="font-bold">Track Him</h2>
+            <p className="text-xs text-gray-500">Actor evidence, accounts, reports, and safety timeline.</p>
+          </div>
+        </div>
+        <div className="mt-4 rounded-lg border border-yellow-500/25 bg-yellow-950/10 p-3 text-xs leading-5 text-yellow-100/80">
+          Evidence tracking only. This does not support physical tracking, credential access, harassment, or doxxing.
+        </div>
+        <div className="mt-4 space-y-3">
+          <Field label="Actor / case label" value={tracker.actorLabel} onChange={value => update('actorLabel', value)} />
+          <Field label="Known accounts / user IDs" value={tracker.knownAccounts} onChange={value => update('knownAccounts', value)} multiline />
+          <Field label="Known emails" value={tracker.knownEmails} onChange={value => update('knownEmails', value)} multiline />
+          <Field label="Known phones" value={tracker.knownPhones} onChange={value => update('knownPhones', value)} multiline />
+          <Field label="Incident URLs" value={tracker.incidentUrls} onChange={value => update('incidentUrls', value)} multiline />
+          <Field label="Timeline" value={tracker.timeline} onChange={value => update('timeline', value)} multiline />
+          <Field label="Evidence notes" value={tracker.evidenceNotes} onChange={value => update('evidenceNotes', value)} multiline />
+          <Field label="Report numbers" value={tracker.reportNumbers} onChange={value => update('reportNumbers', value)} multiline />
+        </div>
+        <button type="button" onClick={copyActorPacket} className="red-button-glow mt-4 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-red-600 px-4 py-3 font-bold text-white">
+          <Copy className="h-4 w-4" />
+          {copied === 'actor-packet' ? 'Copied tracker' : 'Copy tracker packet'}
+        </button>
+      </aside>
+
+      <section className="space-y-4">
+        <div className="glass-panel rounded-xl p-5">
+          <h3 className="font-bold">Track and monitor toolkit</h3>
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            {TRACK_RESOURCES.map(resource => (
+              <a key={resource.name} href={resource.url} target="_blank" rel="noopener noreferrer" className="rounded-lg border border-white/10 bg-black/45 p-4 transition-colors hover:border-red-500/50">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <div className="font-semibold">{resource.name}</div>
+                    <div className="mt-1 text-[11px] font-bold uppercase tracking-[0.14em] text-red-300">{resource.type}</div>
+                  </div>
+                  <ExternalLink className="h-4 w-4 text-red-400" />
+                </div>
+                <p className="mt-2 text-sm leading-6 text-gray-500">{resource.note}</p>
+              </a>
+            ))}
+          </div>
+        </div>
+
+        <div className="glass-panel rounded-xl p-5">
+          <h3 className="font-bold">Actor evidence map</h3>
+          <div className="mt-5 grid gap-3 sm:grid-cols-3">
+            {[
+              ['Known IDs', tracker.knownAccounts || 'Add accounts'],
+              ['Incidents', tracker.incidentUrls || 'Add URLs'],
+              ['Reports', tracker.reportNumbers || 'Add report IDs'],
+            ].map(([label, value]) => (
+              <div key={label} className="rounded-lg border border-white/10 bg-black/45 p-4">
+                <div className="text-xs font-bold uppercase tracking-[0.18em] text-gray-500">{label}</div>
+                <div className="mt-3 line-clamp-4 whitespace-pre-wrap text-sm leading-6 text-gray-200">{value}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="glass-panel rounded-xl p-5">
+          <h3 className="font-bold">Generated tracker preview</h3>
+          <pre className="mt-4 max-h-96 overflow-auto whitespace-pre-wrap rounded-lg border border-white/10 bg-black/60 p-4 font-mono text-xs leading-5 text-gray-300">
+            {actorPacket}
+          </pre>
+        </div>
+      </section>
+    </motion.div>
   )
 }
 

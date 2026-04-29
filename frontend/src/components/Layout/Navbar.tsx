@@ -6,6 +6,7 @@ const navItems = [
   { label: 'How It Works', href: '/#how-it-works' },
   { label: 'Product', href: '/#product', hasMenu: true },
   { label: 'Find Yourself', href: '/lookup' },
+  { label: 'Track Him', href: '/track#command-center' },
   { label: 'Image Search', href: '/image-search' },
   { label: 'Data Brokers', href: '/#data-brokers' },
   { label: 'Resources', href: '/reports', hasMenu: true },
