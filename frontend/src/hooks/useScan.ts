@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/services/api'
 import { useScanStore } from '@/store/scanStore'
-import type { ScanRequest, ScanJob } from '@/types'
+import type { ScanRequest, ScanJob, ScanResult } from '@/types'
 
 const POLL_INTERVAL = 2500
 
@@ -23,7 +23,7 @@ export function useCreateScan() {
 export function useScanStatus(scanId: string | null) {
   const { updateScanStatus } = useScanStore()
 
-  return useQuery({
+  const query = useQuery<ScanJob>({
     queryKey: ['scan-status', scanId],
     queryFn: () => api.scan.status(scanId!),
     enabled: !!scanId,
@@ -32,20 +32,34 @@ export function useScanStatus(scanId: string | null) {
       if (!status || status === 'completed' || status === 'failed') return false
       return POLL_INTERVAL
     },
-    onSuccess: (job: ScanJob) => updateScanStatus(job),
   })
+
+  useEffect(() => {
+    if (query.data) {
+      updateScanStatus(query.data)
+    }
+  }, [query.data, updateScanStatus])
+
+  return query
 }
 
 export function useScanResult(scanId: string | null) {
   const { setCurrentResult } = useScanStore()
   const { data: statusData } = useScanStatus(scanId)
 
-  return useQuery({
+  const query = useQuery<ScanResult>({
     queryKey: ['scan-result', scanId],
     queryFn: () => api.scan.result(scanId!),
     enabled: !!scanId && statusData?.status === 'completed',
-    onSuccess: result => setCurrentResult(result),
   })
+
+  useEffect(() => {
+    if (query.data) {
+      setCurrentResult(query.data)
+    }
+  }, [query.data, setCurrentResult])
+
+  return query
 }
 
 export function usePollUntilComplete(scanId: string | null) {

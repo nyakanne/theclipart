@@ -1,11 +1,14 @@
 from functools import lru_cache
+import json
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import field_validator
 
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file='.env', env_file_encoding='utf-8')
 
     APP_ENV: str = 'development'
+    DEMO_MODE: bool = False
     SECRET_KEY: str = 'dev-secret-change-me'
     CORS_ORIGINS: list[str] = ['http://localhost:3000']
 
@@ -29,6 +32,18 @@ class Settings(BaseSettings):
     MAX_CONCURRENT_PLAYWRIGHT: int = 5
     SCAN_TIMEOUT_SECONDS: int = 300
     BROKER_LIST_PATH: str = '/app/data/brokers.json'
+
+    @field_validator('CORS_ORIGINS', mode='before')
+    @classmethod
+    def parse_cors_origins(cls, value):
+        if isinstance(value, str):
+            try:
+                parsed = json.loads(value)
+                if isinstance(parsed, list):
+                    return parsed
+            except json.JSONDecodeError:
+                return [origin.strip() for origin in value.split(',') if origin.strip()]
+        return value
 
     @property
     def is_production(self) -> bool:

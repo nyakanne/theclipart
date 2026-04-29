@@ -55,9 +55,9 @@ export function BrokerList({ listings, scanId, onUpdate }: {
   return (
     <div className="space-y-4">
       {pendingCount > 0 && (
-        <div className="flex items-center justify-between rounded-lg border border-yellow-800/50 bg-yellow-900/20 px-4 py-3">
+        <div className="flex items-center justify-between border border-orange-500/30 bg-orange-950/20 px-4 py-3">
           <span className="text-sm text-yellow-300">
-            {pendingCount} brokers haven't received a deletion request yet
+            {pendingCount} brokers still need action. Open the opt-out site, submit the broker flow, then request deletion here.
           </span>
           <Button
             size="sm"
@@ -73,7 +73,7 @@ export function BrokerList({ listings, scanId, onUpdate }: {
       {listings.map(b => {
         const status = optOutStatusConfig[b.opt_out_status]
         return (
-          <Card key={b.id}>
+          <Card key={b.id} className="rounded-none bg-[#10101a]">
             <CardHeader>
               <div className="flex items-start justify-between gap-3">
                 <div>
@@ -106,17 +106,28 @@ export function BrokerList({ listings, scanId, onUpdate }: {
                   <span key={f} className="rounded-md bg-gray-800 px-2 py-0.5 text-xs text-gray-300">{f}</span>
                 ))}
               </div>
-              {b.opt_out_status === 'not_started' && (
-                <Button
-                  size="sm"
-                  variant="danger"
-                  loading={loading === b.id}
-                  onClick={() => handleOptOut(b.id)}
-                  className="ml-3 shrink-0"
-                >
-                  Request Deletion
-                </Button>
-              )}
+              <div className="ml-3 flex shrink-0 flex-wrap justify-end gap-2">
+                {b.opt_out_url && (
+                  <a
+                    href={b.opt_out_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-gray-700 px-3 py-2 text-xs font-semibold text-gray-300 transition-colors hover:border-red-400 hover:text-white"
+                  >
+                    Open opt-out <ExternalLink className="h-3.5 w-3.5" />
+                  </a>
+                )}
+                {b.opt_out_status === 'not_started' && (
+                  <Button
+                    size="sm"
+                    variant="danger"
+                    loading={loading === b.id}
+                    onClick={() => handleOptOut(b.id)}
+                  >
+                    Request Deletion
+                  </Button>
+                )}
+              </div>
             </CardBody>
           </Card>
         )

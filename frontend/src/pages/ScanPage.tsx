@@ -1,21 +1,25 @@
 import { useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Database, Globe, Zap, ShieldAlert, Gavel, ArrowLeft } from 'lucide-react'
+import { Camera, Database, Globe, Search, Zap, ShieldAlert, Gavel, ArrowLeft, RefreshCw, ShieldOff, ChevronRight } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { useScanStatus, useScanResult, usePollUntilComplete } from '@/hooks/useScan'
 import { ScanProgress } from '@/components/BreachSearch/ScanProgress'
-import { RiskSummary } from '@/components/Dashboard/RiskSummary'
 import { BreachList } from '@/components/BreachResults/BreachList'
 import { BrokerList } from '@/components/BreachResults/BrokerList'
 import { HoneyTokenPanel } from '@/components/BreachResults/HoneyTokenPanel'
 import { CompliancePanel } from '@/components/BreachResults/CompliancePanel'
 import { RegulatorPack } from '@/components/Dashboard/RegulatorPack'
 import { useQueryClient } from '@tanstack/react-query'
+import { ExposureGraph } from '@/components/visuals/ExposureGraph'
+import { ExposureLookupPanel } from '@/components/Investigation/ExposureLookupPanel'
+import { ReverseImageSearchPanel } from '@/components/Investigation/ReverseImageSearchPanel'
 
 const TABS = [
+  { id: 'lookup', label: 'Find Yourself', icon: Search },
   { id: 'breaches', label: 'Breaches',   icon: Database },
   { id: 'brokers',  label: 'Brokers',    icon: Globe },
+  { id: 'images',   label: 'Images',     icon: Camera },
   { id: 'tokens',   label: 'Sentinel',   icon: Zap },
   { id: 'compliance', label: 'Compliance', icon: ShieldAlert },
   { id: 'regulator',  label: 'Regulator',  icon: Gavel },
@@ -25,7 +29,7 @@ type Tab = typeof TABS[number]['id']
 
 export function ScanPage() {
   const { scanId } = useParams<{ scanId: string }>()
-  const [tab, setTab] = useState<Tab>('breaches')
+  const [tab, setTab] = useState<Tab>('lookup')
   const qc = useQueryClient()
 
   usePollUntilComplete(scanId ?? null)
@@ -39,14 +43,17 @@ export function ScanPage() {
   }
 
   return (
-    <div className="mx-auto max-w-4xl px-4 py-8 sm:px-6 space-y-6">
-      <div className="flex items-center gap-3">
-        <Link to="/" className="text-gray-500 hover:text-gray-300 transition-colors">
-          <ArrowLeft className="h-5 w-5" />
-        </Link>
-        <div>
-          <h1 className="text-xl font-bold text-white">Scan Results</h1>
-          <p className="text-xs text-gray-500 font-mono">{scanId}</p>
+    <div className="mx-auto max-w-7xl space-y-6 px-4 py-8 sm:px-6 lg:px-8">
+      <div className="glass-panel rounded-xl p-5">
+        <div className="flex items-center gap-3">
+          <Link to="/" className="rounded-lg border border-white/10 p-2 text-gray-500 transition-colors hover:border-red-400 hover:text-gray-100">
+            <ArrowLeft className="h-5 w-5" />
+          </Link>
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-red-300">Exposure dashboard</p>
+            <h1 className="mt-1 text-3xl font-black tracking-tight text-white">Your Personal Data Exposure Overview</h1>
+            <p className="font-mono text-xs text-gray-500">{scanId}</p>
+          </div>
         </div>
       </div>
 
@@ -58,9 +65,52 @@ export function ScanPage() {
 
       {result && (
         <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
-          <RiskSummary result={result} />
+          <div className="grid gap-4 lg:grid-cols-[1fr_1fr]">
+            <DashboardCard
+              label="Privacy Score"
+              value={`${Math.max(0, Math.round(100 - result.risk_score))}`}
+              sub="/100"
+              tone="red"
+              icon={<ShieldOff className="h-8 w-8" />}
+              footer={result.risk_score >= 75 ? 'High Risk' : result.risk_score >= 40 ? 'Moderate Risk' : 'Low Risk'}
+            />
+            <DashboardCard
+              label="Total Sources Found"
+              value={`${result.total_exposures}`}
+              sub={`Across ${Math.max(1, result.breaches.length + result.broker_listings.length + result.honey_token_hits.length)} evidence points`}
+              tone="white"
+              icon={<Database className="h-8 w-8" />}
+              footer={`${result.broker_listings.length} broker listings pending review`}
+            />
+          </div>
 
-          <div className="flex gap-1 border-b border-gray-800 overflow-x-auto">
+          <Link
+            to="/#scan"
+            className="red-button-glow flex items-center justify-between rounded-xl border border-red-500/45 bg-red-950/45 px-6 py-4 text-lg font-bold text-white transition-colors hover:bg-red-700"
+          >
+            <span className="inline-flex items-center gap-3"><RefreshCw className="h-6 w-6" /> Rescan Exposure</span>
+            <ChevronRight className="h-6 w-6" />
+          </Link>
+
+          <div className="glass-panel overflow-hidden rounded-xl">
+            <ExposureGraph focused totalSources={result.total_exposures} className="min-h-[620px]" />
+          </div>
+
+          <div className="glass-panel rounded-xl p-5">
+            <div className="flex items-center gap-4">
+              <div className="rounded-full border border-red-500/40 p-4 text-red-400">
+                <ShieldAlert className="h-7 w-7" />
+              </div>
+              <div>
+                <h2 className="text-xl font-bold">Your data is widely exposed</h2>
+                <p className="mt-1 text-gray-400">
+                  Personal information was found across {result.total_exposures} sources. Use the broker queue, compliance analysis, and regulator pack below to remove and document it.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex gap-1 overflow-x-auto border-b border-red-500/20 bg-black/70 px-1">
             {TABS.map(t => {
               const Icon = t.icon
               const count = t.id === 'breaches' ? result.breaches.length
@@ -71,16 +121,16 @@ export function ScanPage() {
                 <button
                   key={t.id}
                   onClick={() => setTab(t.id)}
-                  className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
+                  className={`flex items-center gap-1.5 whitespace-nowrap border-b-2 px-4 py-3 text-xs font-bold uppercase tracking-[0.14em] transition-colors ${
                     tab === t.id
-                      ? 'border-brand-500 text-brand-300'
+                      ? 'border-red-500 text-white'
                       : 'border-transparent text-gray-400 hover:text-gray-200'
                   }`}
                 >
                   <Icon className="h-4 w-4" />
                   {t.label}
                   {count !== null && count > 0 && (
-                    <span className="ml-1 rounded-full bg-gray-800 px-1.5 py-0.5 text-xs">{count}</span>
+                    <span className="ml-1 bg-gray-800 px-1.5 py-0.5 text-xs">{count}</span>
                   )}
                 </button>
               )
@@ -90,6 +140,8 @@ export function ScanPage() {
           <div>
             {tab === 'breaches'   && <BreachList breaches={result.breaches} />}
             {tab === 'brokers'    && <BrokerList listings={result.broker_listings} scanId={result.scan_id} onUpdate={refresh} />}
+            {tab === 'lookup'     && <ExposureLookupPanel />}
+            {tab === 'images'     && <ReverseImageSearchPanel />}
             {tab === 'tokens'     && <HoneyTokenPanel hits={result.honey_token_hits} />}
             {tab === 'compliance' && result.compliance && <CompliancePanel compliance={result.compliance} />}
             {tab === 'regulator'  && <RegulatorPack scanId={result.scan_id} />}
@@ -98,11 +150,46 @@ export function ScanPage() {
       )}
 
       {statusData?.status === 'failed' && (
-        <div className="rounded-xl border border-red-800 bg-red-900/20 p-6 text-center">
+        <div className="border border-red-800 bg-red-900/20 p-6 text-center">
           <p className="text-red-300 font-medium">Scan failed</p>
           <p className="mt-1 text-sm text-gray-400">Please try again or contact support.</p>
         </div>
       )}
+    </div>
+  )
+}
+
+function DashboardCard({
+  label,
+  value,
+  sub,
+  tone,
+  icon,
+  footer,
+}: {
+  label: string
+  value: string
+  sub: string
+  tone: 'red' | 'white'
+  icon: JSX.Element
+  footer: string
+}) {
+  return (
+    <div className="glass-panel rounded-xl p-6">
+      <div className="flex items-center justify-between gap-4">
+        <div>
+          <div className="text-xs font-bold uppercase tracking-[0.18em] text-gray-400">{label}</div>
+          <div className="mt-4 flex items-end gap-2">
+            <span className={tone === 'red' ? 'text-6xl font-black text-red-500' : 'text-6xl font-black text-white'}>{value}</span>
+            <span className="mb-2 text-xl text-gray-500">{sub.startsWith('/') ? sub : ''}</span>
+          </div>
+          {!sub.startsWith('/') && <p className="mt-2 text-gray-400">{sub}</p>}
+          <p className="mt-3 text-sm font-semibold text-red-300">{footer}</p>
+        </div>
+        <div className="rounded-full border border-red-500/30 bg-red-950/25 p-4 text-red-400">
+          {icon}
+        </div>
+      </div>
     </div>
   )
 }

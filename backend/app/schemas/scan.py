@@ -18,7 +18,7 @@ class ScanRequest(BaseModel):
     @field_validator('phone')
     @classmethod
     def validate_phone(cls, v: str | None) -> str | None:
-        if v and not re.match(r'^\+?[\d\s\-()\.]{ 7,20}$', v):
+        if v and not re.match(r'^\+?[\d\s\-()\.]{7,20}$', v):
             raise ValueError('Invalid phone number format')
         return v
 
@@ -100,7 +100,7 @@ class ComplianceScoreOut(BaseModel):
 class DsarRequestOut(BaseModel):
     id: str
     scan_id: str
-    broker_id: str
+    broker_listing_id: str
     broker_name: str
     status: str
     sent_at: Optional[datetime] = None

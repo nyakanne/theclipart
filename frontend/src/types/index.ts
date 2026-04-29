@@ -40,7 +40,7 @@ export interface BrokerListing {
 export interface HoneyTokenHit {
   id: string
   token_id: string
-  token_type: 'email' | 'phone' | 'name' | 'address'
+  token_type: 'email' | 'phone' | 'name' | 'address' | 'username'
   hit_source: string
   hit_timestamp: string
   context_snippet?: string
@@ -56,7 +56,7 @@ export interface ComplianceScore {
 }
 
 export interface ComplianceViolation {
-  regulation: 'GDPR' | 'CCPA' | 'PIPEDA' | 'LGPD'
+  regulation: 'GDPR' | 'CCPA' | 'PIPEDA' | 'LGPD' | 'FTC' | 'NCII' | 'CYBERSTALKING' | string
   article?: string
   description: string
   severity: SeverityLevel
@@ -90,7 +90,7 @@ export interface ScanJob {
 export interface DsarRequest {
   id: string
   scan_id: string
-  broker_id: string
+  broker_listing_id: string
   broker_name: string
   status: 'draft' | 'sent' | 'acknowledged' | 'fulfilled' | 'denied' | 'overdue'
   sent_at?: string

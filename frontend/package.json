@@ -3,9 +3,9 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "tsc && vite build",
-    "preview": "vite preview",
+    "dev": "node scripts/vite.mjs dev",
+    "build": "tsc && node scripts/vite.mjs build",
+    "preview": "node scripts/vite.mjs preview",
     "lint": "eslint . --ext ts,tsx"
   },
   "dependencies": {

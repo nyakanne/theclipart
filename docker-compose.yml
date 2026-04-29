@@ -38,7 +38,6 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-    env_file: ./backend/.env
     environment:
       DATABASE_URL: postgresql+asyncpg://dataguard:secret@postgres:5432/dataguard
       SYNC_DATABASE_URL: postgresql://dataguard:secret@postgres:5432/dataguard
@@ -64,7 +63,6 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-    env_file: ./backend/.env
     environment:
       DATABASE_URL: postgresql+asyncpg://dataguard:secret@postgres:5432/dataguard
       SYNC_DATABASE_URL: postgresql://dataguard:secret@postgres:5432/dataguard
@@ -90,7 +88,6 @@ services:
         condition: service_healthy
       postgres:
         condition: service_healthy
-    env_file: ./backend/.env
     environment:
       DATABASE_URL: postgresql+asyncpg://dataguard:secret@postgres:5432/dataguard
       SYNC_DATABASE_URL: postgresql://dataguard:secret@postgres:5432/dataguard
@@ -105,7 +102,6 @@ services:
     depends_on:
       redis:
         condition: service_healthy
-    env_file: ./backend/.env
     environment:
       REDIS_URL: redis://redis:6379/0
 

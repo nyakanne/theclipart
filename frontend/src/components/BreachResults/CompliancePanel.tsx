@@ -1,4 +1,4 @@
-import { ShieldAlert, ShieldCheck, AlertTriangle, ChevronRight } from 'lucide-react'
+import { ShieldAlert, ShieldCheck, ChevronRight, Scale, FileWarning } from 'lucide-react'
 import { Card, CardHeader, CardBody } from '@/components/ui/Card'
 import { SeverityBadge } from '@/components/ui/Badge'
 import { ProgressRing } from '@/components/ui/ProgressRing'
@@ -6,12 +6,21 @@ import type { ComplianceScore } from '@/types'
 
 const scoreColor = (s: number) => s >= 70 ? '#22c55e' : s >= 40 ? '#f59e0b' : '#ef4444'
 
+const LAW_DETECTION = [
+  { law: 'CCPA / CPRA', signal: 'Deletion, opt-out, access, correction, and sensitive personal information handling.' },
+  { law: 'California Delete Act', signal: 'Repeated data-broker exposure means the removal queue needs receipts and follow-up deadlines.' },
+  { law: 'FTC Act Section 5', signal: 'Ignored reports, deceptive removal paths, or unsafe privacy claims should be documented.' },
+  { law: '18 U.S.C. 2261A', signal: 'Cyberstalking signals are relevant when conduct shows threats, intimidation, or distress patterns.' },
+  { law: 'NCII / NDII state laws', signal: 'Use for non-consensual intimate image distribution, threats, sextortion, or deepfake image abuse.' },
+  { law: 'Platform safety policies', signal: 'Doxxing, impersonation, harassment, and sexual exploitation rules support takedown demands.' },
+]
+
 export function CompliancePanel({ compliance }: { compliance: ComplianceScore }) {
   const color = scoreColor(compliance.overall)
 
   return (
     <div className="space-y-4">
-      <Card glow={compliance.risk_level === 'critical' || compliance.risk_level === 'high' ? 'red' : 'none'}>
+      <Card glow={compliance.risk_level === 'critical' || compliance.risk_level === 'high' ? 'red' : 'none'} className="rounded-xl">
         <CardBody>
           <div className="flex items-center gap-6">
             <ProgressRing
@@ -37,8 +46,31 @@ export function CompliancePanel({ compliance }: { compliance: ComplianceScore })
         </CardBody>
       </Card>
 
+      <Card className="rounded-xl">
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <Scale className="h-4 w-4 text-red-400" />
+            <span className="font-semibold text-white">Detected Legal Lanes</span>
+          </div>
+          <p className="mt-1 text-xs text-gray-500">
+            These are report-building signals, not legal advice. The app uses exposure categories, broker statuses, and incident evidence to draft useful packets.
+          </p>
+        </CardHeader>
+        <CardBody className="grid gap-3 sm:grid-cols-2">
+          {LAW_DETECTION.map(item => (
+            <div key={item.law} className="rounded-lg border border-gray-800 bg-black/35 p-4">
+              <div className="flex items-center gap-2">
+                <FileWarning className="h-4 w-4 text-red-300" />
+                <span className="font-semibold text-white">{item.law}</span>
+              </div>
+              <p className="mt-2 text-sm leading-6 text-gray-400">{item.signal}</p>
+            </div>
+          ))}
+        </CardBody>
+      </Card>
+
       {compliance.violations.length > 0 && (
-        <Card>
+        <Card className="rounded-xl">
           <CardHeader>
             <div className="flex items-center gap-2">
               <ShieldAlert className="h-4 w-4 text-red-400" />

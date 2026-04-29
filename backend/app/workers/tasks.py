@@ -104,7 +104,7 @@ def run_scan(self, scan_id: str):
 
     except Exception as exc:
         log.exception('Scan %s failed', scan_id)
-        _update_scan(db, _scan_id := scan_id, status='failed', current_stage=f'failed: {exc}')
+        _update_scan(db, scan_id, status='failed', current_stage=f'failed: {exc}')
         raise self.retry(exc=exc)
     finally:
         db.close()

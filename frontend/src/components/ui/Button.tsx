@@ -5,10 +5,10 @@ type Variant = 'primary' | 'secondary' | 'danger' | 'ghost'
 type Size = 'sm' | 'md' | 'lg'
 
 const variants: Record<Variant, string> = {
-  primary:   'bg-brand-600 hover:bg-brand-500 text-white border-transparent',
-  secondary: 'bg-gray-800 hover:bg-gray-700 text-gray-100 border-gray-700',
-  danger:    'bg-danger-600 hover:bg-danger-500 text-white border-transparent',
-  ghost:     'bg-transparent hover:bg-gray-800 text-gray-300 border-transparent',
+  primary:   'bg-red-600 hover:bg-red-500 text-white border-red-500/40',
+  secondary: 'bg-gray-950 hover:bg-gray-900 text-gray-100 border-gray-700',
+  danger:    'bg-red-700 hover:bg-red-600 text-white border-red-500/40',
+  ghost:     'bg-transparent hover:bg-gray-900 text-gray-300 border-transparent',
 }
 
 const sizes: Record<Size, string> = {
@@ -30,9 +30,9 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       ref={ref}
       disabled={disabled || loading}
       className={clsx(
-        'inline-flex items-center justify-center gap-2 rounded-lg border font-medium',
+        'inline-flex items-center justify-center gap-2 border font-bold uppercase tracking-[0.08em]',
         'transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2',
-        'focus-visible:ring-brand-500 disabled:opacity-50 disabled:cursor-not-allowed',
+        'focus-visible:ring-red-500 disabled:opacity-50 disabled:cursor-not-allowed',
         variants[variant],
         sizes[size],
         className

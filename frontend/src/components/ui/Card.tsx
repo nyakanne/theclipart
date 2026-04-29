@@ -16,7 +16,7 @@ const glowStyles = {
 export function Card({ className, children, glow = 'none' }: CardProps) {
   return (
     <div className={clsx(
-      'rounded-xl border border-gray-800 bg-gray-900/60 backdrop-blur-sm',
+      'border border-gray-800 bg-[#10101a]/90 backdrop-blur-sm',
       glowStyles[glow],
       className
     )}>

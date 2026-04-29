@@ -1,4 +1,4 @@
-import { ShieldOff, ShieldCheck, AlertTriangle, Database, Globe, Zap } from 'lucide-react'
+import { ShieldOff, ShieldCheck, Database, Globe, Zap } from 'lucide-react'
 import { Card, CardBody } from '@/components/ui/Card'
 import type { ScanResult } from '@/types'
 
