@@ -71,8 +71,9 @@ async def security_headers(request: Request, call_next) -> Response:
     response.headers['X-Response-Time-Ms']         = f'{duration_ms:.1f}'
 
     # Never leak server identity
-    response.headers.pop('server', None)
-    response.headers.pop('x-powered-by', None)
+    for h in ('server', 'x-powered-by'):
+        if h in response.headers:
+            del response.headers[h]
 
     return response
 

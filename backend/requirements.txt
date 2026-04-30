@@ -49,6 +49,7 @@ playwright==1.44.0
 # Monitoring
 prometheus-fastapi-instrumentator==7.0.0
 structlog==24.1.0
+ddtrace==2.8.5
 
 # Testing
 pytest==8.2.0

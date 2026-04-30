@@ -9,6 +9,8 @@
     "lint": "eslint . --ext ts,tsx"
   },
   "dependencies": {
+    "@datadog/browser-rum": "^5.15.0",
+    "@datadog/browser-logs": "^5.15.0",
     "@tanstack/react-query": "^5.28.0",
     "axios": "^1.6.8",
     "clsx": "^2.1.0",
