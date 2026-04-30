@@ -42,3 +42,4 @@ nginx/ssl/
 # OS
 .DS_Store
 Thumbs.db
+ddagent-install.log
