@@ -43,3 +43,4 @@ nginx/ssl/
 .DS_Store
 Thumbs.db
 ddagent-install.log
+.env.netlify
