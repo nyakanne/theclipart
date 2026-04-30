@@ -1,6 +1,8 @@
-import { Link, useLocation } from 'react-router-dom'
-import { ShieldCheck, LayoutDashboard, Search, FileText } from 'lucide-react'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { ShieldCheck, LayoutDashboard, Search, FileText, LogOut, LogIn } from 'lucide-react'
 import { clsx } from 'clsx'
+import { useAuth } from '@/hooks/useAuth'
+import { api } from '@/services/api'
 
 const navItems = [
   { label: 'Scan',      href: '/',          icon: Search },
@@ -10,6 +12,13 @@ const navItems = [
 
 export function Navbar() {
   const { pathname } = useLocation()
+  const navigate = useNavigate()
+  const { user, isAuthenticated, logout } = useAuth()
+
+  const handleLogout = () => {
+    logout()
+    navigate('/login')
+  }
 
   return (
     <nav className="sticky top-0 z-40 border-b border-gray-800 bg-gray-950/80 backdrop-blur-md">
@@ -21,7 +30,7 @@ export function Navbar() {
           </Link>
 
           <div className="flex items-center gap-1">
-            {navItems.map(({ label, href, icon: Icon }) => (
+            {isAuthenticated() && navItems.map(({ label, href, icon: Icon }) => (
               <Link
                 key={href}
                 to={href}
@@ -36,6 +45,39 @@ export function Navbar() {
                 {label}
               </Link>
             ))}
+          </div>
+
+          <div className="flex items-center gap-3">
+            {isAuthenticated() && user ? (
+              <>
+                {user.picture && (
+                  <img
+                    src={user.picture}
+                    alt={user.name}
+                    className="h-8 w-8 rounded-full border border-gray-700"
+                    referrerPolicy="no-referrer"
+                  />
+                )}
+                <span className="hidden sm:block text-sm text-gray-300 max-w-[140px] truncate">
+                  {user.name}
+                </span>
+                <button
+                  onClick={handleLogout}
+                  className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm text-gray-400 hover:bg-gray-800 hover:text-gray-100 transition-colors"
+                >
+                  <LogOut className="h-4 w-4" />
+                  <span className="hidden sm:block">Sign out</span>
+                </button>
+              </>
+            ) : (
+              <a
+                href={api.auth.loginUrl()}
+                className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-gray-300 bg-gray-800 hover:bg-gray-700 transition-colors"
+              >
+                <LogIn className="h-4 w-4" />
+                Sign in
+              </a>
+            )}
           </div>
         </div>
       </div>

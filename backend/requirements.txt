@@ -18,10 +18,11 @@ flower==2.0.1
 boto3==1.34.90
 botocore==1.34.90
 
-# Crypto / security
+# Crypto / security / auth
 cryptography==42.0.7
 python-jose[cryptography]==3.3.0
 passlib[bcrypt]==1.7.4
+authlib==1.3.0
 pydantic[email]==2.7.1
 pydantic-settings==2.2.1
 

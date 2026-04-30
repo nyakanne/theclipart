@@ -1,4 +1,4 @@
-import { ShieldAlert, ShieldCheck, AlertTriangle, ChevronRight } from 'lucide-react'
+import { ShieldAlert, ShieldCheck, ChevronRight } from 'lucide-react'
 import { Card, CardHeader, CardBody } from '@/components/ui/Card'
 import { SeverityBadge } from '@/components/ui/Badge'
 import { ProgressRing } from '@/components/ui/ProgressRing'

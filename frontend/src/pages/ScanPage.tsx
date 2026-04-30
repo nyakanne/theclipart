@@ -1,8 +1,8 @@
 import { useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { useParams, Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { Database, Globe, Zap, ShieldAlert, Gavel, ArrowLeft } from 'lucide-react'
-import { Link } from 'react-router-dom'
+import { useQueryClient } from '@tanstack/react-query'
 import { useScanStatus, useScanResult, usePollUntilComplete } from '@/hooks/useScan'
 import { ScanProgress } from '@/components/BreachSearch/ScanProgress'
 import { RiskSummary } from '@/components/Dashboard/RiskSummary'
@@ -11,14 +11,14 @@ import { BrokerList } from '@/components/BreachResults/BrokerList'
 import { HoneyTokenPanel } from '@/components/BreachResults/HoneyTokenPanel'
 import { CompliancePanel } from '@/components/BreachResults/CompliancePanel'
 import { RegulatorPack } from '@/components/Dashboard/RegulatorPack'
-import { useQueryClient } from '@tanstack/react-query'
+import type { ScanJob, ScanResult } from '@/types'
 
 const TABS = [
-  { id: 'breaches', label: 'Breaches',   icon: Database },
-  { id: 'brokers',  label: 'Brokers',    icon: Globe },
-  { id: 'tokens',   label: 'Sentinel',   icon: Zap },
-  { id: 'compliance', label: 'Compliance', icon: ShieldAlert },
-  { id: 'regulator',  label: 'Regulator',  icon: Gavel },
+  { id: 'breaches',    label: 'Breaches',    icon: Database },
+  { id: 'brokers',     label: 'Brokers',     icon: Globe },
+  { id: 'tokens',      label: 'Sentinel',    icon: Zap },
+  { id: 'compliance',  label: 'Compliance',  icon: ShieldAlert },
+  { id: 'regulator',   label: 'Regulator',   icon: Gavel },
 ] as const
 
 type Tab = typeof TABS[number]['id']
@@ -32,7 +32,10 @@ export function ScanPage() {
   const { data: statusData } = useScanStatus(scanId ?? null)
   const { data: result } = useScanResult(scanId ?? null)
 
-  const isScanning = statusData && statusData.status !== 'completed' && statusData.status !== 'failed'
+  const job = statusData as ScanJob | undefined
+  const scanResult = result as ScanResult | undefined
+
+  const isScanning = job && job.status !== 'completed' && job.status !== 'failed'
 
   const refresh = () => {
     qc.invalidateQueries({ queryKey: ['scan-result', scanId] })
@@ -50,23 +53,23 @@ export function ScanPage() {
         </div>
       </div>
 
-      {isScanning && statusData && (
+      {isScanning && job && (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-          <ScanProgress job={statusData} />
+          <ScanProgress job={job} />
         </motion.div>
       )}
 
-      {result && (
+      {scanResult && (
         <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
-          <RiskSummary result={result} />
+          <RiskSummary result={scanResult} />
 
           <div className="flex gap-1 border-b border-gray-800 overflow-x-auto">
             {TABS.map(t => {
               const Icon = t.icon
-              const count = t.id === 'breaches' ? result.breaches.length
-                : t.id === 'brokers' ? result.broker_listings.length
-                : t.id === 'tokens' ? result.honey_token_hits.length
-                : null
+              const count =
+                t.id === 'breaches' ? scanResult.breaches.length :
+                t.id === 'brokers'  ? scanResult.broker_listings.length :
+                t.id === 'tokens'   ? scanResult.honey_token_hits.length : null
               return (
                 <button
                   key={t.id}
@@ -88,16 +91,16 @@ export function ScanPage() {
           </div>
 
           <div>
-            {tab === 'breaches'   && <BreachList breaches={result.breaches} />}
-            {tab === 'brokers'    && <BrokerList listings={result.broker_listings} scanId={result.scan_id} onUpdate={refresh} />}
-            {tab === 'tokens'     && <HoneyTokenPanel hits={result.honey_token_hits} />}
-            {tab === 'compliance' && result.compliance && <CompliancePanel compliance={result.compliance} />}
-            {tab === 'regulator'  && <RegulatorPack scanId={result.scan_id} />}
+            {tab === 'breaches'   && <BreachList breaches={scanResult.breaches} />}
+            {tab === 'brokers'    && <BrokerList listings={scanResult.broker_listings} scanId={scanResult.scan_id} onUpdate={refresh} />}
+            {tab === 'tokens'     && <HoneyTokenPanel hits={scanResult.honey_token_hits} />}
+            {tab === 'compliance' && scanResult.compliance && <CompliancePanel compliance={scanResult.compliance} />}
+            {tab === 'regulator'  && <RegulatorPack scanId={scanResult.scan_id} />}
           </div>
         </motion.div>
       )}
 
-      {statusData?.status === 'failed' && (
+      {job?.status === 'failed' && (
         <div className="rounded-xl border border-red-800 bg-red-900/20 p-6 text-center">
           <p className="text-red-300 font-medium">Scan failed</p>
           <p className="mt-1 text-sm text-gray-400">Please try again or contact support.</p>

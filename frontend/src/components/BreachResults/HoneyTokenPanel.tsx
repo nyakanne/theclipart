@@ -1,5 +1,5 @@
 import { Zap, AlertOctagon } from 'lucide-react'
-import { Card, CardHeader, CardBody } from '@/components/ui/Card'
+import { Card, CardBody } from '@/components/ui/Card'
 import type { HoneyTokenHit } from '@/types'
 
 export function HoneyTokenPanel({ hits }: { hits: HoneyTokenHit[] }) {
