@@ -2,10 +2,11 @@ from functools import lru_cache
 import json
 import logging
 import secrets
-from typing import Optional
+from typing import Optional, Any
 
 import boto3
 from botocore.exceptions import ClientError
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 log = logging.getLogger(__name__)
@@ -28,7 +29,7 @@ def _load_aws_secret(secret_name: str, region: str) -> dict:
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file='.env', env_file_encoding='utf-8')
+    model_config = SettingsConfigDict(env_file='.env', env_file_encoding='utf-8', extra='ignore')
 
     APP_ENV: str = 'development'
 
@@ -36,6 +37,18 @@ class Settings(BaseSettings):
     SECRET_KEY: str = 'dev-secret-change-me'
 
     CORS_ORIGINS: list[str] = ['http://localhost:3000']
+
+    @field_validator('CORS_ORIGINS', mode='before')
+    @classmethod
+    def parse_cors_origins(cls, v: Any) -> list[str]:
+        if isinstance(v, list):
+            return v
+        if isinstance(v, str):
+            v = v.strip()
+            if v.startswith('['):
+                return json.loads(v)
+            return [o.strip() for o in v.split(',') if o.strip()]
+        return v
 
     DATABASE_URL: str = 'postgresql+asyncpg://dataguard:changeme@postgres:5432/dataguard'
     SYNC_DATABASE_URL: str = 'postgresql://dataguard:changeme@postgres:5432/dataguard'
