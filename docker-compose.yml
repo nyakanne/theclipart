@@ -3,6 +3,19 @@ version: '3.9'
 # All sensitive values live in backend/.env (git-ignored).
 # Copy backend/.env.example → backend/.env and fill in real values before starting.
 
+x-backend-env: &backend-env
+  DATABASE_URL:      postgresql+asyncpg://dataguard:${POSTGRES_PASSWORD}@postgres:5432/dataguard
+  SYNC_DATABASE_URL: postgresql://dataguard:${POSTGRES_PASSWORD}@postgres:5432/dataguard
+  REDIS_URL:         redis://:${REDIS_PASSWORD}@redis:6379/0
+  DD_AGENT_HOST:     datadog-agent
+  DD_TRACE_AGENT_URL: http://datadog-agent:8126
+  DD_DOGSTATSD_URL:  udp://datadog-agent:8125
+  DD_ENV:            ${DD_ENV:-development}
+  DD_SERVICE:        dataguard
+  DD_VERSION:        ${DD_VERSION:-1.0.0}
+  DD_LOGS_INJECTION: "true"
+  DD_RUNTIME_METRICS_ENABLED: "true"
+
 services:
   postgres:
     image: postgres:16-alpine
@@ -35,6 +48,31 @@ services:
       timeout: 3s
       retries: 5
 
+  datadog-agent:
+    image: gcr.io/datadoghq/agent:7
+    restart: unless-stopped
+    environment:
+      DD_API_KEY:                   ${DD_API_KEY:-}
+      DD_SITE:                      ${DD_SITE:-us3.datadoghq.com}
+      DD_ENV:                       ${DD_ENV:-staging}
+      DD_APM_ENABLED:               "true"
+      DD_APM_NON_LOCAL_TRAFFIC:     "true"
+      DD_DOGSTATSD_NON_LOCAL_TRAFFIC: "true"
+      DD_LOGS_ENABLED:              "true"
+      DD_LOGS_CONFIG_CONTAINER_COLLECT_ALL: "true"
+      DD_CONTAINER_EXCLUDE:         "name:datadog-agent"
+      DD_PROCESS_AGENT_ENABLED:     "true"
+      DD_SKIP_SSL_VALIDATION:       "true"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /proc/:/host/proc/:ro
+      - /sys/fs/cgroup/:/host/sys/fs/cgroup:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - ddagent:/opt/datadog-agent/run
+    ports:
+      - "127.0.0.1:8125:8125/udp"   # DogStatsD
+      - "127.0.0.1:8126:8126"       # APM trace receiver
+
   backend:
     build:
       context: ./backend
@@ -45,37 +83,39 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      datadog-agent:
+        condition: service_started
     env_file: ./backend/.env
     environment:
-      DATABASE_URL:      postgresql+asyncpg://dataguard:${POSTGRES_PASSWORD}@postgres:5432/dataguard
-      SYNC_DATABASE_URL: postgresql://dataguard:${POSTGRES_PASSWORD}@postgres:5432/dataguard
-      REDIS_URL:         redis://:${REDIS_PASSWORD}@redis:6379/0
+      <<: *backend-env
     volumes:
       - ./backend/data:/app/data:ro
     ports:
-      - "127.0.0.1:8000:8000"   # bind to loopback only — nginx proxies externally
+      - "127.0.0.1:8000:8000"
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
       interval: 10s
       timeout: 5s
       retries: 5
+    labels:
+      com.datadoghq.ad.logs: '[{"source":"python","service":"dataguard-backend"}]'
 
   worker-scans:
     build:
       context: ./backend
       dockerfile: Dockerfile
     restart: unless-stopped
-    command: celery -A app.workers.celery_app worker -Q scans,dsar,reports -c 2 -l info
+    command: ddtrace-run celery -A app.workers.celery_app worker -Q scans,dsar,reports -c 2 -l info
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
+      datadog-agent:
+        condition: service_started
     env_file: ./backend/.env
     environment:
-      DATABASE_URL:      postgresql+asyncpg://dataguard:${POSTGRES_PASSWORD}@postgres:5432/dataguard
-      SYNC_DATABASE_URL: postgresql://dataguard:${POSTGRES_PASSWORD}@postgres:5432/dataguard
-      REDIS_URL:         redis://:${REDIS_PASSWORD}@redis:6379/0
+      <<: *backend-env
     volumes:
       - ./backend/data:/app/data:ro
     shm_size: '1gb'
@@ -85,35 +125,43 @@ services:
       resources:
         limits:
           memory: 2g
+    labels:
+      com.datadoghq.ad.logs: '[{"source":"python","service":"dataguard-worker-scans"}]'
 
   worker-honey:
     build:
       context: ./backend
       dockerfile: Dockerfile
     restart: unless-stopped
-    command: celery -A app.workers.celery_app worker -Q honey -c 1 -l info
+    command: ddtrace-run celery -A app.workers.celery_app worker -Q honey -c 1 -l info
     depends_on:
       redis:
         condition: service_healthy
       postgres:
         condition: service_healthy
+      datadog-agent:
+        condition: service_started
     env_file: ./backend/.env
     environment:
-      DATABASE_URL:      postgresql+asyncpg://dataguard:${POSTGRES_PASSWORD}@postgres:5432/dataguard
-      SYNC_DATABASE_URL: postgresql://dataguard:${POSTGRES_PASSWORD}@postgres:5432/dataguard
-      REDIS_URL:         redis://:${REDIS_PASSWORD}@redis:6379/0
+      <<: *backend-env
+    labels:
+      com.datadoghq.ad.logs: '[{"source":"python","service":"dataguard-worker-honey"}]'
 
   beat:
     build:
       context: ./backend
       dockerfile: Dockerfile
     restart: unless-stopped
-    command: celery -A app.workers.celery_app beat -l info
+    command: ddtrace-run celery -A app.workers.celery_app beat -l info
     depends_on:
       - redis
+      - datadog-agent
     env_file: ./backend/.env
     environment:
       REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
+      DD_AGENT_HOST: datadog-agent
+    labels:
+      com.datadoghq.ad.logs: '[{"source":"python","service":"dataguard-beat"}]'
 
   flower:
     image: mher/flower:2.0
@@ -123,18 +171,38 @@ services:
     environment:
       CELERY_BROKER_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
       FLOWER_PORT: 5555
-      # Protect the Flower UI with basic auth
       FLOWER_BASIC_AUTH: ${FLOWER_USER:-admin}:${FLOWER_PASSWORD:?FLOWER_PASSWORD must be set in backend/.env}
     ports:
-      - "127.0.0.1:5555:5555"   # loopback only
+      - "127.0.0.1:5555:5555"
 
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      args:
+        VITE_DD_APPLICATION_ID: ${VITE_DD_APPLICATION_ID:-}
+        VITE_DD_CLIENT_TOKEN:   ${VITE_DD_CLIENT_TOKEN:-}
+        VITE_DD_SITE:           ${VITE_DD_SITE:-us3.datadoghq.com}
+        VITE_DD_ENV:            ${VITE_DD_ENV:-staging}
     restart: unless-stopped
     depends_on:
       - backend
+    labels:
+      com.datadoghq.ad.logs: '[{"source":"nginx","service":"dataguard-frontend"}]'
+
+  # Dev-friendly HTTP-only reverse proxy (no SSL cert required)
+  nginx-dev:
+    image: nginx:1.25-alpine
+    restart: unless-stopped
+    depends_on:
+      - backend
+      - frontend
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/nginx.dev.conf:/etc/nginx/nginx.conf:ro
+    labels:
+      com.datadoghq.ad.logs: '[{"source":"nginx","service":"dataguard-nginx"}]'
 
   nginx:
     image: nginx:1.25-alpine
@@ -154,3 +222,4 @@ services:
 volumes:
   pgdata:
   redisdata:
+  ddagent:

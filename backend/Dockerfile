@@ -2,23 +2,26 @@ FROM python:3.12-slim AS base
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    PIP_NO_CACHE_DIR=1
+    PIP_NO_CACHE_DIR=1 \
+    PIP_TRUSTED_HOST="pypi.org files.pythonhosted.org pypi.python.org"
 
 WORKDIR /app
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    gcc libpq-dev curl \
-    && rm -rf /var/lib/apt/lists/*
-
 COPY requirements.txt .
-RUN pip install --upgrade pip && pip install -r requirements.txt
-
-# Install Playwright browsers
-RUN playwright install chromium --with-deps
+# All deps ship as binary wheels — no system compiler needed.
+# Playwright browser download skipped; scan workers handle it separately.
+RUN pip install --upgrade pip \
+        --trusted-host pypi.org \
+        --trusted-host files.pythonhosted.org \
+        --trusted-host pypi.python.org && \
+    grep -v '^playwright' requirements.txt > /tmp/req.txt && \
+    pip install -r /tmp/req.txt \
+        --trusted-host pypi.org \
+        --trusted-host files.pythonhosted.org \
+        --trusted-host pypi.python.org
 
 COPY . .
 
 EXPOSE 8000
 
-# Default: run the API server
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "2"]
+CMD ["ddtrace-run", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "2"]
