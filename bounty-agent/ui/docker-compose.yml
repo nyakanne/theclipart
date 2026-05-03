@@ -1,0 +1,30 @@
+version: '3.9'
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "7331:7331"
+    environment:
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - H1_USERNAME=${H1_USERNAME}
+      - H1_API_TOKEN=${H1_API_TOKEN}
+      - SHANNON_HOME=/root/shannon
+    volumes:
+      - ../..:/app/bounty-agent
+      - /root/shannon:/root/shannon
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "5173:5173"
+    environment:
+      - VITE_API_URL=http://localhost:7331
+    depends_on:
+      - backend
+    restart: unless-stopped
