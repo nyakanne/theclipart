@@ -1,0 +1,46 @@
+name: Deploy Frontend to Netlify
+
+on:
+  push:
+    branches: [main, claude/setup-osint-skills-Vskrr]
+    paths:
+      - 'bounty-agent/ui/frontend/**'
+      - 'bounty-agent/ui/netlify.toml'
+      - '.github/workflows/deploy-netlify.yml'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: bounty-agent/ui/frontend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: bounty-agent/ui/frontend
+        run: npm ci
+
+      - name: Build
+        working-directory: bounty-agent/ui/frontend
+        env:
+          VITE_API_URL: ${{ secrets.VITE_API_URL }}
+        run: npm run build
+
+      - name: Deploy to Netlify
+        uses: nwtgck/actions-netlify@v3
+        with:
+          publish-dir: bounty-agent/ui/frontend/dist
+          production-branch: main
+          production-deploy: ${{ github.ref == 'refs/heads/main' }}
+          deploy-message: "Deploy from ${{ github.sha }}"
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          enable-pull-request-comment: false
+          enable-commit-comment: false
+        env:
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+          NETLIFY_SITE_ID:    ${{ secrets.NETLIFY_SITE_ID }}
