@@ -66,6 +66,11 @@ class Settings(BaseSettings):
 
     HIBP_API_KEY: str = ''
 
+    # Datadog API (command center)
+    DD_API_KEY: str = ''
+    DD_APP_KEY: str = ''
+    DD_SITE: str = 'datadoghq.com'
+
     HONEY_DOMAIN: str = 'honey.dataguard.example.com'
     MAILGUN_API_KEY: str = ''
 

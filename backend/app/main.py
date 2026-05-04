@@ -9,7 +9,7 @@ import structlog
 
 from app.core.config import get_settings
 from app.core.database import engine, Base
-from app.api.v1 import scans, webhooks, auth as auth_router
+from app.api.v1 import scans, webhooks, auth as auth_router, admin as admin_router
 
 settings = get_settings()
 
@@ -93,6 +93,7 @@ Instrumentator().instrument(app).expose(app, endpoint='/metrics', include_in_sch
 app.include_router(auth_router.router, prefix='/api/v1')
 app.include_router(scans.router, prefix='/api/v1')
 app.include_router(webhooks.router, prefix='/api/v1')
+app.include_router(admin_router.router, prefix='/api/v1')
 
 
 @app.get('/health', include_in_schema=False)

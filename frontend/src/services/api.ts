@@ -1,5 +1,5 @@
 import axios from 'axios'
-import type { ScanRequest, ScanJob, ScanResult, DsarRequest, ReportPackage } from '@/types'
+import type { ScanRequest, ScanJob, ScanResult, DsarRequest, ReportPackage, SystemHealth, DDMonitor, DDEvent } from '@/types'
 import type { AuthUser } from '@/store/authStore'
 
 const BASE = import.meta.env.VITE_API_URL ?? ''
@@ -70,5 +70,14 @@ export const api = {
       http.post(`/scans/${scanId}/opt-out/${brokerId}`).then(r => r.data),
     initiateAll: (scanId: string) =>
       http.post(`/scans/${scanId}/opt-out/all`).then(r => r.data),
+  },
+
+  admin: {
+    health: (): Promise<SystemHealth> =>
+      http.get<SystemHealth>('/admin/health').then(r => r.data),
+    monitors: (): Promise<{ monitors: DDMonitor[]; total: number }> =>
+      http.get('/admin/monitors').then(r => r.data),
+    events: (): Promise<{ events: DDEvent[] }> =>
+      http.get('/admin/events').then(r => r.data),
   },
 }
