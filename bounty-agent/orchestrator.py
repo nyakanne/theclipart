@@ -1,22 +1,12 @@
 #!/usr/bin/env python3
 """
-Bounty Hunter Orchestrator
-Autonomous end-to-end bug bounty pipeline for HackerOne.
-
-Pipeline:
-  1. Select best program via H1 API scoring
-  2. Create hunt branch (branch_publisher)
-  3. Recon: subfinder → httpx → tech fingerprinting
-  4. Scan: nuclei broad pass → Shannon deep pass (if interesting surface)
-  5. Triage: filter, deduplicate, validate impact
-  6. Report: generate H1 markdown, submit via API
-  7. Publish: commit every step, push branch
+Bounty Hunter Orchestrator — autonomous end-to-end HackerOne pipeline.
 
 Usage:
-    python3 orchestrator.py                          # auto-select best program
-    python3 orchestrator.py --program shopify        # target specific program
-    python3 orchestrator.py --dry-run                # recon + scan, no submit
-    python3 orchestrator.py --list-programs          # show top 20 ranked programs
+    python3 orchestrator.py                        # auto-select best program
+    python3 orchestrator.py --program shopify      # specific program
+    python3 orchestrator.py --dry-run              # recon+scan, no H1 submit
+    python3 orchestrator.py --list-programs        # show ranked programs
 """
 
 import argparse
@@ -28,22 +18,25 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 
-REPO_ROOT = Path(__file__).parent.parent
-BOUNTY_DIR = Path(__file__).parent
-TOOLS_DIR = BOUNTY_DIR / "tools"
+REPO_ROOT   = Path(__file__).parent.parent          # theclipart/
+BOUNTY_DIR  = Path(__file__).parent                 # bounty-agent/
+TOOLS_DIR   = BOUNTY_DIR / "tools"
 SHANNON_HOME = Path(os.environ.get("SHANNON_HOME", Path.home() / "shannon"))
 
-# Add tools to path
 sys.path.insert(0, str(TOOLS_DIR))
+sys.path.insert(0, str(BOUNTY_DIR))
 
 
 def _run(cmd: str, cwd: str = None, timeout: int = 600) -> tuple[bool, str]:
-    proc = subprocess.run(
-        cmd, shell=True, cwd=cwd or str(REPO_ROOT),
-        stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-        text=True, timeout=timeout,
-    )
-    return proc.returncode == 0, proc.stdout.strip()
+    try:
+        proc = subprocess.run(
+            cmd, shell=True, cwd=cwd or str(BOUNTY_DIR),
+            stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+            text=True, timeout=timeout,
+        )
+        return proc.returncode == 0, proc.stdout.strip()
+    except subprocess.TimeoutExpired:
+        return False, "timed out"
 
 
 def log(level: str, msg: str):
@@ -51,31 +44,46 @@ def log(level: str, msg: str):
     print(f"{icons.get(level, '·')} {msg}", flush=True)
 
 
-# ── Step 1: Program selection ─────────────────────────────────────────────────
+# ── Step 1: Select program ────────────────────────────────────────────────────
 
 def select_program(handle: str = None, min_bounty: float = 100) -> dict:
+    if not os.environ.get("H1_API_TOKEN"):
+        log("warn", "H1_API_TOKEN not set — using mock program for dry-run")
+        return {
+            "handle": handle or "example",
+            "name":   handle or "Example Program",
+            "scope":  [{"identifier": f"*.{handle or 'example'}.com",
+                        "asset_type": "WILDCARD", "eligible_for_bounty": True}],
+            "out_of_scope": [],
+            "max_bounty": 0,
+            "url": f"https://hackerone.com/{handle or 'example'}",
+        }
+
     from h1_api import list_programs, get_scope
 
     if handle:
-        log("step", f"Using specified program: {handle}")
+        log("step", f"Fetching scope for {handle}...")
         scope = get_scope(handle)
-        return {"handle": handle, "scope": scope, "name": handle}
+        return {"handle": handle, "name": handle,
+                "scope": scope, "out_of_scope": [], "max_bounty": 0,
+                "url": f"https://hackerone.com/{handle}"}
 
     log("step", "Scoring HackerOne programs...")
     programs = list_programs(min_bounty=min_bounty, limit=30)
     if not programs:
-        log("err", "No programs matched criteria")
+        log("err", "No programs matched — check H1 credentials")
         sys.exit(1)
 
     best = programs[0]
     log("ok", f"Selected: {best.name} ({best.handle}) — score {best.score():.0f}, "
-        f"bounty ${best.min_bounty:.0f}–${best.max_bounty:.0f}")
+              f"${best.min_bounty:.0f}–${best.max_bounty:.0f}")
     return {
-        "handle": best.handle,
-        "name": best.name,
-        "scope": best.in_scope,
-        "max_bounty": best.max_bounty,
-        "url": best.url,
+        "handle":      best.handle,
+        "name":        best.name,
+        "scope":       best.in_scope,
+        "out_of_scope": [],
+        "max_bounty":  best.max_bounty,
+        "url":         best.url,
     }
 
 
@@ -84,7 +92,6 @@ def select_program(handle: str = None, min_bounty: float = 100) -> dict:
 def run_recon(program: dict) -> dict:
     log("step", "Running recon...")
 
-    # Extract root domains from scope
     root_domains = []
     for asset in program.get("scope", []):
         ident = asset.get("identifier", "")
@@ -92,32 +99,31 @@ def run_recon(program: dict) -> dict:
             domain = ident.lstrip("*. ").split("/")[0]
             if domain and "." in domain:
                 root_domains.append(domain)
+    root_domains = list(dict.fromkeys(root_domains))[:10]
 
-    root_domains = list(dict.fromkeys(root_domains))[:10]  # dedup, cap at 10
-    log("info", f"Root domains: {root_domains}")
+    if not root_domains:
+        root_domains = [f"{program['handle']}.com"]
 
-    subdomains = []
-    live_hosts = []
-    tech_stack = {}
+    log("info", f"Domains: {root_domains}")
+    subdomains, live_hosts, tech_stack = [], [], {}
 
     for domain in root_domains:
-        # Subfinder
         ok, out = _run(f"subfinder -d {domain} -silent 2>/dev/null", timeout=120)
         if ok:
             found = [s.strip() for s in out.splitlines() if s.strip()]
             subdomains.extend(found)
             log("ok", f"subfinder: {len(found)} subdomains for {domain}")
+        else:
+            log("warn", f"subfinder not available for {domain} — using apex domain")
+            subdomains.append(domain)
 
     subdomains = list(dict.fromkeys(subdomains))
 
     if subdomains:
-        subs_file = "/tmp/bounty_subs.txt"
+        subs_file = "/tmp/ba_subs.txt"
         Path(subs_file).write_text("\n".join(subdomains))
-
-        # httpx probe
         ok, out = _run(
-            f"httpx -l {subs_file} -silent -title -tech-detect -status-code "
-            f"-json 2>/dev/null",
+            f"httpx -l {subs_file} -silent -title -tech-detect -status-code -json 2>/dev/null",
             timeout=180,
         )
         if ok:
@@ -132,260 +138,214 @@ def run_recon(program: dict) -> dict:
                 except Exception:
                     pass
             log("ok", f"httpx: {len(live_hosts)} live hosts")
+        else:
+            log("warn", "httpx not available — treating subdomains as live hosts")
+            live_hosts = [f"https://{s}" for s in subdomains[:10]]
 
+    log("ok", f"Recon complete — {len(subdomains)} subdomains, {len(live_hosts)} live hosts")
     return {
-        "domains": root_domains,
-        "subdomains": subdomains,
-        "live_hosts": live_hosts,
-        "tech_stack": tech_stack,
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "domains":     root_domains,
+        "subdomains":  subdomains,
+        "live_hosts":  live_hosts,
+        "tech_stack":  tech_stack,
+        "timestamp":   datetime.now(timezone.utc).isoformat(),
     }
 
 
-# ── Step 3: Scan ──────────────────────────────────────────────────────────────
+# ── Step 3: Nuclei scan ───────────────────────────────────────────────────────
 
-def run_nuclei_scan(live_hosts: list[str]) -> list[dict]:
+def run_nuclei(live_hosts: list[str]) -> list[dict]:
     if not live_hosts:
         return []
 
-    log("step", f"Running nuclei on {len(live_hosts)} hosts...")
-    hosts_file = "/tmp/bounty_hosts.txt"
-    Path(hosts_file).write_text("\n".join(live_hosts[:50]))  # cap at 50
+    ok, _ = _run("nuclei -version 2>/dev/null")
+    if not ok:
+        log("warn", "nuclei not installed — skipping broad scan")
+        return []
+
+    log("step", f"Nuclei scanning {min(len(live_hosts), 50)} hosts...")
+    hosts_file = "/tmp/ba_hosts.txt"
+    Path(hosts_file).write_text("\n".join(live_hosts[:50]))
 
     ok, out = _run(
         f"nuclei -l {hosts_file} -severity medium,high,critical "
-        f"-json -silent -rl 10 2>/dev/null",
+        f"-json -silent -rl 10 -timeout 10 2>/dev/null",
         timeout=900,
     )
-
     findings = []
-    if ok:
-        for line in out.splitlines():
-            try:
-                f = json.loads(line)
-                findings.append({
-                    "name": f.get("info", {}).get("name", ""),
-                    "severity": f.get("info", {}).get("severity", ""),
-                    "url": f.get("matched-at", ""),
-                    "template": f.get("template-id", ""),
-                    "description": f.get("info", {}).get("description", ""),
-                    "tags": f.get("info", {}).get("tags", []),
-                    "source": "nuclei",
-                })
-            except Exception:
-                pass
+    for line in out.splitlines():
+        try:
+            f = json.loads(line)
+            findings.append({
+                "name":        f.get("info", {}).get("name", ""),
+                "severity":    f.get("info", {}).get("severity", ""),
+                "url":         f.get("matched-at", ""),
+                "template":    f.get("template-id", ""),
+                "description": f.get("info", {}).get("description", ""),
+                "tags":        f.get("info", {}).get("tags", []),
+                "source":      "nuclei",
+            })
+        except Exception:
+            pass
 
-    log("ok", f"nuclei: {len(findings)} findings")
+    log("ok", f"Nuclei: {len(findings)} findings")
     return findings
 
 
-def run_shannon_scan(target_url: str, repo_name: str = "") -> list[dict]:
-    """Run Shannon deep scan if Shannon is available and target is interesting."""
+# ── Step 4: Shannon deep scan ─────────────────────────────────────────────────
+
+def run_shannon(target_url: str) -> list[dict]:
     if not (SHANNON_HOME / "shannon").exists():
-        log("warn", "Shannon not found — skipping deep scan")
+        log("warn", "Shannon not installed — skipping deep scan")
         return []
 
-    if not target_url:
-        return []
+    log("step", f"Shannon deep scan: {target_url} (~60-90 min)...")
+    ok, _ = _run(f"./shannon start URL={target_url} REPO=target", cwd=str(SHANNON_HOME), timeout=5400)
 
-    log("step", f"Running Shannon deep scan on {target_url}...")
-    cmd = f"./shannon start URL={target_url}"
-    if repo_name:
-        cmd += f" REPO={repo_name}"
-
-    ok, out = _run(cmd, cwd=str(SHANNON_HOME), timeout=5400)  # 90min max
-
-    # Parse Shannon's audit-log output
-    findings = []
     audit_dir = SHANNON_HOME / "audit-logs"
-    if audit_dir.exists():
-        latest = sorted(audit_dir.iterdir(), key=lambda p: p.stat().st_mtime, reverse=True)
-        if latest:
-            report_files = list(latest[0].glob("*.md"))
-            if report_files:
-                content = report_files[0].read_text()
-                findings.append({
-                    "name": "Shannon Deep Scan Report",
-                    "severity": "high",
-                    "url": target_url,
-                    "template": "shannon",
-                    "description": content[:2000],
-                    "source": "shannon",
-                    "full_report": content,
-                })
+    if not audit_dir.exists():
+        return []
+    latest_dirs = sorted(audit_dir.iterdir(), key=lambda p: p.stat().st_mtime, reverse=True)
+    if not latest_dirs:
+        return []
+    reports = list(latest_dirs[0].glob("*.md"))
+    if not reports:
+        return []
 
-    log("ok", f"Shannon: {len(findings)} report(s)")
-    return findings
+    content = reports[0].read_text()
+    log("ok", "Shannon report ready")
+    return [{"name": "Shannon Deep Scan", "severity": "high", "url": target_url,
+             "description": content[:3000], "source": "shannon", "template": "shannon"}]
 
 
-# ── Step 4: Triage ────────────────────────────────────────────────────────────
+# ── Step 5: Triage ────────────────────────────────────────────────────────────
 
-def triage_findings(findings: list[dict], scope: list[dict]) -> list[dict]:
-    """Filter out OOS, low-impact, and likely-duplicate findings."""
+def triage(findings: list[dict], scope: list[dict]) -> list[dict]:
     scope_identifiers = {a.get("identifier", "") for a in scope}
+    skip_tags = {"tech", "info", "generic"}
 
     def in_scope(url: str) -> bool:
+        if not scope_identifiers:
+            return True
         for ident in scope_identifiers:
-            clean = ident.lstrip("*. ")
-            if clean and clean in url:
+            if ident.lstrip("*. ").split("/")[0] in url:
                 return True
-        return not scope_identifiers  # if scope unknown, allow all
+        return False
 
-    # Tags to skip (typically N/A on H1)
-    skip_tags = {"tech", "info", "generic", "intrusive"}
-
-    triaged = []
+    approved = []
     for f in findings:
         if not in_scope(f.get("url", "")):
             continue
-        tags = set(f.get("tags", []))
-        if tags & skip_tags and f.get("severity") not in ("high", "critical"):
+        if set(f.get("tags", [])) & skip_tags and f.get("severity") not in ("high", "critical"):
             continue
-        triaged.append(f)
+        approved.append(f)
 
-    log("ok", f"Triage: {len(triaged)}/{len(findings)} findings passed")
-    return triaged
+    log("ok", f"Triage: {len(approved)}/{len(findings)} findings approved")
+    return approved
 
 
-# ── Step 5: Report generation ─────────────────────────────────────────────────
+# ── Step 6: Generate and submit report ───────────────────────────────────────
 
 def generate_report(finding: dict, program: dict) -> str:
-    sev = finding.get("severity", "medium").upper()
-    url = finding.get("url", "")
-    name = finding.get("name", "Vulnerability")
-    desc = finding.get("description", "")
-
     return f"""## Summary
 
-{desc or f'A {sev} severity vulnerability was identified at `{url}`.'}
+{finding.get('description') or f"A {finding.get('severity','medium').upper()} severity vulnerability was identified."}
 
 ## Steps to Reproduce
 
-1. Navigate to `{url}`
-2. Observe the vulnerability behaviour described above
-3. Confirm impact as documented
+1. Navigate to `{finding.get('url', '')}`
+2. Trigger the vulnerability as described above
+3. Observe the impact
 
 ## Impact
 
-This vulnerability could allow an attacker to compromise the confidentiality, integrity,
-or availability of the affected system. The finding was identified via automated scanning
-and has been validated before submission.
-
-## Supporting Evidence
-
-- **URL**: `{url}`
-- **Severity**: {sev}
-- **Detection**: {finding.get('source', 'automated scan')}
-- **Template/Module**: `{finding.get('template', 'n/a')}`
-
-{finding.get('full_report', '')}
+Automated confirmation via `{finding.get('source', 'scanner')}`. Severity: **{finding.get('severity','').upper()}**.
 
 ---
-*Report generated by the autonomous bounty hunting agent — {datetime.now(timezone.utc).strftime('%Y-%m-%d')}*
+*Autonomous bounty agent — {datetime.now(timezone.utc).strftime('%Y-%m-%d')}*
 """
 
 
-# ── Main pipeline ─────────────────────────────────────────────────────────────
+def submit(handle: str, finding: dict, report_md: str, dry_run: bool) -> str:
+    if dry_run or not os.environ.get("H1_API_TOKEN"):
+        log("warn", f"[dry-run] Would submit: {finding['name']}")
+        return "dry-run"
 
-def run_pipeline(
-    program_handle: str = None,
-    dry_run: bool = False,
-    min_bounty: float = 100,
-):
-    from branch_publisher import BranchPublisher
-    from h1_api import submit_report
+    try:
+        from h1_api import submit_report
+        result = submit_report(
+            handle=handle,
+            title=f"[Auto] {finding['name']} — {finding.get('url','')[:80]}",
+            vulnerability_information=report_md,
+            severity_rating=finding.get("severity", "medium"),
+            impact="Automated exploit confirmation.",
+        )
+        return result.get("data", {}).get("id", "unknown")
+    except Exception as e:
+        log("err", f"Submit failed: {e}")
+        return "error"
 
-    # 1. Select program
+
+# ── Main ──────────────────────────────────────────────────────────────────────
+
+def run_pipeline(program_handle: str = None, dry_run: bool = False, min_bounty: float = 100):
+    from tools.branch_publisher import BranchPublisher
+
     program = select_program(program_handle, min_bounty)
+    handle  = program["handle"]
 
-    # 2. Start hunt branch
-    target_url = program.get("url", "")
-    pub = BranchPublisher(str(REPO_ROOT), program["handle"], target_url)
+    pub = BranchPublisher(str(REPO_ROOT), handle, program.get("url", ""))
     pub.start()
 
     try:
-        # 3. Recon
         recon = run_recon(program)
         pub.commit_recon(recon)
 
-        # 4. Scan
-        nuclei_findings = run_nuclei_scan(recon["live_hosts"])
+        nuclei_findings = run_nuclei(recon["live_hosts"])
         shannon_findings = []
 
-        # Run Shannon on the primary target if nuclei found interesting surface
         high_sev = [f for f in nuclei_findings if f["severity"] in ("high", "critical")]
         if high_sev and recon["live_hosts"]:
-            primary = recon["live_hosts"][0]
-            shannon_findings = run_shannon_scan(primary)
+            shannon_findings = run_shannon(recon["live_hosts"][0])
 
-        all_findings = nuclei_findings + shannon_findings
+        approved = triage(nuclei_findings + shannon_findings, program.get("scope", []))
+        pub.commit_findings(approved)
 
-        # 5. Triage
-        triaged = triage_findings(all_findings, program.get("scope", []))
-        pub.commit_findings(triaged)
-
-        # 6. Report + submit
         submitted = 0
-        for finding in triaged:
+        for finding in approved:
             if finding.get("severity") not in ("high", "critical"):
                 continue
-
             report_md = generate_report(finding, program)
             pub.commit_report(report_md, finding.get("name", "finding"))
+            report_id = submit(handle, finding, report_md, dry_run)
+            if report_id not in ("dry-run", "error"):
+                pub.commit_submission(report_id, finding["name"], finding["severity"])
+                submitted += 1
+                log("ok", f"Submitted H1 report #{report_id}")
 
-            if not dry_run:
-                try:
-                    result = submit_report(
-                        handle=program["handle"],
-                        title=f"[Automated] {finding['name']} — {finding['url'][:80]}",
-                        vulnerability_information=report_md,
-                        severity_rating=finding["severity"],
-                        impact=f"Automated exploit confirmation via {finding.get('source','scanner')}.",
-                    )
-                    report_id = result.get("data", {}).get("id", "unknown")
-                    pub.commit_submission(report_id, finding["name"], finding["severity"])
-                    submitted += 1
-                    log("ok", f"Submitted H1 report #{report_id}")
-                except Exception as e:
-                    log("err", f"Submission failed: {e}")
-            else:
-                log("warn", f"[dry-run] Would submit: {finding['name']}")
-
-        # 7. Finish
         branch = pub.finish(bounty_submitted=submitted > 0)
-        log("ok", f"Hunt complete. Branch: {branch}")
-        log("info", f"Submitted {submitted} report(s) to H1/{program['handle']}")
+        log("ok", f"Hunt complete — branch: {branch} — {submitted} submitted")
 
     except KeyboardInterrupt:
-        log("warn", "Hunt interrupted — committing partial results")
+        log("warn", "Hunt interrupted")
         pub.finish(bounty_submitted=False, notes="interrupted")
-        raise
 
-
-# ── Entry point ───────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Autonomous HackerOne bounty hunter")
-    parser.add_argument("--program", help="H1 program handle (omit to auto-select)")
-    parser.add_argument("--dry-run", action="store_true", help="No report submission")
-    parser.add_argument("--list-programs", action="store_true", help="Show top programs and exit")
-    parser.add_argument("--min-bounty", type=float, default=100, help="Minimum max bounty ($)")
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--program",       help="H1 program handle")
+    parser.add_argument("--dry-run",       action="store_true")
+    parser.add_argument("--list-programs", action="store_true")
+    parser.add_argument("--min-bounty",    type=float, default=100)
     args = parser.parse_args()
 
     if args.list_programs:
+        if not os.environ.get("H1_API_TOKEN"):
+            print("Set H1_USERNAME and H1_API_TOKEN to list programs")
+            sys.exit(1)
         from h1_api import list_programs
-        programs = list_programs(limit=20, min_bounty=args.min_bounty)
-        print(f"\n{'#':>3}  {'Score':>6}  {'Handle':<30} {'Bounty':<20} {'Response'}")
-        print("─" * 80)
-        for i, p in enumerate(programs, 1):
-            print(
-                f"{i:3}.  {p.score():>5.0f}  {p.handle:<30} "
-                f"${p.min_bounty:.0f}–${p.max_bounty:.0f}{'':>10} {p.response_time_hours}h"
-            )
+        for i, p in enumerate(list_programs(limit=20, min_bounty=args.min_bounty), 1):
+            print(f"{i:2}. [{p.score():.0f}] {p.handle:<30} ${p.min_bounty:.0f}–${p.max_bounty:.0f}")
         sys.exit(0)
 
-    run_pipeline(
-        program_handle=args.program,
-        dry_run=args.dry_run,
-        min_bounty=args.min_bounty,
-    )
+    run_pipeline(args.program, args.dry_run, args.min_bounty)

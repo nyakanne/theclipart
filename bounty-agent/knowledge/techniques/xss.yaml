@@ -1,0 +1,34 @@
+name: XSS (Cross-Site Scripting)
+cwe: CWE-79
+cvss_range: "4.3-8.8"
+description: Injecting scripts that execute in victim's browser context
+
+types:
+  reflected: URL parameter reflected unsanitized into HTML response
+  stored: Payload persisted in DB, rendered to other users (higher impact)
+  dom: Client-side JS writes attacker data to DOM without sanitization
+
+high_value_contexts:
+  - Stored XSS in comments/messages visible to admins → ATO
+  - XSS in profile fields (name, bio) → mass-scale
+  - XSS that can steal HttpOnly=false session cookies
+  - XSS in support/admin tools → privilege escalation
+
+test_vectors:
+  - <script>alert(1)</script>
+  - "><script>alert(1)</script>
+  - javascript:alert(1)
+  - <img src=x onerror=alert(1)>
+  - <svg onload=alert(1)>
+  - "><img src=x onerror=alert(document.cookie)>
+  - ${alert(1)} (template injection)
+
+kill_signals:
+  - Self-XSS only (requires victim to run JS themselves)
+  - XSS in admin panel you can't reach without admin role
+  - XSS behind login with no escalation path (unless stored + visible to others)
+
+chain_opportunities:
+  - Stored XSS + no HttpOnly → session steal → ATO
+  - XSS + CSRF token steal → full CSRF
+  - XSS in admin panel → add attacker as admin

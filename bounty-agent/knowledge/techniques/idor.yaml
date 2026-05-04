@@ -1,0 +1,31 @@
+name: IDOR (Insecure Direct Object Reference)
+cwe: CWE-639
+cvss_range: "6.5-8.8"
+description: Accessing another user's resources by manipulating object IDs
+
+indicators:
+  - Sequential numeric IDs in URLs (/orders/1234)
+  - UUIDs in responses that appear elsewhere (/invoices/{uuid})
+  - Parameters: id, user_id, account_id, order_id, doc_id, file_id
+
+test_vectors:
+  - Change your own resource ID to another user's (±1, ±100, random)
+  - Use Account A token to access Account B's resources
+  - Try PUT/DELETE on object you can only GET
+  - Change user_id in POST body while authenticated as different user
+  - Try accessing admin objects from a regular user session
+
+high_value_endpoints:
+  - /api/v*/users/{id}
+  - /api/v*/orders/{id}
+  - /api/v*/invoices/{id}
+  - /api/v*/accounts/{id}
+  - /api/v*/documents/{id}
+  - /api/v*/messages/{id}
+  - /download?file_id=
+  - /export?report_id=
+
+chain_opportunities:
+  - IDOR read → IDOR write (try PUT/PATCH/DELETE)
+  - IDOR + leaked data → account takeover
+  - IDOR on admin endpoint → privilege escalation
