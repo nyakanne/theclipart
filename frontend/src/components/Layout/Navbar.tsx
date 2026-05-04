@@ -1,13 +1,14 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom'
-import { ShieldCheck, LayoutDashboard, Search, FileText, LogOut, LogIn } from 'lucide-react'
+import { ShieldCheck, LayoutDashboard, Search, FileText, LogOut, LogIn, Radio } from 'lucide-react'
 import { clsx } from 'clsx'
 import { useAuth } from '@/hooks/useAuth'
 import { api } from '@/services/api'
 
 const navItems = [
-  { label: 'Scan',      href: '/',          icon: Search },
-  { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-  { label: 'Reports',   href: '/reports',   icon: FileText },
+  { label: 'Scan',           href: '/',                icon: Search },
+  { label: 'Dashboard',      href: '/dashboard',       icon: LayoutDashboard },
+  { label: 'Reports',        href: '/reports',         icon: FileText },
+  { label: 'Command Center', href: '/command-center',  icon: Radio },
 ]
 
 export function Navbar() {

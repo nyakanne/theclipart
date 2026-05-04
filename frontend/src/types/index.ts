@@ -107,3 +107,34 @@ export interface ReportPackage {
   includes_compliance: boolean
   expires_at: string
 }
+
+// ── Command Center ────────────────────────────────────────────────────────────
+
+export interface SystemHealth {
+  database: 'ok' | 'error'
+  scan_counts: { queued: number; scanning: number; completed: number; failed: number }
+  total_scans: number
+  datadog_configured: boolean
+}
+
+export type MonitorStatus = 'Alert' | 'Warn' | 'No Data' | 'OK' | 'Unknown' | string
+
+export interface DDMonitor {
+  id: number
+  name: string
+  type: string
+  status: MonitorStatus
+  query: string
+  tags: string[]
+  message: string
+  modified: string
+}
+
+export interface DDEvent {
+  id: number
+  title: string
+  text: string
+  alert_type: 'error' | 'warning' | 'info' | 'success' | string
+  date_happened: number
+  tags: string[]
+}

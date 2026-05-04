@@ -4,6 +4,7 @@ import { Navbar } from '@/components/Layout/Navbar'
 import { Home } from '@/pages/Home'
 import { ScanPage } from '@/pages/ScanPage'
 import { Dashboard } from '@/pages/Dashboard'
+import { CommandCenter } from '@/pages/CommandCenter'
 import { Login } from '@/pages/Login'
 import { AuthCallback } from '@/pages/AuthCallback'
 import { useAuthStore } from '@/store/authStore'
@@ -39,6 +40,7 @@ export default function App() {
                       <Route path="/" element={<Home />} />
                       <Route path="/scan/:scanId" element={<ScanPage />} />
                       <Route path="/dashboard" element={<Dashboard />} />
+                      <Route path="/command-center" element={<CommandCenter />} />
                     </Routes>
                   </main>
                 </div>
