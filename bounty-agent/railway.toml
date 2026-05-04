@@ -1,8 +1,9 @@
 [build]
-builder = "nixpacks"
+builder = "dockerfile"
+dockerfilePath = "Dockerfile"
 
 [deploy]
-startCommand = "pip install -r ui/backend/requirements.txt && python ui/backend/app.py"
+startCommand = "python ui/backend/app.py"
 restartPolicyType = "on_failure"
 restartPolicyMaxRetries = 3
 
