@@ -1,11 +1,12 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { Navbar } from '@/components/Layout/Navbar'
 import { Home } from '@/pages/Home'
-import { ScanPage } from '@/pages/ScanPage'
-import { Dashboard } from '@/pages/Dashboard'
 import { Login } from '@/pages/Login'
 import { AuthCallback } from '@/pages/AuthCallback'
+import { ExposureDashboard } from '@/pages/ExposureDashboard'
+import { RemovalsPage } from '@/pages/RemovalsPage'
+import { Dashboard } from '@/pages/Dashboard'
+import { ScanPage } from '@/pages/ScanPage'
 import { useAuthStore } from '@/store/authStore'
 
 const qc = new QueryClient({
@@ -24,27 +25,18 @@ export default function App() {
       <BrowserRouter>
         <Routes>
           {/* Public */}
+          <Route path="/" element={<Home />} />
           <Route path="/login" element={<Login />} />
           <Route path="/auth/callback" element={<AuthCallback />} />
 
-          {/* Protected — wrap all app routes in a layout with Navbar */}
-          <Route
-            path="/*"
-            element={
-              <ProtectedRoute>
-                <div className="min-h-screen bg-gray-950">
-                  <Navbar />
-                  <main>
-                    <Routes>
-                      <Route path="/" element={<Home />} />
-                      <Route path="/scan/:scanId" element={<ScanPage />} />
-                      <Route path="/dashboard" element={<Dashboard />} />
-                    </Routes>
-                  </main>
-                </div>
-              </ProtectedRoute>
-            }
-          />
+          {/* Protected */}
+          <Route path="/exposure" element={<ProtectedRoute><ExposureDashboard /></ProtectedRoute>} />
+          <Route path="/removals" element={<ProtectedRoute><RemovalsPage /></ProtectedRoute>} />
+          <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+          <Route path="/scan/:scanId" element={<ProtectedRoute><ScanPage /></ProtectedRoute>} />
+
+          {/* Fallback */}
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>
     </QueryClientProvider>

@@ -4,7 +4,7 @@ import { api } from '@/services/api'
 
 export function Login() {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-950 px-4">
+    <div className="flex min-h-screen items-center justify-center bg-black px-4">
       <motion.div
         initial={{ opacity: 0, y: 24 }}
         animate={{ opacity: 1, y: 0 }}
@@ -13,17 +13,15 @@ export function Login() {
       >
         {/* Logo */}
         <div className="mb-8 text-center">
-          <div className="inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-brand-900/50 border border-brand-800 mb-4">
-            <ShieldCheck className="h-8 w-8 text-brand-400" />
+          <div className="inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-red-950/50 border border-red-900/50 mb-4 border-glow-red">
+            <ShieldCheck className="h-8 w-8 text-red-500 glow-red-sm" />
           </div>
           <h1 className="text-2xl font-bold text-white">DataGuard</h1>
-          <p className="mt-1.5 text-sm text-gray-400">
-            Find your data. Erase it. Arm yourself.
-          </p>
+          <p className="mt-1.5 text-sm text-gray-500">Find your data breach and protect yourself</p>
         </div>
 
         {/* Card */}
-        <div className="rounded-2xl border border-gray-800 bg-gray-900/60 backdrop-blur-sm p-8 space-y-6">
+        <div className="card-dark p-8 space-y-6">
           <div className="text-center">
             <h2 className="text-lg font-semibold text-white">Sign in to continue</h2>
             <p className="mt-1 text-xs text-gray-500">
@@ -31,10 +29,9 @@ export function Login() {
             </p>
           </div>
 
-          {/* GitHub Sign-In button */}
           <a
             href={api.auth.loginUrl()}
-            className="flex w-full items-center justify-center gap-3 rounded-lg bg-gray-100 hover:bg-white px-4 py-3 text-sm font-semibold text-gray-900 shadow-sm transition-colors"
+            className="flex w-full items-center justify-center gap-3 rounded-lg border border-gray-700 bg-gray-900 hover:bg-gray-800 hover:border-gray-600 px-4 py-3 text-sm font-semibold text-white shadow-sm transition-colors"
           >
             <GitHubIcon />
             Continue with GitHub
@@ -45,20 +42,16 @@ export function Login() {
             <span className="text-gray-400 underline cursor-pointer">Terms</span>{' '}
             and{' '}
             <span className="text-gray-400 underline cursor-pointer">Privacy Policy</span>.
-            We encrypt all PII at rest with AES-256&nbsp;/&nbsp;KMS.
+            We encrypt all PII at rest with AES-256 / KMS.
           </p>
         </div>
 
         {/* Trust strip */}
         <div className="mt-6 grid grid-cols-3 gap-3 text-center">
-          {[
-            ['250+', 'brokers scanned'],
-            ['GDPR', 'compliant'],
-            ['KMS', 'encrypted'],
-          ].map(([stat, label]) => (
-            <div key={stat} className="rounded-lg border border-gray-800 bg-gray-900/40 py-3 px-2">
-              <p className="text-sm font-bold text-brand-400">{stat}</p>
-              <p className="text-[10px] text-gray-500 mt-0.5">{label}</p>
+          {[['GDPR', 'compliant'], ['CCPA', 'compliant'], ['KMS', 'encrypted']].map(([stat, label]) => (
+            <div key={stat} className="card-dark py-3 px-2">
+              <p className="text-sm font-bold text-red-500">{stat}</p>
+              <p className="text-[10px] text-gray-600 mt-0.5">{label}</p>
             </div>
           ))}
         </div>
