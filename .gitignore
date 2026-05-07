@@ -27,6 +27,8 @@ venv/
 
 # Secrets
 nginx/ssl/
+!nginx/ssl/
+!nginx/ssl/README.md
 *.pem
 *.key
 *.crt

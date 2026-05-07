@@ -119,6 +119,46 @@ npm run build
 
 Host `frontend/dist` on your static host.
 
+## HTTPS Docker Deployment
+
+The included production Nginx container terminates HTTPS on ports `80` and `443`, redirects HTTP to HTTPS, and forwards `/api` to the FastAPI backend on the private Docker network.
+
+Before starting production, place real certificate files here:
+
+```text
+nginx/ssl/cert.pem
+nginx/ssl/key.pem
+```
+
+Do not commit the certificate or private key. You can use Let's Encrypt, Cloudflare Origin Certificates, or certificate files provided by your host. The tracked `nginx/ssl/README.md` keeps the mount path present without storing secrets.
+
+Example production `.env` values:
+
+```bash
+APP_ENV=production
+DEMO_MODE=false
+SECRET_KEY=<64+ random chars>
+CORS_ORIGINS=https://www.clipcraft.io,https://clipcraft.io
+PUBLIC_APP_URL=https://www.clipcraft.io
+SES_FROM_EMAIL=noreply@clipcraft.io
+HONEY_DOMAIN=honey.clipcraft.io
+```
+
+Then run:
+
+```bash
+docker compose --profile production up -d --build
+```
+
+Verify:
+
+```bash
+curl -I https://www.clipcraft.io
+curl https://www.clipcraft.io/health
+```
+
+If you deploy behind a managed host such as Render, Railway, Fly.io, Vercel, Netlify, or Cloudflare, let that host terminate HTTPS and set `PUBLIC_APP_URL` plus `CORS_ORIGINS` to the managed HTTPS URL.
+
 ## One-Stop Opt-Out Reality Check
 
 What is real now:
@@ -141,6 +181,7 @@ What still depends on live services:
 ## Final Launch Checklist
 
 - [ ] Push branch to GitHub.
+- [ ] Configure HTTPS certificate or managed HTTPS host.
 - [ ] Create Supabase project and set database/auth env vars.
 - [ ] Run Alembic migrations.
 - [ ] Create Redis instance.
