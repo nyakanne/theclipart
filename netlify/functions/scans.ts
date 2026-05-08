@@ -106,8 +106,8 @@ export const handler: Handler = async (event) => {
       ? Math.min(100, breaches.length * 15 + (breaches as Array<{ severity: string }>).filter(b => b.severity === 'critical').length * 20)
       : 0
 
-    const violations = []
-    const recommendations = []
+    const violations: string[] = []
+    const recommendations: string[] = []
 
     if (breaches.length > 0) {
       recommendations.push('Change passwords on all accounts — rotate any reused credentials.')
