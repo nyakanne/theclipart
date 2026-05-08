@@ -74,11 +74,20 @@ class Settings(BaseSettings):
     GOOGLE_CLIENT_SECRET: str = ''
     GOOGLE_REDIRECT_URI: str = ''   # override in prod; auto-detected in dev
 
+    # GitHub OAuth (used by Netlify functions and CLI tools)
+    GITHUB_CLIENT_ID: str = ''
+    GITHUB_CLIENT_SECRET: str = ''
+    GITHUB_REDIRECT_URI: str = ''
+
     FRONTEND_URL: str = 'http://localhost:3000'
 
     MAX_CONCURRENT_PLAYWRIGHT: int = 5
     SCAN_TIMEOUT_SECONDS: int = 300
     BROKER_LIST_PATH: str = '/app/data/brokers.json'
+
+    # Opt-out automation — keep False until SES domain is verified and
+    # removal email delivery has been tested end-to-end in production.
+    ALLOW_REAL_OPT_OUTS: bool = False
 
     @property
     def is_production(self) -> bool:
@@ -113,6 +122,13 @@ class Settings(BaseSettings):
                 errors.append('DATABASE_URL contains a placeholder password.')
             if not self.HIBP_API_KEY:
                 errors.append('HIBP_API_KEY is missing — breach checks will be skipped.')
+            if self.ALLOW_REAL_OPT_OUTS and not self.SES_FROM_EMAIL.endswith(('.com', '.net', '.org', '.io')):
+                errors.append(
+                    'ALLOW_REAL_OPT_OUTS=true but SES_FROM_EMAIL looks like a placeholder. '
+                    'Verify SES domain before enabling opt-out automation.'
+                )
+            if self.FRONTEND_URL == 'http://localhost:3000':
+                errors.append('FRONTEND_URL is still set to localhost in production.')
 
         if errors:
             msg = '\n'.join(f'  ✗ {e}' for e in errors)
