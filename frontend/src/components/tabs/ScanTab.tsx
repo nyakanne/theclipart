@@ -3,6 +3,7 @@ import { motion } from 'framer-motion'
 import { ShieldCheck, ShieldAlert, Search, RotateCcw, Database, Users, FileText, Radio, Target, AlertTriangle, Trash2 } from 'lucide-react'
 import { NetworkGraph } from '@/components/ui/NetworkGraph'
 import { PrivacyScore } from '@/components/ui/PrivacyScore'
+import { useAuthStore } from '@/store/authStore'
 
 interface Props {
   onNavigate: (tab: string) => void
@@ -36,7 +37,14 @@ export function ScanTab({ onNavigate }: Props) {
   const [result, setResult] = useState<ScanResult | null>(null)
   const [error, setError] = useState('')
 
+  const token = useAuthStore(s => s.token)
   const hasInput = Object.values(form).some(v => v.trim())
+
+  function authHeaders(): Record<string, string> {
+    const h: Record<string, string> = { 'Content-Type': 'application/json' }
+    if (token) h['Authorization'] = `Bearer ${token}`
+    return h
+  }
 
   async function startScan() {
     if (!hasInput) return
@@ -49,7 +57,7 @@ export function ScanTab({ onNavigate }: Props) {
     try {
       const res = await fetch('/api/v1/scans', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authHeaders(),
         body: JSON.stringify(form),
       })
       if (!res.ok) throw new Error(await res.text())
@@ -59,15 +67,19 @@ export function ScanTab({ onNavigate }: Props) {
       // Poll until complete
       while (true) {
         await new Promise(r => setTimeout(r, 900))
-        const statusRes = await fetch(`/api/v1/scans/${scanId}/status`)
+        const statusRes = await fetch(`/api/v1/scans/${scanId}/status`, { headers: authHeaders() })
         const status = await statusRes.json()
         setProgress(status.progress)
         setStage(status.current_stage)
         if (status.status === 'completed' || status.status === 'failed') break
       }
 
-      const fullRes = await fetch(`/api/v1/scans/${scanId}`)
+      const fullRes = await fetch(`/api/v1/scans/${scanId}`, { headers: authHeaders() })
       const full = await fullRes.json()
+      // Derive privacy_score if backend omits it
+      if (full.privacy_score == null && full.risk_score != null) {
+        full.privacy_score = Math.max(10, 100 - full.risk_score)
+      }
       setResult(full)
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Scan failed')
@@ -178,11 +190,11 @@ export function ScanTab({ onNavigate }: Props) {
               <div className="grid grid-cols-2 gap-3 flex-1">
                 {[
                   { label: 'People Search', value: result.stats?.people_search ?? 0, icon: Users },
-                  { label: 'Broker Sites', value: result.stats?.broker_sites ?? 0, icon: Database },
-                  { label: 'Public Records', value: result.stats?.public_records ?? 0, icon: FileText },
-                  { label: 'Social Profiles', value: result.stats?.social_profiles ?? 0, icon: Users },
-                  { label: 'Ad Networks', value: result.stats?.ad_networks ?? 0, icon: Radio },
-                  { label: 'Breach Data', value: result.stats?.breach_data ?? 0, icon: ShieldAlert },
+                  { label: 'Broker Sites',  value: result.stats?.broker_sites  ?? 0, icon: Database },
+                  { label: 'Public Records',value: result.stats?.public_records ?? 0, icon: FileText },
+                  { label: 'Social Profiles',value: result.stats?.social_profiles ?? 0, icon: Users },
+                  { label: 'Ad Networks',   value: result.stats?.ad_networks    ?? 0, icon: Radio },
+                  { label: 'Breach Data',   value: result.stats?.breach_data    ?? 0, icon: ShieldAlert },
                 ].map(s => (
                   <div key={s.label} className="flex items-center gap-3 p-3 rounded-xl bg-gray-900/50 border border-gray-800">
                     <s.icon className="h-4 w-4 text-red-500 flex-shrink-0" />

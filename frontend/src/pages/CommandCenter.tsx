@@ -1,12 +1,14 @@
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ShieldCheck, Search, Image, Trash2, FileText, UserX, Bell, Menu, X } from 'lucide-react'
+import { ShieldCheck, Search, Image, Trash2, FileText, UserX, Bell, Menu, X, LogOut } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 import { ScanTab } from '@/components/tabs/ScanTab'
 import { FindYourselfTab } from '@/components/tabs/FindYourselfTab'
 import { ImageSearchTab } from '@/components/tabs/ImageSearchTab'
 import { RemovalsTab } from '@/components/tabs/RemovalsTab'
 import { ReportsTab } from '@/components/tabs/ReportsTab'
 import { TrackHimTab } from '@/components/tabs/TrackHimTab'
+import { useAuthStore } from '@/store/authStore'
 
 const TABS = [
   { id: 'scan',    label: 'Dashboard',     icon: ShieldCheck, short: 'Scan' },
@@ -22,6 +24,13 @@ type TabId = typeof TABS[number]['id']
 export function CommandCenter() {
   const [activeTab, setActiveTab] = useState<TabId>('scan')
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const { user, logout } = useAuthStore()
+  const navigate = useNavigate()
+
+  function handleLogout() {
+    logout()
+    navigate('/login', { replace: true })
+  }
 
   return (
     <div className="min-h-screen bg-black flex flex-col">
@@ -52,11 +61,34 @@ export function CommandCenter() {
             ))}
           </nav>
 
+          {/* Right side: notifications + user */}
           <div className="flex items-center gap-2">
             <button className="relative p-1.5 rounded-lg bg-gray-900 border border-gray-800">
               <Bell className="h-4 w-4 text-gray-400" />
               <span className="absolute top-0.5 right-0.5 h-1.5 w-1.5 rounded-full bg-red-500" />
             </button>
+
+            {/* User display */}
+            {user && (
+              <div className="hidden sm:flex items-center gap-2 pl-2 border-l border-gray-800">
+                {user.picture ? (
+                  <img src={user.picture} alt={user.name} className="h-6 w-6 rounded-full object-cover" />
+                ) : (
+                  <div className="h-6 w-6 rounded-full bg-red-950/60 border border-red-900/50 flex items-center justify-center">
+                    <span className="text-[10px] font-bold text-red-400">{user.name?.charAt(0).toUpperCase()}</span>
+                  </div>
+                )}
+                <span className="text-xs text-gray-400 max-w-[100px] truncate">{user.name}</span>
+                <button
+                  onClick={handleLogout}
+                  title="Sign out"
+                  className="p-1 rounded text-gray-600 hover:text-gray-300 transition-colors"
+                >
+                  <LogOut className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            )}
+
             <button
               className="md:hidden p-1.5 rounded-lg bg-gray-900 border border-gray-800"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
@@ -68,21 +100,37 @@ export function CommandCenter() {
 
         {/* Mobile menu */}
         {mobileMenuOpen && (
-          <div className="md:hidden border-t border-gray-900 bg-black px-4 py-3 grid grid-cols-3 gap-2">
-            {TABS.map(tab => (
-              <button
-                key={tab.id}
-                onClick={() => { setActiveTab(tab.id); setMobileMenuOpen(false) }}
-                className={`flex flex-col items-center gap-1 py-2 rounded-lg text-xs font-medium transition-colors ${
-                  activeTab === tab.id
-                    ? 'bg-red-950/60 text-red-400 border border-red-900/50'
-                    : 'text-gray-500 border border-gray-900'
-                }`}
-              >
-                <tab.icon className="h-4 w-4" />
-                {tab.short}
-              </button>
-            ))}
+          <div className="md:hidden border-t border-gray-900 bg-black px-4 py-3 space-y-3">
+            <div className="grid grid-cols-3 gap-2">
+              {TABS.map(tab => (
+                <button
+                  key={tab.id}
+                  onClick={() => { setActiveTab(tab.id); setMobileMenuOpen(false) }}
+                  className={`flex flex-col items-center gap-1 py-2 rounded-lg text-xs font-medium transition-colors ${
+                    activeTab === tab.id
+                      ? 'bg-red-950/60 text-red-400 border border-red-900/50'
+                      : 'text-gray-500 border border-gray-900'
+                  }`}
+                >
+                  <tab.icon className="h-4 w-4" />
+                  {tab.short}
+                </button>
+              ))}
+            </div>
+            {user && (
+              <div className="flex items-center justify-between pt-2 border-t border-gray-900">
+                <div className="flex items-center gap-2">
+                  {user.picture
+                    ? <img src={user.picture} alt={user.name} className="h-6 w-6 rounded-full object-cover" />
+                    : <div className="h-6 w-6 rounded-full bg-red-950/60 border border-red-900/50 flex items-center justify-center"><span className="text-[10px] font-bold text-red-400">{user.name?.charAt(0).toUpperCase()}</span></div>
+                  }
+                  <span className="text-xs text-gray-400">{user.name}</span>
+                </div>
+                <button onClick={handleLogout} className="flex items-center gap-1 text-xs text-gray-600 hover:text-gray-300">
+                  <LogOut className="h-3.5 w-3.5" /> Sign out
+                </button>
+              </div>
+            )}
           </div>
         )}
       </header>
