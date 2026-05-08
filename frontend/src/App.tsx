@@ -3,10 +3,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { Home } from '@/pages/Home'
 import { Login } from '@/pages/Login'
 import { AuthCallback } from '@/pages/AuthCallback'
-import { ExposureDashboard } from '@/pages/ExposureDashboard'
-import { RemovalsPage } from '@/pages/RemovalsPage'
-import { Dashboard } from '@/pages/Dashboard'
-import { ScanPage } from '@/pages/ScanPage'
+import { CommandCenter } from '@/pages/CommandCenter'
 import { useAuthStore } from '@/store/authStore'
 
 const qc = new QueryClient({
@@ -29,13 +26,26 @@ export default function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/auth/callback" element={<AuthCallback />} />
 
-          {/* Protected */}
-          <Route path="/exposure" element={<ProtectedRoute><ExposureDashboard /></ProtectedRoute>} />
-          <Route path="/removals" element={<ProtectedRoute><RemovalsPage /></ProtectedRoute>} />
-          <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-          <Route path="/scan/:scanId" element={<ProtectedRoute><ScanPage /></ProtectedRoute>} />
+          {/* Command center — all feature tabs live here */}
+          <Route
+            path="/app/*"
+            element={
+              <ProtectedRoute>
+                <CommandCenter />
+              </ProtectedRoute>
+            }
+          />
 
-          {/* Fallback */}
+          {/* Legacy redirects */}
+          <Route path="/exposure"   element={<Navigate to="/app" replace />} />
+          <Route path="/removals"   element={<Navigate to="/app" replace />} />
+          <Route path="/dashboard"  element={<Navigate to="/app" replace />} />
+          <Route path="/lookup"     element={<Navigate to="/app" replace />} />
+          <Route path="/track"      element={<Navigate to="/app" replace />} />
+          <Route path="/opt-out"    element={<Navigate to="/app" replace />} />
+          <Route path="/reports"    element={<Navigate to="/app" replace />} />
+          <Route path="/image-search" element={<Navigate to="/app" replace />} />
+
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>
