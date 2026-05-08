@@ -47,7 +47,7 @@ export function ScanTab({ onNavigate }: Props) {
     setStage('Initializing scan…')
 
     try {
-      const res = await fetch('http://localhost:8000/api/v1/scans', {
+      const res = await fetch('/api/v1/scans', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(form),
@@ -59,14 +59,14 @@ export function ScanTab({ onNavigate }: Props) {
       // Poll until complete
       while (true) {
         await new Promise(r => setTimeout(r, 900))
-        const statusRes = await fetch(`http://localhost:8000/api/v1/scans/${scanId}/status`)
+        const statusRes = await fetch(`/api/v1/scans/${scanId}/status`)
         const status = await statusRes.json()
         setProgress(status.progress)
         setStage(status.current_stage)
         if (status.status === 'completed' || status.status === 'failed') break
       }
 
-      const fullRes = await fetch(`http://localhost:8000/api/v1/scans/${scanId}`)
+      const fullRes = await fetch(`/api/v1/scans/${scanId}`)
       const full = await fullRes.json()
       setResult(full)
     } catch (e: unknown) {

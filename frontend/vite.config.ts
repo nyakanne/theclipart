@@ -13,7 +13,9 @@ export default defineConfig({
     port: 3000,
     proxy: {
       '/api': {
-        target: 'http://backend:8000',
+        // In Docker: set VITE_API_PROXY_TARGET=http://backend:8000
+        // Local dev: proxies to localhost:8000 by default
+        target: process.env.VITE_API_PROXY_TARGET ?? 'http://localhost:8000',
         changeOrigin: true,
       },
     },

@@ -190,7 +190,7 @@ services:
     labels:
       com.datadoghq.ad.logs: '[{"source":"nginx","service":"dataguard-frontend"}]'
 
-  # Dev-friendly HTTP-only reverse proxy (no SSL cert required)
+  # Dev: HTTP-only (no SSL cert required) — default profile
   nginx-dev:
     image: nginx:1.25-alpine
     restart: unless-stopped
@@ -203,7 +203,11 @@ services:
       - ./nginx/nginx.dev.conf:/etc/nginx/nginx.conf:ro
     labels:
       com.datadoghq.ad.logs: '[{"source":"nginx","service":"dataguard-nginx"}]'
+    profiles:
+      - dev
 
+  # Production: HTTPS with SSL cert — activated with --profile production
+  # Requires: nginx/ssl/cert.pem + nginx/ssl/key.pem (or use certbot volume)
   nginx:
     image: nginx:1.25-alpine
     restart: unless-stopped
