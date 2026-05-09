@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Copy, Check, ExternalLink, FileText, AlertTriangle, CheckCircle, XCircle } from 'lucide-react'
 
 interface Signal {
@@ -100,10 +100,24 @@ Consult a qualified attorney for legal advice.
 `
 }
 
+const SIGNALS_KEY = 'dataguard-signals-v1'
+const NOTES_KEY = 'dataguard-report-notes'
+
 export function ReportsTab() {
-  const [signals, setSignals] = useState<Signal[]>(LEGAL_SIGNALS)
-  const [notes, setNotes] = useState('')
+  const [signals, setSignals] = useState<Signal[]>(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem(SIGNALS_KEY) ?? '{}') as Record<string, boolean>
+      return LEGAL_SIGNALS.map(s => ({ ...s, triggered: saved[s.id] ?? false }))
+    } catch { return LEGAL_SIGNALS }
+  })
+  const [notes, setNotes] = useState(() => localStorage.getItem(NOTES_KEY) ?? '')
   const [copied, setCopied] = useState(false)
+
+  useEffect(() => {
+    const map = Object.fromEntries(signals.map(s => [s.id, s.triggered]))
+    localStorage.setItem(SIGNALS_KEY, JSON.stringify(map))
+  }, [signals])
+  useEffect(() => { localStorage.setItem(NOTES_KEY, notes) }, [notes])
 
   function toggle(id: string) {
     setSignals(prev => prev.map(s => s.id === id ? { ...s, triggered: !s.triggered } : s))

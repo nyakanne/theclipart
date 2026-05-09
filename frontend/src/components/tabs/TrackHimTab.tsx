@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Plus, Trash2, ExternalLink, Copy, Check, AlertTriangle, Shield, Clock, Link, FileText, User } from 'lucide-react'
 
 interface EvidenceEntry {
@@ -50,13 +50,21 @@ It does not contain private location data, credentials, or private communication
 `
 }
 
+const STORAGE_KEY = 'dataguard-evidence-v1'
+const SUBJECT_KEY = 'dataguard-evidence-subject'
+
 export function TrackHimTab() {
-  const [subjectName, setSubjectName] = useState('')
-  const [entries, setEntries] = useState<EvidenceEntry[]>([])
+  const [subjectName, setSubjectName] = useState(() => localStorage.getItem(SUBJECT_KEY) ?? '')
+  const [entries, setEntries] = useState<EvidenceEntry[]>(() => {
+    try { return JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '[]') } catch { return [] }
+  })
   const [newType, setNewType] = useState<keyof typeof TYPE_CONFIG>('account')
   const [newLabel, setNewLabel] = useState('')
   const [newContent, setNewContent] = useState('')
   const [copied, setCopied] = useState(false)
+
+  useEffect(() => { localStorage.setItem(STORAGE_KEY, JSON.stringify(entries)) }, [entries])
+  useEffect(() => { localStorage.setItem(SUBJECT_KEY, subjectName) }, [subjectName])
 
   function addEntry() {
     if (!newContent.trim()) return
