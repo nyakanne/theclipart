@@ -30,7 +30,7 @@ const REPORT_LINKS = [
 function exportCase(entries: EvidenceEntry[], subjectName: string): string {
   const date = new Date().toLocaleString()
   const byType = (type: string) => entries.filter(e => e.type === type)
-  return `DATAGUARD ACTOR EVIDENCE RECORD
+  return `PHANTOM ACTOR EVIDENCE RECORD
 Subject: ${subjectName || '[UNNAMED SUBJECT]'}
 Exported: ${date}
 Total entries: ${entries.length}

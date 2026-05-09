@@ -32,7 +32,7 @@ async function runHibp(email: string): Promise<unknown[]> {
   const key = process.env.HIBP_API_KEY
   if (!key) return []
   const res = await fetch(`${HIBP_BASE}/breachedaccount/${encodeURIComponent(email)}?truncateResponse=false`, {
-    headers: { 'hibp-api-key': key, 'user-agent': 'DataGuard/1.0' },
+    headers: { 'hibp-api-key': key, 'user-agent': 'Phantom/1.0' },
   })
   if (res.status === 404) return []
   if (!res.ok) return []

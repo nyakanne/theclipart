@@ -80,7 +80,7 @@ const AUTHORITY_LINKS = [
 function buildReport(signals: Signal[], notes: string): string {
   const triggered = signals.filter(s => s.triggered)
   const date = new Date().toLocaleString()
-  return `DATAGUARD PRIVACY & LEGAL SIGNAL REPORT
+  return `PHANTOM PRIVACY & LEGAL SIGNAL REPORT
 Generated: ${date}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 

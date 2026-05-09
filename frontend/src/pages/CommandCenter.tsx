@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ShieldCheck, Search, Image, Trash2, FileText, UserX, Bell, Menu, X, LogOut } from 'lucide-react'
+import { ShieldCheck, Search, Image, Trash2, FileText, UserX, Bell, Menu, X, LogOut, Mail, Fingerprint, Send } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { ScanTab } from '@/components/tabs/ScanTab'
 import { FindYourselfTab } from '@/components/tabs/FindYourselfTab'
@@ -8,15 +8,21 @@ import { ImageSearchTab } from '@/components/tabs/ImageSearchTab'
 import { RemovalsTab } from '@/components/tabs/RemovalsTab'
 import { ReportsTab } from '@/components/tabs/ReportsTab'
 import { TrackHimTab } from '@/components/tabs/TrackHimTab'
+import { EmailBlastTab } from '@/components/tabs/EmailBlastTab'
+import { FingerprintTab } from '@/components/tabs/FingerprintTab'
+import { PlatformReporterTab } from '@/components/tabs/PlatformReporterTab'
 import { useAuthStore } from '@/store/authStore'
 
 const TABS = [
-  { id: 'scan',    label: 'Dashboard',     icon: ShieldCheck, short: 'Scan' },
-  { id: 'find',    label: 'Find Yourself', icon: Search,      short: 'Find' },
-  { id: 'image',   label: 'Image Search',  icon: Image,       short: 'Image' },
-  { id: 'removal', label: 'Opt-Out Queue', icon: Trash2,      short: 'Remove' },
-  { id: 'reports', label: 'Reports',       icon: FileText,    short: 'Report' },
-  { id: 'track',   label: 'Evidence',      icon: UserX,       short: 'Evidence' },
+  { id: 'scan',      label: 'Dashboard',        icon: ShieldCheck, short: 'Scan' },
+  { id: 'find',      label: 'Find Yourself',    icon: Search,      short: 'Find' },
+  { id: 'image',     label: 'Image Search',     icon: Image,       short: 'Image' },
+  { id: 'removal',   label: 'Opt-Out Queue',    icon: Trash2,      short: 'Remove' },
+  { id: 'email',     label: 'Email Blast',      icon: Mail,        short: 'Emails' },
+  { id: 'platform',  label: 'Report Platforms', icon: Send,        short: 'Report' },
+  { id: 'fingerprint', label: 'Fingerprint',    icon: Fingerprint, short: 'Hash' },
+  { id: 'reports',   label: 'Legal Signals',    icon: FileText,    short: 'Legal' },
+  { id: 'track',     label: 'Evidence',         icon: UserX,       short: 'Evidence' },
 ] as const
 
 type TabId = typeof TABS[number]['id']
@@ -39,7 +45,7 @@ export function CommandCenter() {
         <div className="max-w-7xl mx-auto px-4 flex items-center justify-between h-14">
           <div className="flex items-center gap-2">
             <ShieldCheck className="h-5 w-5 text-red-500" />
-            <span className="font-bold text-white text-sm tracking-wide">DATA GUARD</span>
+            <span className="font-bold text-white text-sm tracking-wide">PHANTOM</span>
             <span className="hidden sm:inline text-xs text-gray-600 ml-1">Command Center</span>
           </div>
 
@@ -145,12 +151,15 @@ export function CommandCenter() {
             exit={{ opacity: 0, y: -8 }}
             transition={{ duration: 0.2 }}
           >
-            {activeTab === 'scan'    && <ScanTab onNavigate={(tab) => setActiveTab(tab as TabId)} />}
-            {activeTab === 'find'    && <FindYourselfTab />}
-            {activeTab === 'image'   && <ImageSearchTab />}
-            {activeTab === 'removal' && <RemovalsTab />}
-            {activeTab === 'reports' && <ReportsTab />}
-            {activeTab === 'track'   && <TrackHimTab />}
+            {activeTab === 'scan'        && <ScanTab onNavigate={(tab) => setActiveTab(tab as TabId)} />}
+            {activeTab === 'find'        && <FindYourselfTab />}
+            {activeTab === 'image'       && <ImageSearchTab />}
+            {activeTab === 'removal'     && <RemovalsTab />}
+            {activeTab === 'email'       && <EmailBlastTab />}
+            {activeTab === 'platform'    && <PlatformReporterTab />}
+            {activeTab === 'fingerprint' && <FingerprintTab />}
+            {activeTab === 'reports'     && <ReportsTab />}
+            {activeTab === 'track'       && <TrackHimTab />}
           </motion.div>
         </AnimatePresence>
       </main>

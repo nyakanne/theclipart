@@ -26,7 +26,7 @@ export function Navbar() {
         <div className="flex h-16 items-center justify-between">
           <Link to="/" className="flex items-center gap-2.5">
             <ShieldCheck className="h-7 w-7 text-brand-400" />
-            <span className="text-lg font-bold tracking-tight text-white">DataGuard</span>
+            <span className="text-lg font-bold tracking-tight text-white">Phantom</span>
           </Link>
 
           <div className="flex items-center gap-1">

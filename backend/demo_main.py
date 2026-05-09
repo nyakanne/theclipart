@@ -26,7 +26,7 @@ from pydantic import BaseModel
 # jose is already in requirements.txt (python-jose[cryptography])
 from jose import jwt as _jwt
 
-app = FastAPI(title='DataGuard Demo API', version='1.0.0-demo', docs_url='/api/docs')
+app = FastAPI(title='Phantom Demo API', version='1.0.0-demo', docs_url='/api/docs')
 
 app.add_middleware(
     CORSMiddleware,
@@ -43,10 +43,10 @@ app.add_middleware(
 _scans: dict[str, dict] = {}
 
 # Fixed demo secret — only used in demo mode, never shipped to production
-_DEMO_SECRET = 'demo-only-secret-not-used-in-production-dataguard'
+_DEMO_SECRET = 'demo-only-secret-not-used-in-production-phantom'
 _DEMO_USER = {
     'id':         'demo-user-001',
-    'email':      'demo@dataguard.local',
+    'email':      'demo@phantom.me',
     'name':       'Demo User',
     'picture':    None,
     'created_at': '2025-01-01T00:00:00Z',

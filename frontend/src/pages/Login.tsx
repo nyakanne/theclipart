@@ -16,8 +16,8 @@ export function Login() {
           <div className="inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-red-950/50 border border-red-900/50 mb-4 border-glow-red">
             <ShieldCheck className="h-8 w-8 text-red-500 glow-red-sm" />
           </div>
-          <h1 className="text-2xl font-bold text-white">DataGuard</h1>
-          <p className="mt-1.5 text-sm text-gray-500">Your personal privacy command center</p>
+          <h1 className="text-2xl font-bold text-white">Phantom</h1>
+          <p className="mt-1.5 text-sm text-gray-500">Reclaim your name. Guard your data. Disappear.</p>
         </div>
 
         {/* Card */}
