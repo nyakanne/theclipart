@@ -1,0 +1,287 @@
+import { useState } from 'react'
+import { FileText, Copy, Check, ChevronDown, ChevronUp, ExternalLink, Shield } from 'lucide-react'
+
+type CrimeType = 'doxxing' | 'cyberstalking' | 'ncii' | 'harassment' | 'identity_theft' | 'extortion'
+type Jurisdiction = 'federal_us' | 'state_us' | 'uk' | 'canada' | 'australia' | 'eu'
+
+interface LawRef {
+  name: string
+  citation: string
+  description: string
+}
+
+const LAW_REFS: Record<CrimeType, LawRef[]> = {
+  doxxing: [
+    { name: 'Interstate Stalking (Federal)', citation: '18 U.S.C. § 2261A', description: 'Prohibits using electronic communications to cause substantial emotional distress' },
+    { name: 'CCPA Violation', citation: 'Cal. Civ. Code § 1798.81.5', description: 'Unlawful exposure of personal information' },
+    { name: 'State Doxxing Laws', citation: 'Varies by state', description: '48+ states have specific doxxing or cyberstalking statutes' },
+  ],
+  cyberstalking: [
+    { name: 'Federal Cyberstalking', citation: '18 U.S.C. § 2261A(2)', description: 'Using electronic means to stalk, harass, or cause fear' },
+    { name: 'Interstate Harassment', citation: '47 U.S.C. § 223', description: 'Obscene or harassing electronic communications' },
+    { name: 'VAWA Cyberstalking', citation: '34 U.S.C. § 12291', description: 'Violence Against Women Act provisions for technology-facilitated stalking' },
+  ],
+  ncii: [
+    { name: 'SHIELD Act (Federal)', citation: '15 U.S.C. § 6851', description: 'Prohibits non-consensual disclosure of intimate visual depictions' },
+    { name: 'State NCII Laws', citation: '48 states + DC', description: 'Most states have criminal NCII statutes with felony penalties' },
+    { name: 'Section 230 Exception', citation: 'FOSTA-SESTA 2018', description: 'Platforms can be liable for hosting NCII' },
+  ],
+  harassment: [
+    { name: 'Federal Harassment', citation: '18 U.S.C. § 2261A', description: 'Harassment using electronic communications across state lines' },
+    { name: 'Computer Fraud', citation: '18 U.S.C. § 1030 (CFAA)', description: 'Unauthorized computer access used to facilitate harassment' },
+    { name: 'Civil Rights Violation', citation: '42 U.S.C. § 1983', description: 'If harassment involves government actors or suppression of rights' },
+  ],
+  identity_theft: [
+    { name: 'Identity Theft (Federal)', citation: '18 U.S.C. § 1028', description: 'Fraud and related activity in connection with identification documents' },
+    { name: 'Wire Fraud', citation: '18 U.S.C. § 1343', description: 'Scheme to defraud using electronic communications' },
+    { name: 'Aggravated Identity Theft', citation: '18 U.S.C. § 1028A', description: '2-year mandatory minimum sentence added to any related felony' },
+  ],
+  extortion: [
+    { name: 'Federal Extortion', citation: '18 U.S.C. § 875', description: 'Transmitting threats in interstate commerce' },
+    { name: 'CFAA Extortion', citation: '18 U.S.C. § 1030(a)(7)', description: 'Threatening to damage or expose data to extort' },
+    { name: 'Hobbs Act', citation: '18 U.S.C. § 1951', description: 'Interference with commerce by threats or violence' },
+  ],
+}
+
+const REPORTING_AGENCIES = [
+  { name: 'FBI IC3', url: 'https://www.ic3.gov/', desc: 'Internet Crime Complaint Center — primary federal cybercrime reporting', priority: true },
+  { name: 'FTC ReportFraud', url: 'https://reportfraud.ftc.gov/', desc: 'Identity theft, impersonation, data broker violations', priority: true },
+  { name: 'NCMEC CyberTipline', url: 'https://www.missingkids.org/gethelpnow/cybertipline', desc: 'NCII involving minors — mandatory for platforms', priority: false },
+  { name: 'CCRI Crisis Line', url: 'https://cybercivilrights.org/get-help/', desc: 'Cyber Civil Rights Initiative — NCII specialist support', priority: false },
+  { name: 'IRS Identity Theft', url: 'https://www.irs.gov/identity-theft-fraud-scams', desc: 'If your SSN or financial identity was stolen', priority: false },
+  { name: 'State AG Office', url: 'https://www.naag.org/find-my-ag/', desc: 'Your state attorney general — privacy and consumer protection', priority: false },
+]
+
+const STORAGE_KEY = 'phantom-police-report-v1'
+
+function buildReport(params: {
+  yourName: string
+  yourEmail: string
+  yourPhone: string
+  yourAddress: string
+  crimeType: CrimeType
+  jurisdiction: Jurisdiction
+  incidentDate: string
+  suspectInfo: string
+  description: string
+  evidence: string
+  platforms: string
+}): string {
+  const laws = LAW_REFS[params.crimeType]
+  const crimeLabels: Record<CrimeType, string> = {
+    doxxing: 'Doxxing / Non-Consensual Exposure of Personal Information',
+    cyberstalking: 'Cyberstalking / Electronic Harassment',
+    ncii: 'Non-Consensual Intimate Image Distribution (NCII)',
+    harassment: 'Online Harassment Campaign',
+    identity_theft: 'Identity Theft / Impersonation',
+    extortion: 'Cyber Extortion / Sextortion',
+  }
+
+  return `INCIDENT REPORT — ${crimeLabels[params.crimeType].toUpperCase()}
+Generated by Phantom Privacy Platform
+Date Generated: ${new Date().toLocaleString()}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+COMPLAINANT INFORMATION
+Name:    ${params.yourName || '[Your Full Legal Name]'}
+Email:   ${params.yourEmail || '[Your Email Address]'}
+Phone:   ${params.yourPhone || '[Your Phone Number]'}
+Address: ${params.yourAddress || '[Your Address]'}
+
+CRIME TYPE
+${crimeLabels[params.crimeType]}
+
+INCIDENT DATE
+${params.incidentDate || '[Date / Date Range of Incidents]'}
+
+DESCRIPTION OF INCIDENT
+${params.description || '[Describe what happened, in chronological order, with specific dates and details]'}
+
+SUSPECT INFORMATION
+${params.suspectInfo || '[Any known information about the suspect: usernames, email addresses, IP addresses, real name if known, platform accounts, phone numbers]'}
+
+PLATFORMS / WEBSITES INVOLVED
+${params.platforms || '[List all platforms, websites, and URLs where the conduct occurred]'}
+
+EVIDENCE AVAILABLE
+${params.evidence || '[List all evidence you have: screenshots, URLs, timestamps, message logs, witness names, police report numbers from prior reports]'}
+
+APPLICABLE LAW
+${laws.map(l => `• ${l.name}\n  Citation: ${l.citation}\n  ${l.description}`).join('\n\n')}
+
+REQUESTED ACTION
+1. Open a formal criminal investigation
+2. Preserve and subpoena electronic records from all identified platforms
+3. Issue emergency content removal orders where victim safety is at risk
+4. Refer to federal authorities (FBI IC3) if interstate conduct is confirmed
+5. Provide a case/report number for follow-up
+
+I declare under penalty of perjury that the foregoing is true and correct to the best of my knowledge.
+
+Signature: _______________________
+Date: _______________________
+Name: ${params.yourName || '[Your Full Legal Name]'}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PREPARED WITH PHANTOM — vindica.me
+This document is for law enforcement use. Consult an attorney for legal advice.
+`
+}
+
+const CRIME_TYPES: { id: CrimeType; label: string }[] = [
+  { id: 'doxxing',        label: 'Doxxing' },
+  { id: 'cyberstalking',  label: 'Cyberstalking' },
+  { id: 'ncii',           label: 'NCII' },
+  { id: 'harassment',     label: 'Harassment' },
+  { id: 'identity_theft', label: 'Identity Theft' },
+  { id: 'extortion',      label: 'Extortion/Sextortion' },
+]
+
+export function PoliceReportTab() {
+  const [form, setForm] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '{}')
+    } catch {
+      return {}
+    }
+  })
+  const [crimeType, setCrimeType] = useState<CrimeType>('doxxing')
+  const [copied, setCopied] = useState(false)
+  const [showLaws, setShowLaws] = useState(false)
+
+  const f = (key: string) => form[key] ?? ''
+  const set = (key: string, val: string) => {
+    const updated = { ...form, [key]: val }
+    setForm(updated)
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(updated))
+  }
+
+  function copy() {
+    navigator.clipboard.writeText(buildReport({
+      yourName: f('name'), yourEmail: f('email'), yourPhone: f('phone'),
+      yourAddress: f('address'), crimeType, jurisdiction: 'federal_us',
+      incidentDate: f('date'), suspectInfo: f('suspect'),
+      description: f('description'), evidence: f('evidence'), platforms: f('platforms'),
+    }))
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2500)
+  }
+
+  return (
+    <div className="space-y-5">
+      <div className="card-dark p-5">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="h-9 w-9 rounded-xl bg-red-950/50 border border-red-900/40 flex items-center justify-center">
+            <Shield className="h-4 w-4 text-red-500" />
+          </div>
+          <div>
+            <h2 className="font-bold text-white">Police Report Builder</h2>
+            <p className="text-xs text-gray-500">Pre-filled incident report with applicable federal law citations — ready to hand to law enforcement</p>
+          </div>
+        </div>
+
+        {/* Crime type */}
+        <div className="mb-4">
+          <label className="block text-xs font-semibold text-gray-400 mb-2">Crime Type</label>
+          <div className="flex flex-wrap gap-2">
+            {CRIME_TYPES.map(c => (
+              <button
+                key={c.id}
+                onClick={() => setCrimeType(c.id)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${
+                  crimeType === c.id
+                    ? 'bg-red-950/60 text-red-400 border-red-900/50'
+                    : 'border-gray-800 text-gray-600 hover:border-gray-700 hover:text-gray-400'
+                }`}
+              >
+                {c.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Applicable laws */}
+        <button
+          onClick={() => setShowLaws(!showLaws)}
+          className="flex items-center gap-2 text-xs text-gray-500 hover:text-gray-300 transition-colors mb-4"
+        >
+          <FileText className="h-3.5 w-3.5" />
+          {showLaws ? 'Hide' : 'Show'} applicable laws for {CRIME_TYPES.find(c => c.id === crimeType)?.label}
+          {showLaws ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+        </button>
+        {showLaws && (
+          <div className="mb-4 space-y-2">
+            {LAW_REFS[crimeType].map(law => (
+              <div key={law.citation} className="p-3 rounded-xl bg-gray-950 border border-gray-800">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="text-xs font-semibold text-white">{law.name}</span>
+                  <span className="text-[10px] bg-red-950/40 text-red-400 px-1.5 py-0.5 rounded font-mono">{law.citation}</span>
+                </div>
+                <p className="text-xs text-gray-500">{law.description}</p>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Form fields */}
+        <div className="space-y-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <input className="input-field" placeholder="Your full legal name" value={f('name')} onChange={e => set('name', e.target.value)} />
+            <input className="input-field" placeholder="Your email address" value={f('email')} onChange={e => set('email', e.target.value)} />
+            <input className="input-field" placeholder="Your phone number" value={f('phone')} onChange={e => set('phone', e.target.value)} />
+            <input className="input-field" placeholder="Your address (for official report)" value={f('address')} onChange={e => set('address', e.target.value)} />
+          </div>
+          <input className="input-field" placeholder="Date(s) of incident(s)" value={f('date')} onChange={e => set('date', e.target.value)} />
+          <textarea className="input-field resize-none" rows={4} placeholder="Describe what happened — include dates, what was posted, where, and how it affected you…" value={f('description')} onChange={e => set('description', e.target.value)} />
+          <textarea className="input-field resize-none" rows={3} placeholder="Suspect information — username(s), email, phone, real name if known, profile URLs…" value={f('suspect')} onChange={e => set('suspect', e.target.value)} />
+          <textarea className="input-field resize-none" rows={3} placeholder="Platforms and URLs involved (e.g. reddit.com/r/… , twitter.com/…)" value={f('platforms')} onChange={e => set('platforms', e.target.value)} />
+          <textarea className="input-field resize-none" rows={3} placeholder="Evidence you have — screenshots saved, timestamps, witness names, prior report numbers…" value={f('evidence')} onChange={e => set('evidence', e.target.value)} />
+        </div>
+      </div>
+
+      {/* Preview + copy */}
+      <div className="card-dark p-5">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h3 className="font-semibold text-white">Report Preview</h3>
+            <p className="text-xs text-gray-500 mt-0.5">Copy and bring to your local precinct, or paste into FBI IC3</p>
+          </div>
+          <button onClick={copy} className="btn-red">
+            {copied ? <><Check className="h-4 w-4" /> Copied!</> : <><Copy className="h-4 w-4" /> Copy Report</>}
+          </button>
+        </div>
+        <pre className="text-xs text-gray-500 bg-gray-950 rounded-xl p-4 overflow-auto max-h-64 leading-relaxed whitespace-pre-wrap font-sans">
+          {buildReport({
+            yourName: f('name'), yourEmail: f('email'), yourPhone: f('phone'),
+            yourAddress: f('address'), crimeType, jurisdiction: 'federal_us',
+            incidentDate: f('date'), suspectInfo: f('suspect'),
+            description: f('description'), evidence: f('evidence'), platforms: f('platforms'),
+          })}
+        </pre>
+      </div>
+
+      {/* Reporting agencies */}
+      <div className="card-dark p-5">
+        <h3 className="font-semibold text-white mb-1">Where to File</h3>
+        <p className="text-xs text-gray-500 mb-4">File with as many agencies as apply — cross-reports strengthen your case</p>
+        <div className="space-y-2">
+          {REPORTING_AGENCIES.map(a => (
+            <a key={a.name} href={a.url} target="_blank" rel="noopener noreferrer"
+               className={`flex items-center gap-3 p-3 rounded-xl border transition-colors group ${
+                 a.priority ? 'border-red-900/40 bg-red-950/10 hover:border-red-900/60' : 'border-gray-800 bg-gray-900/30 hover:border-gray-700'
+               }`}>
+              <div className="flex-1">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-semibold text-white">{a.name}</span>
+                  {a.priority && <span className="text-[10px] bg-red-950/60 text-red-400 px-1.5 py-0.5 rounded">Priority</span>}
+                </div>
+                <p className="text-xs text-gray-500 mt-0.5">{a.desc}</p>
+              </div>
+              <ExternalLink className="h-3.5 w-3.5 text-gray-600 group-hover:text-gray-400 flex-shrink-0" />
+            </a>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}

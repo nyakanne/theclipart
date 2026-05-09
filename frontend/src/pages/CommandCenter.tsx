@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ShieldCheck, Search, Image, Trash2, FileText, UserX, Bell, Menu, X, LogOut, Mail, Fingerprint, Send } from 'lucide-react'
+import { ShieldCheck, Search, Image, Trash2, FileText, UserX, Bell, Menu, X, LogOut, Mail, Fingerprint, Send, ScanSearch, ClipboardList } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { ScanTab } from '@/components/tabs/ScanTab'
 import { FindYourselfTab } from '@/components/tabs/FindYourselfTab'
@@ -11,18 +11,22 @@ import { TrackHimTab } from '@/components/tabs/TrackHimTab'
 import { EmailBlastTab } from '@/components/tabs/EmailBlastTab'
 import { FingerprintTab } from '@/components/tabs/FingerprintTab'
 import { PlatformReporterTab } from '@/components/tabs/PlatformReporterTab'
+import { ReverseImageTab } from '@/components/tabs/ReverseImageTab'
+import { PoliceReportTab } from '@/components/tabs/PoliceReportTab'
 import { useAuthStore } from '@/store/authStore'
 
 const TABS = [
-  { id: 'scan',      label: 'Dashboard',        icon: ShieldCheck, short: 'Scan' },
-  { id: 'find',      label: 'Find Yourself',    icon: Search,      short: 'Find' },
-  { id: 'image',     label: 'Image Search',     icon: Image,       short: 'Image' },
-  { id: 'removal',   label: 'Opt-Out Queue',    icon: Trash2,      short: 'Remove' },
-  { id: 'email',     label: 'Email Blast',      icon: Mail,        short: 'Emails' },
-  { id: 'platform',  label: 'Report Platforms', icon: Send,        short: 'Report' },
-  { id: 'fingerprint', label: 'Fingerprint',    icon: Fingerprint, short: 'Hash' },
-  { id: 'reports',   label: 'Legal Signals',    icon: FileText,    short: 'Legal' },
-  { id: 'track',     label: 'Evidence',         icon: UserX,       short: 'Evidence' },
+  { id: 'scan',        label: 'Dashboard',        icon: ShieldCheck,   short: 'Scan' },
+  { id: 'find',        label: 'Find Yourself',    icon: Search,        short: 'Find' },
+  { id: 'image',       label: 'Image Search',     icon: Image,         short: 'Image' },
+  { id: 'reverse',     label: 'Reverse Image',    icon: ScanSearch,    short: 'Reverse' },
+  { id: 'removal',     label: 'Opt-Out Queue',    icon: Trash2,        short: 'Remove' },
+  { id: 'email',       label: 'Email Blast',      icon: Mail,          short: 'Emails' },
+  { id: 'platform',    label: 'Report Platforms', icon: Send,          short: 'Report' },
+  { id: 'fingerprint', label: 'Fingerprint',      icon: Fingerprint,   short: 'Hash' },
+  { id: 'police',      label: 'Police Report',    icon: ClipboardList, short: 'Police' },
+  { id: 'reports',     label: 'Legal Signals',    icon: FileText,      short: 'Legal' },
+  { id: 'track',       label: 'Evidence',         icon: UserX,         short: 'Evidence' },
 ] as const
 
 type TabId = typeof TABS[number]['id']
@@ -154,10 +158,12 @@ export function CommandCenter() {
             {activeTab === 'scan'        && <ScanTab onNavigate={(tab) => setActiveTab(tab as TabId)} />}
             {activeTab === 'find'        && <FindYourselfTab />}
             {activeTab === 'image'       && <ImageSearchTab />}
+            {activeTab === 'reverse'     && <ReverseImageTab />}
             {activeTab === 'removal'     && <RemovalsTab />}
             {activeTab === 'email'       && <EmailBlastTab />}
             {activeTab === 'platform'    && <PlatformReporterTab />}
             {activeTab === 'fingerprint' && <FingerprintTab />}
+            {activeTab === 'police'      && <PoliceReportTab />}
             {activeTab === 'reports'     && <ReportsTab />}
             {activeTab === 'track'       && <TrackHimTab />}
           </motion.div>
