@@ -1,8 +1,19 @@
 import { motion } from 'framer-motion'
 import { ShieldCheck } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 import { api } from '@/services/api'
+import { useAuthStore } from '@/store/authStore'
 
 export function Login() {
+  const { setToken, setUser } = useAuthStore()
+  const navigate = useNavigate()
+
+  function enterDemo() {
+    setToken('demo-token-vindica')
+    setUser({ id: 'demo', email: 'demo@vindica.me', name: 'Demo User', picture: null })
+    navigate('/dashboard', { replace: true })
+  }
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-black px-4">
       <motion.div
@@ -46,12 +57,12 @@ export function Login() {
           </div>
 
           {/* Demo mode */}
-          <a
-            href="/api/v1/auth/demo"
-            className="flex w-full items-center justify-center gap-2 rounded-lg border border-gray-800 bg-gray-950 hover:bg-gray-900 hover:border-gray-700 px-4 py-2.5 text-xs font-medium text-gray-400 hover:text-gray-200 transition-colors"
+          <button
+            onClick={enterDemo}
+            className="flex w-full items-center justify-center gap-2 rounded-lg border border-red-900/40 bg-red-950/20 hover:bg-red-950/40 hover:border-red-900/60 px-4 py-2.5 text-xs font-semibold text-red-400 hover:text-red-300 transition-colors"
           >
             Try Demo — no account needed
-          </a>
+          </button>
 
           <p className="text-center text-[11px] text-gray-600 leading-relaxed pt-1">
             By signing in you agree to our{' '}
