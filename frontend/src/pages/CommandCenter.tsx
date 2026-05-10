@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ShieldCheck, Search, Image, Trash2, FileText, UserX, Bell, Menu, X, LogOut, Mail, Fingerprint, Send, ScanSearch, ClipboardList } from 'lucide-react'
+import { ShieldCheck, Search, Image, Trash2, FileText, UserX, Bell, Menu, X, LogOut, Mail, Fingerprint, Send, ScanSearch, ClipboardList, Crosshair } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { ScanTab } from '@/components/tabs/ScanTab'
 import { FindYourselfTab } from '@/components/tabs/FindYourselfTab'
@@ -13,6 +13,7 @@ import { FingerprintTab } from '@/components/tabs/FingerprintTab'
 import { PlatformReporterTab } from '@/components/tabs/PlatformReporterTab'
 import { ReverseImageTab } from '@/components/tabs/ReverseImageTab'
 import { PoliceReportTab } from '@/components/tabs/PoliceReportTab'
+import { OsintTab } from '@/components/tabs/OsintTab'
 import { useAuthStore } from '@/store/authStore'
 
 const TABS = [
@@ -26,6 +27,7 @@ const TABS = [
   { id: 'fingerprint', label: 'Fingerprint',      icon: Fingerprint,   short: 'Hash' },
   { id: 'police',      label: 'Police Report',    icon: ClipboardList, short: 'Police' },
   { id: 'reports',     label: 'Legal Signals',    icon: FileText,      short: 'Legal' },
+  { id: 'osint',       label: 'OSINT Tools',      icon: Crosshair,     short: 'OSINT' },
   { id: 'track',       label: 'Evidence',         icon: UserX,         short: 'Evidence' },
 ] as const
 
@@ -165,6 +167,7 @@ export function CommandCenter() {
             {activeTab === 'fingerprint' && <FingerprintTab />}
             {activeTab === 'police'      && <PoliceReportTab />}
             {activeTab === 'reports'     && <ReportsTab />}
+            {activeTab === 'osint'       && <OsintTab />}
             {activeTab === 'track'       && <TrackHimTab />}
           </motion.div>
         </AnimatePresence>
