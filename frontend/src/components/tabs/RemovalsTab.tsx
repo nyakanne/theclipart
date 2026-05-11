@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { ExternalLink, Copy, Check, CheckCircle, Clock, AlertCircle, Trash2, RefreshCw, Shield, ShieldAlert, Activity, Bell } from 'lucide-react'
+import { ExternalLink, Copy, Check, CheckCircle, Clock, AlertCircle, RefreshCw, Shield, ShieldAlert, Activity, Bell } from 'lucide-react'
 
 type Status = 'pending' | 'submitted' | 'confirmed' | 'failed'
 

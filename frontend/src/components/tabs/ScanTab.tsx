@@ -285,8 +285,7 @@ export function ScanTab({ onNavigate }: Props) {
         {result && (() => {
           const score = deriveScore(result)
           const riskLevel = deriveRisk(score, result.compliance)
-          const riskColor = riskLevel === 'critical' ? 'text-red-500' : riskLevel === 'high' ? 'text-red-400' : riskLevel === 'medium' ? 'text-red-300' : 'text-red-300'
-          const riskBg    = riskLevel === 'critical' ? 'bg-red-950/40 border-red-900/50' : riskLevel === 'high' ? 'bg-red-950/40 border-red-900/40' : riskLevel === 'medium' ? 'bg-red-950/20 border-red-900/30' : 'bg-gray-900/40 border-gray-800'
+          const riskColor = riskLevel === 'critical' ? 'text-red-500' : riskLevel === 'high' ? 'text-red-400' : 'text-red-300'
 
           const highSev = result.breaches.filter(b => b.severity === 'critical' || b.severity === 'high').length
 

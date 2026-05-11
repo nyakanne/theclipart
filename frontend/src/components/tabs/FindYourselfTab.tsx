@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ExternalLink, Search, Copy, Check, ShieldCheck } from 'lucide-react'
+import { ExternalLink, Search, Copy, Check } from 'lucide-react'
 import { PageHeader } from '@/components/ui/PageHeader'
 
 const TOOLS = [
