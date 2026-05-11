@@ -100,8 +100,8 @@ Consult a qualified attorney for legal advice.
 `
 }
 
-const SIGNALS_KEY = 'dataguard-signals-v1'
-const NOTES_KEY = 'dataguard-report-notes'
+const SIGNALS_KEY = 'vindica-signals-v1'
+const NOTES_KEY = 'vindica-report-notes'
 
 export function ReportsTab() {
   const [signals, setSignals] = useState<Signal[]>(() => {

@@ -13,7 +13,7 @@ const http = axios.create({
 // Attach JWT from localStorage on every request
 http.interceptors.request.use(config => {
   try {
-    const raw = localStorage.getItem('dataguard-auth')
+    const raw = localStorage.getItem('vindica-auth')
     const token = raw ? JSON.parse(raw)?.state?.token : null
     if (token) config.headers.Authorization = `Bearer ${token}`
   } catch {}
@@ -25,7 +25,7 @@ http.interceptors.response.use(
   err => {
     const msg = err.response?.data?.detail ?? err.message ?? 'Unknown error'
     if (err.response?.status === 401) {
-      localStorage.removeItem('dataguard-auth')
+      localStorage.removeItem('vindica-auth')
       window.location.href = '/login'
     }
     return Promise.reject(new Error(msg))

@@ -197,7 +197,7 @@ function CompletedGauge({ completed, inProgress }: { completed: number; inProgre
 }
 
 export function RemovalsTab() {
-  const [name, setName]       = useState(() => localStorage.getItem('dataguard-removal-name') ?? '')
+  const [name, setName]       = useState(() => localStorage.getItem('vindica-removal-name') ?? '')
   const [brokers, setBrokers] = useState<Broker[]>(initBrokers)
   const [copiedTemplate, setCopiedTemplate] = useState<string | null>(null)
   const [filter, setFilter]   = useState<Status | 'all'>('all')
@@ -210,7 +210,7 @@ export function RemovalsTab() {
   }, [brokers])
 
   useEffect(() => {
-    localStorage.setItem('dataguard-removal-name', name)
+    localStorage.setItem('vindica-removal-name', name)
   }, [name])
 
   const filtered = brokers

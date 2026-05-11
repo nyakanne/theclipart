@@ -36,6 +36,6 @@ export const useScanStore = create<ScanStore>()(
 
       clearHistory: () => set({ recentScans: [], activeScanId: null, currentResult: null }),
     }),
-    { name: 'dataguard-scans' }
+    { name: 'vindica-scans' }
   )
 )

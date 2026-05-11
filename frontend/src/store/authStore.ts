@@ -27,6 +27,6 @@ export const useAuthStore = create<AuthStore>()(
       logout: () => set({ token: null, user: null }),
       isAuthenticated: () => !!get().token,
     }),
-    { name: 'dataguard-auth' }
+    { name: 'vindica-auth' }
   )
 )

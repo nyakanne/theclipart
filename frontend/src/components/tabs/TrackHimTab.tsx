@@ -50,8 +50,8 @@ It does not contain private location data, credentials, or private communication
 `
 }
 
-const STORAGE_KEY = 'dataguard-evidence-v1'
-const SUBJECT_KEY = 'dataguard-evidence-subject'
+const STORAGE_KEY = 'vindica-evidence-v1'
+const SUBJECT_KEY = 'vindica-evidence-subject'
 
 export function TrackHimTab() {
   const [subjectName, setSubjectName] = useState(() => localStorage.getItem(SUBJECT_KEY) ?? '')

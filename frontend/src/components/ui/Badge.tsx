@@ -3,9 +3,9 @@ import type { SeverityLevel } from '@/types'
 
 const severityStyles: Record<SeverityLevel, string> = {
   critical: 'bg-red-900/60 text-red-300 border-red-700/50',
-  high:     'bg-orange-900/60 text-orange-300 border-orange-700/50',
-  medium:   'bg-yellow-900/60 text-yellow-300 border-yellow-700/50',
-  low:      'bg-blue-900/60 text-blue-300 border-blue-700/50',
+  high:     'bg-red-950/60 text-red-400 border-red-900/50',
+  medium:   'bg-red-950/40 text-red-400/80 border-red-900/30',
+  low:      'bg-gray-800/60 text-gray-400 border-gray-700/50',
   info:     'bg-gray-800/60 text-gray-400 border-gray-600/50',
 }
 
@@ -37,9 +37,9 @@ export function StatusDot({ active, label }: StatusDotProps) {
     <span className="inline-flex items-center gap-1.5 text-sm">
       <span className={clsx(
         'h-2 w-2 rounded-full',
-        active ? 'bg-green-400 animate-pulse' : 'bg-gray-600'
+        active ? 'bg-red-500 animate-pulse' : 'bg-gray-600'
       )} />
-      <span className={active ? 'text-green-400' : 'text-gray-500'}>{label}</span>
+      <span className={active ? 'text-red-400' : 'text-gray-500'}>{label}</span>
     </span>
   )
 }
