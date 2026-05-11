@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ShieldCheck, Search, Image, Trash2, FileText, UserX, Bell, Menu, X, LogOut, Mail, Fingerprint, Send, ScanSearch, ClipboardList, Crosshair } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
@@ -15,6 +15,7 @@ import { ReverseImageTab } from '@/components/tabs/ReverseImageTab'
 import { PoliceReportTab } from '@/components/tabs/PoliceReportTab'
 import { OsintTab } from '@/components/tabs/OsintTab'
 import { useAuthStore } from '@/store/authStore'
+import { FootprintAnimation } from '@/components/FootprintAnimation'
 
 const TABS = [
   { id: 'scan',        label: 'Dashboard',        icon: ShieldCheck,   short: 'Scan' },
@@ -36,8 +37,10 @@ type TabId = typeof TABS[number]['id']
 export function CommandCenter() {
   const [activeTab, setActiveTab] = useState<TabId>('scan')
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [showAnimation, setShowAnimation] = useState(true)
   const { user, logout } = useAuthStore()
   const navigate = useNavigate()
+  const handleAnimationComplete = useCallback(() => setShowAnimation(false), [])
 
   function handleLogout() {
     logout()
@@ -45,6 +48,8 @@ export function CommandCenter() {
   }
 
   return (
+    <>
+    {showAnimation && <FootprintAnimation onComplete={handleAnimationComplete} />}
     <div className="min-h-screen bg-black flex flex-col">
       {/* Top bar */}
       <header className="border-b border-gray-900 bg-black/95 sticky top-0 z-50 backdrop-blur-sm">
@@ -173,5 +178,6 @@ export function CommandCenter() {
         </AnimatePresence>
       </main>
     </div>
+    </>
   )
 }
