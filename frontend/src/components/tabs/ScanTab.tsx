@@ -277,54 +277,57 @@ export function ScanTab({ onNavigate }: Props) {
       {/* Pre-scan dashboard */}
       {!result && !scanning && (
         <div className="space-y-4">
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="card-dark p-5 col-span-2 sm:col-span-1">
-              <p className="text-xs text-gray-500 uppercase tracking-wide mb-3">Privacy Score</p>
-              <div className="flex items-center gap-4">
-                <div className="relative w-[72px] h-[72px]">
-                  <svg width={72} height={72}>
-                    <circle cx={36} cy={36} r={28} fill="none" stroke="#1f2937" strokeWidth={6} />
-                    <circle cx={36} cy={36} r={28} fill="none" stroke="#374151" strokeWidth={6} strokeLinecap="round" strokeDasharray={175.9} strokeDashoffset={175.9} transform="rotate(-90 36 36)" />
-                  </svg>
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <ShieldCheck className="h-6 w-6 text-gray-700" />
-                  </div>
-                </div>
-                <div>
-                  <div className="text-2xl font-bold text-gray-600">—</div>
-                  <div className="text-xs text-gray-600">Run a scan</div>
-                </div>
+          {/* Exposure Dashboard header */}
+          <div className="card-dark p-5">
+            <div className="flex items-center justify-between mb-5">
+              <div>
+                <h2 className="text-lg font-bold text-white">Exposure Dashboard</h2>
+                <p className="text-xs text-gray-500 mt-0.5">Run a scan to map your digital footprint</p>
+              </div>
+              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gray-900 border border-gray-800">
+                <div className="h-1.5 w-1.5 rounded-full bg-gray-700" />
+                <span className="text-xs text-gray-600">Not scanned</span>
               </div>
             </div>
-            {[
-              { label: 'Sources Found', value: '—', sub: 'Across all categories' },
-              { label: 'Risk Level',    value: '—', sub: 'Based on breach data' },
-              { label: 'Brokers Found', value: '—', sub: 'With opt-out links' },
-            ].map(s => (
-              <div key={s.label} className="card-dark p-5">
-                <p className="text-xs text-gray-500 uppercase tracking-wide mb-2">{s.label}</p>
-                <div className="text-3xl font-bold text-gray-700">{s.value}</div>
-                <div className="text-xs text-gray-700 mt-1">{s.sub}</div>
-              </div>
-            ))}
-          </div>
 
-          <div className="card-dark p-5">
-            <h3 className="font-semibold text-white mb-4 flex items-center gap-2">
-              <Target className="h-4 w-4 text-red-500" /> Your Digital Footprint
-            </h3>
-            <div className="flex flex-col lg:flex-row items-center gap-6">
-              <NetworkGraph size={300} animated />
-              <div className="flex-1 space-y-3">
-                <p className="text-sm text-gray-500">Run a scan to see exactly where your personal data appears across data brokers, public records, ad networks, and breach databases.</p>
-                <div className="grid grid-cols-2 gap-2">
-                  {['People Search Sites', 'Data Broker DBs', 'Public Records', 'Ad Networks', 'Breach Databases', 'Social Profiles'].map(l => (
-                    <div key={l} className="flex items-center gap-2 text-xs text-gray-600">
-                      <div className="h-1.5 w-1.5 rounded-full bg-red-900" />
-                      {l}
-                    </div>
-                  ))}
+            <div className="flex flex-col lg:flex-row items-center gap-8">
+              {/* Privacy score gauge placeholder */}
+              <div className="flex flex-col items-center gap-2 flex-shrink-0">
+                <div className="relative w-32 h-32">
+                  <svg width={128} height={128} className="-rotate-90">
+                    <circle cx={64} cy={64} r={52} fill="none" stroke="#111" strokeWidth={10} />
+                    <circle cx={64} cy={64} r={52} fill="none" stroke="#1f2937" strokeWidth={10} strokeLinecap="round" strokeDasharray={326.7} strokeDashoffset={326.7} />
+                  </svg>
+                  <div className="absolute inset-0 flex flex-col items-center justify-center">
+                    <ShieldCheck className="h-8 w-8 text-gray-700" />
+                    <span className="text-xs text-gray-600 mt-1">Score</span>
+                  </div>
                 </div>
+                <div className="text-center">
+                  <div className="text-3xl font-bold text-gray-700">—</div>
+                  <div className="text-xs text-gray-600">Privacy Score</div>
+                </div>
+              </div>
+
+              {/* Network graph */}
+              <div className="flex-1 flex items-center justify-center">
+                <NetworkGraph size={280} animated />
+              </div>
+
+              {/* Stats column */}
+              <div className="flex flex-col gap-3 flex-shrink-0 w-44">
+                {[
+                  { label: 'Total Sources', value: '—', sub: 'Across all categories' },
+                  { label: 'Risk Level',    value: '—', sub: 'Based on breach data' },
+                  { label: 'Data Brokers',  value: '—', sub: 'With opt-out links' },
+                  { label: 'Breaches',      value: '—', sub: 'Known leak incidents' },
+                ].map(s => (
+                  <div key={s.label} className="p-3 rounded-xl bg-gray-900/60 border border-gray-800/60">
+                    <div className="text-[10px] text-gray-600 uppercase tracking-wide">{s.label}</div>
+                    <div className="text-2xl font-bold text-gray-700 mt-0.5">{s.value}</div>
+                    <div className="text-[10px] text-gray-700">{s.sub}</div>
+                  </div>
+                ))}
               </div>
             </div>
           </div>
