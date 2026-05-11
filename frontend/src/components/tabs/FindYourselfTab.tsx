@@ -72,6 +72,20 @@ export function FindYourselfTab() {
 
   return (
     <div className="space-y-5">
+      {/* Hero */}
+      <div className="card-dark p-6 relative overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-br from-red-950/20 via-transparent to-transparent pointer-events-none" />
+        <div className="flex items-center gap-2 mb-3">
+          <span className="text-[10px] font-bold tracking-[0.15em] text-red-500 uppercase">Exposure Audit</span>
+          <span className="h-px w-12 bg-red-900/50" />
+        </div>
+        <h1 className="text-2xl font-black text-white leading-tight mb-1">See What They See.</h1>
+        <h2 className="text-2xl font-black text-red-500 leading-tight mb-3">Find Yourself First.</h2>
+        <p className="text-sm text-gray-400 max-w-md leading-relaxed">
+          Pre-filled links to every breach database, people-search site, and dark web monitor — search before they do.
+        </p>
+      </div>
+
       <div className="card-dark p-5">
         <PageHeader
           icon={Search}

@@ -114,7 +114,7 @@ const CATEGORY_COLORS: Record<string, string> = {
   'General':       'bg-red-950/40 text-red-400',
   'Specialist':    'bg-red-950/40 text-red-400',
   'Face Search':   'bg-red-950/40 text-red-400',
-  'Content Theft': 'bg-red-950/40 text-orange-400',
+  'Content Theft': 'bg-red-950/40 text-red-400',
   'DMCA':          'bg-red-950/40 text-red-400',
   'Social':        'bg-gray-800 text-gray-400',
 }
@@ -167,6 +167,20 @@ export function ReverseImageTab() {
 
   return (
     <div className="space-y-5">
+      {/* Hero */}
+      <div className="card-dark p-6 relative overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-br from-red-950/20 via-transparent to-transparent pointer-events-none" />
+        <div className="flex items-center gap-2 mb-3">
+          <span className="text-[10px] font-bold tracking-[0.15em] text-red-500 uppercase">Image Trace & Takedown</span>
+          <span className="h-px w-12 bg-red-900/50" />
+        </div>
+        <h1 className="text-2xl font-black text-white leading-tight mb-1">Find Every Copy.</h1>
+        <h2 className="text-2xl font-black text-red-500 leading-tight mb-3">Remove Them All.</h2>
+        <p className="text-sm text-gray-400 max-w-md leading-relaxed">
+          Launch reverse image searches across {ENGINES.length} engines simultaneously — Google, Yandex, TinEye, PimEyes and more.
+        </p>
+      </div>
+
       <div className="flex items-start gap-3 p-4 rounded-xl bg-red-950/20 border border-red-900/30">
         <AlertTriangle className="h-5 w-5 text-red-400 flex-shrink-0 mt-0.5" />
         <div>
@@ -268,7 +282,7 @@ export function ReverseImageTab() {
                   </div>
                   <p className="text-xs text-gray-500 leading-relaxed">{engine.description}</p>
                   {engine.specialNote && (
-                    <p className="text-[11px] text-orange-400/80 mt-1 leading-relaxed">{engine.specialNote}</p>
+                    <p className="text-[11px] text-red-400/80 mt-1 leading-relaxed">{engine.specialNote}</p>
                   )}
                 </div>
               </div>

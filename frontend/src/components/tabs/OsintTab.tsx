@@ -52,7 +52,7 @@ const U_CATEGORY_COLORS: Record<string, string> = {
   Social:    'bg-red-950/40 text-red-400 border-red-900/40',
   Gaming:    'bg-red-950/40 text-red-400 border-red-900/40',
   Dev:       'bg-red-950/40 text-red-400 border-red-900/40',
-  Content:   'bg-red-950/40 text-orange-400 border-red-900/40',
+  Content:   'bg-red-950/40 text-red-400 border-red-900/40',
   Messaging: 'bg-red-950/40 text-red-400 border-red-900/40',
   Other:     'bg-gray-800 text-gray-400 border-gray-700',
 }
@@ -200,11 +200,25 @@ export function OsintTab() {
 
   return (
     <div className="space-y-5">
-      <div className="flex items-start gap-3 p-4 rounded-xl bg-orange-950/20 border border-orange-900/30">
-        <AlertTriangle className="h-5 w-5 text-orange-400 flex-shrink-0 mt-0.5" />
+      {/* Hero */}
+      <div className="card-dark p-6 relative overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-br from-red-950/20 via-transparent to-transparent pointer-events-none" />
+        <div className="flex items-center gap-2 mb-3">
+          <span className="text-[10px] font-bold tracking-[0.15em] text-red-500 uppercase">OSINT Intelligence Engine</span>
+          <span className="h-px w-12 bg-red-900/50" />
+        </div>
+        <h1 className="text-2xl font-black text-white leading-tight mb-1">Know Your</h1>
+        <h2 className="text-2xl font-black text-red-500 leading-tight mb-3">Digital Shadow.</h2>
+        <p className="text-sm text-gray-400 max-w-md leading-relaxed">
+          Username lookup, IP geolocation, domain intel, breach checks — all public data, mapped to your threat profile.
+        </p>
+      </div>
+
+      <div className="flex items-start gap-3 p-4 rounded-xl bg-red-950/20 border border-red-900/30">
+        <AlertTriangle className="h-5 w-5 text-red-500 flex-shrink-0 mt-0.5" />
         <div>
-          <p className="text-sm font-semibold text-orange-300 mb-1">White-Hat OSINT Only</p>
-          <p className="text-xs text-orange-300/70 leading-relaxed">
+          <p className="text-sm font-semibold text-red-300 mb-1">White-Hat OSINT Only</p>
+          <p className="text-xs text-gray-400 leading-relaxed">
             These tools use <strong>public data only</strong>: open social profiles, public WHOIS, and IP geolocation.
             No hacking, no private data, no unauthorized access. Use to document evidence for law enforcement — not to harass or stalk.
           </p>
@@ -291,13 +305,13 @@ export function OsintTab() {
                   rel="noopener noreferrer"
                   onClick={() => username.trim() && setULaunched(prev => new Set([...prev, platform.name]))}
                   className={`flex items-center justify-between p-3 rounded-xl border transition-colors group ${
-                    isLaunched ? 'opacity-60 border-green-900/40 bg-green-950/10' : 'border-gray-800 bg-gray-900/30 hover:border-gray-700'
+                    isLaunched ? 'opacity-60 border-red-900/40 bg-red-950/10' : 'border-gray-800 bg-gray-900/30 hover:border-gray-700'
                   }`}
                 >
                   <div className="flex items-center gap-2">
                     <span className={`text-[10px] px-1.5 py-0.5 rounded border font-medium ${catClass}`}>{platform.category}</span>
                     <span className="text-sm font-medium text-white">{platform.name}</span>
-                    {isLaunched && <span className="text-[10px] text-green-500">✓</span>}
+                    {isLaunched && <span className="text-[10px] text-red-400">✓</span>}
                   </div>
                   <ExternalLink className="h-3.5 w-3.5 text-gray-600 group-hover:text-gray-400 flex-shrink-0" />
                 </a>
@@ -438,7 +452,7 @@ export function OsintTab() {
                           <div className="mt-2 space-y-1.5">
                             {domainResult.nameservers?.map(ns => (
                               <div key={ns} className="bg-gray-950 rounded-lg border border-gray-800 px-4 py-2">
-                                <span className="text-xs text-green-400 font-mono">{ns}</span>
+                                <span className="text-xs text-red-400 font-mono">{ns}</span>
                               </div>
                             ))}
                           </div>

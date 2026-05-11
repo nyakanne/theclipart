@@ -117,6 +117,20 @@ export function EmailBlastTab() {
 
   return (
     <div className="space-y-5">
+      {/* Hero */}
+      <div className="card-dark p-6 relative overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-br from-red-950/20 via-transparent to-transparent pointer-events-none" />
+        <div className="flex items-center gap-2 mb-3">
+          <span className="text-[10px] font-bold tracking-[0.15em] text-red-500 uppercase">Legal Deletion Blitz</span>
+          <span className="h-px w-12 bg-red-900/50" />
+        </div>
+        <h1 className="text-2xl font-black text-white leading-tight mb-1">One Click.</h1>
+        <h2 className="text-2xl font-black text-red-500 leading-tight mb-3">Mass Deletion.</h2>
+        <p className="text-sm text-gray-400 max-w-md leading-relaxed">
+          Pre-filled CCPA / GDPR deletion emails to {BROKERS.length} data brokers — send them all in minutes.
+        </p>
+      </div>
+
       <div className="card-dark p-5">
         <div className="flex items-center gap-3 mb-4">
           <div className="h-9 w-9 rounded-xl bg-red-950/50 border border-red-900/40 flex items-center justify-center">

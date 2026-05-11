@@ -74,6 +74,20 @@ export function FingerprintTab() {
 
   return (
     <div className="space-y-5">
+      {/* Hero */}
+      <div className="card-dark p-6 relative overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-br from-red-950/20 via-transparent to-transparent pointer-events-none" />
+        <div className="flex items-center gap-2 mb-3">
+          <span className="text-[10px] font-bold tracking-[0.15em] text-red-500 uppercase">Content Authentication</span>
+          <span className="h-px w-12 bg-red-900/50" />
+        </div>
+        <h1 className="text-2xl font-black text-white leading-tight mb-1">Hash It.</h1>
+        <h2 className="text-2xl font-black text-red-500 leading-tight mb-3">Prove It Exists.</h2>
+        <p className="text-sm text-gray-400 max-w-md leading-relaxed">
+          SHA-256 fingerprint your content to create tamper-proof evidence records for law enforcement and takedown requests.
+        </p>
+      </div>
+
       {/* Info banner */}
       <div className="flex items-start gap-3 p-4 rounded-xl bg-red-950/20 border border-red-900/30">
         <Shield className="h-5 w-5 text-red-400 flex-shrink-0 mt-0.5" />

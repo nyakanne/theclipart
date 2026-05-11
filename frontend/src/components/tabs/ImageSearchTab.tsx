@@ -54,6 +54,20 @@ export function ImageSearchTab() {
 
   return (
     <div className="space-y-6">
+      {/* Hero */}
+      <div className="card-dark p-6 relative overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-br from-red-950/20 via-transparent to-transparent pointer-events-none" />
+        <div className="flex items-center gap-2 mb-3">
+          <span className="text-[10px] font-bold tracking-[0.15em] text-red-500 uppercase">Image Threat Detection</span>
+          <span className="h-px w-12 bg-red-900/50" />
+        </div>
+        <h1 className="text-2xl font-black text-white leading-tight mb-1">Your Face.</h1>
+        <h2 className="text-2xl font-black text-red-500 leading-tight mb-3">Everywhere It Shouldn't Be.</h2>
+        <p className="text-sm text-gray-400 max-w-md leading-relaxed">
+          Reverse image search + facial recognition + NCII removal tools — find stolen photos and take them down.
+        </p>
+      </div>
+
       {/* Input */}
       <div className="card-dark p-5">
         <div className="flex items-center gap-3 mb-4">
@@ -97,7 +111,7 @@ export function ImageSearchTab() {
         )}
 
         {imageUrl && (
-          <p className="text-xs text-green-500 mt-2">
+          <p className="text-xs text-red-400 mt-2">
             ✓ URL ready — click any tool below to search with this image.
           </p>
         )}
@@ -106,9 +120,9 @@ export function ImageSearchTab() {
       {SEARCH_TOOLS.map(group => (
         <div key={group.category} className="card-dark p-5">
           {group.warning && (
-            <div className="flex items-start gap-2 mb-4 p-3 rounded-xl bg-orange-950/20 border border-orange-900/30">
-              <AlertTriangle className="h-4 w-4 text-orange-400 flex-shrink-0 mt-0.5" />
-              <p className="text-xs text-orange-300">{group.warningText}</p>
+            <div className="flex items-start gap-2 mb-4 p-3 rounded-xl bg-red-950/20 border border-red-900/30">
+              <AlertTriangle className="h-4 w-4 text-red-500 flex-shrink-0 mt-0.5" />
+              <p className="text-xs text-red-300">{group.warningText}</p>
             </div>
           )}
 

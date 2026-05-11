@@ -138,6 +138,7 @@ const STORAGE_KEY = 'phantom-platform-reporter-v1'
 
 export function PlatformReporterTab() {
   const [yourName, setYourName] = useState(() => localStorage.getItem('phantom-your-name') ?? '')
+
   const [details, setDetails] = useState(() => localStorage.getItem('phantom-reporter-details') ?? '')
   const [category, setCategory] = useState<Category>('doxxing')
   const [reported, setReported] = useState<Record<string, boolean>>(() => {
@@ -180,6 +181,20 @@ export function PlatformReporterTab() {
 
   return (
     <div className="space-y-5">
+      {/* Hero */}
+      <div className="card-dark p-6 relative overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-br from-red-950/20 via-transparent to-transparent pointer-events-none" />
+        <div className="flex items-center gap-2 mb-3">
+          <span className="text-[10px] font-bold tracking-[0.15em] text-red-500 uppercase">Platform Takedown Engine</span>
+          <span className="h-px w-12 bg-red-900/50" />
+        </div>
+        <h1 className="text-2xl font-black text-white leading-tight mb-1">Report It.</h1>
+        <h2 className="text-2xl font-black text-red-500 leading-tight mb-3">Force Removal.</h2>
+        <p className="text-sm text-gray-400 max-w-md leading-relaxed">
+          Pre-written legal reports to {PLATFORMS.length} platforms' trust & safety teams — doxxing, NCII, stalking, impersonation.
+        </p>
+      </div>
+
       <div className="card-dark p-5">
         <div className="flex items-center gap-3 mb-4">
           <div className="h-9 w-9 rounded-xl bg-red-950/50 border border-red-900/40 flex items-center justify-center">
@@ -242,7 +257,7 @@ export function PlatformReporterTab() {
           return (
             <div key={platform.name} className={isDone ? 'opacity-60' : ''}>
               <div className="flex items-center gap-3 p-4">
-                <div className={`h-2 w-2 rounded-full flex-shrink-0 ${isDone ? 'bg-green-500' : 'bg-gray-700'}`} />
+                <div className={`h-2 w-2 rounded-full flex-shrink-0 ${isDone ? 'bg-red-500' : 'bg-gray-700'}`} />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="text-sm font-semibold text-white">{platform.name}</span>
@@ -256,7 +271,7 @@ export function PlatformReporterTab() {
                     {isOpen ? <ChevronUp className="h-3.5 w-3.5 text-gray-500" /> : <ChevronDown className="h-3.5 w-3.5 text-gray-500" />}
                   </button>
                   <button onClick={() => copyEmail(platform)} className="p-1.5 rounded-lg border border-gray-800 hover:border-gray-700 transition-colors">
-                    {copied === platform.name + '-copy' ? <Check className="h-3.5 w-3.5 text-green-400" /> : <Copy className="h-3.5 w-3.5 text-gray-500" />}
+                    {copied === platform.name + '-copy' ? <Check className="h-3.5 w-3.5 text-red-400" /> : <Copy className="h-3.5 w-3.5 text-gray-500" />}
                   </button>
                   <a
                     href={platform.reportUrl}
@@ -265,7 +280,7 @@ export function PlatformReporterTab() {
                     onClick={() => markReported(platform.name)}
                     className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
                       isDone
-                        ? 'bg-green-950/40 text-green-500 border border-green-900/40'
+                        ? 'bg-red-950/40 text-red-400 border border-red-900/40'
                         : 'btn-red'
                     }`}
                   >

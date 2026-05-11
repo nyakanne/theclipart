@@ -32,9 +32,9 @@ interface ScanResult {
 
 const SEV: Record<string, string> = {
   critical: 'text-red-400 bg-red-950/40 border-red-900/50',
-  high:     'text-orange-400 bg-red-950/40 border-orange-900/50',
-  medium:   'text-yellow-400 bg-yellow-950/40 border-yellow-900/50',
-  low:      'text-red-400 bg-green-950/40 border-green-900/50',
+  high:     'text-red-400 bg-red-950/40 border-red-900/40',
+  medium:   'text-red-300 bg-red-950/20 border-red-900/30',
+  low:      'text-red-400 bg-gray-900/40 border-gray-800',
 }
 
 function deriveScore(r: ScanResult) {
@@ -167,7 +167,7 @@ function ExposureMap({ brokers, breaches, userName = 'YOU' }: ExposureMapProps) 
             <div className="w-8 h-8 rounded-full bg-gray-950 border border-gray-800 flex items-center justify-center hover:border-red-800/60 transition-colors"
               style={{ boxShadow: `0 0 8px rgba(0,0,0,0.8), 0 0 4px ${n.type === 'breach' ? 'rgba(239,68,68,0.15)' : 'rgba(220,38,38,0.08)'}` }}>
               {n.type === 'breach'
-                ? <ShieldAlert className="h-3.5 w-3.5 text-orange-500" />
+                ? <ShieldAlert className="h-3.5 w-3.5 text-red-400" />
                 : <Users className="h-3.5 w-3.5 text-red-500/70" />
               }
             </div>
@@ -285,8 +285,8 @@ export function ScanTab({ onNavigate }: Props) {
         {result && (() => {
           const score = deriveScore(result)
           const riskLevel = deriveRisk(score, result.compliance)
-          const riskColor = riskLevel === 'critical' ? 'text-red-500' : riskLevel === 'high' ? 'text-orange-400' : riskLevel === 'medium' ? 'text-yellow-400' : 'text-green-400'
-          const riskBg    = riskLevel === 'critical' ? 'bg-red-950/40 border-red-900/50' : riskLevel === 'high' ? 'bg-red-950/40 border-orange-900/50' : riskLevel === 'medium' ? 'bg-yellow-950/40 border-yellow-900/50' : 'bg-green-950/40 border-green-900/50'
+          const riskColor = riskLevel === 'critical' ? 'text-red-500' : riskLevel === 'high' ? 'text-red-400' : riskLevel === 'medium' ? 'text-red-300' : 'text-red-300'
+          const riskBg    = riskLevel === 'critical' ? 'bg-red-950/40 border-red-900/50' : riskLevel === 'high' ? 'bg-red-950/40 border-red-900/40' : riskLevel === 'medium' ? 'bg-red-950/20 border-red-900/30' : 'bg-gray-900/40 border-gray-800'
 
           const highSev = result.breaches.filter(b => b.severity === 'critical' || b.severity === 'high').length
 
@@ -378,7 +378,7 @@ export function ScanTab({ onNavigate }: Props) {
                   </div>
                   <div className="flex items-center gap-3 text-[10px] text-gray-600">
                     <span className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-red-500 inline-block" />High Risk</span>
-                    <span className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-orange-400 inline-block" />Medium</span>
+                    <span className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-red-500 inline-block" />Medium</span>
                     <span className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-gray-600 inline-block" />Low</span>
                   </div>
                 </div>
@@ -441,8 +441,8 @@ export function ScanTab({ onNavigate }: Props) {
                   <div className="space-y-2.5">
                     {[
                       { label: 'People Search', count: result.broker_listings.filter(b => !b.fields_exposed?.includes('criminal')).length, color: 'bg-red-500', pct: 52 },
-                      { label: 'Breach Records', count: result.breaches.length, color: 'bg-orange-400', pct: Math.round(result.breaches.length / Math.max(result.total_exposures, 1) * 100) },
-                      { label: 'Public Records', count: result.broker_listings.filter(b => b.fields_exposed?.includes('criminal')).length, color: 'bg-yellow-500', pct: 13 },
+                      { label: 'Breach Records', count: result.breaches.length, color: 'bg-red-500', pct: Math.round(result.breaches.length / Math.max(result.total_exposures, 1) * 100) },
+                      { label: 'Public Records', count: result.broker_listings.filter(b => b.fields_exposed?.includes('criminal')).length, color: 'bg-red-700', pct: 13 },
                       { label: 'Other', count: 0, color: 'bg-gray-600', pct: 8 },
                     ].map(row => (
                       <div key={row.label}>
@@ -496,7 +496,7 @@ export function ScanTab({ onNavigate }: Props) {
                             <span className="font-semibold text-white text-sm">{b.source}</span>
                             {b.breach_date && <span className="text-xs text-gray-600">{b.breach_date.slice(0, 4)}</span>}
                             {b.record_count && <span className="text-xs text-gray-600">{(b.record_count / 1_000_000).toFixed(0)}M records</span>}
-                            {b.verified && <span className="text-[9px] text-green-600 border border-green-900/40 px-1 py-0.5 rounded">verified</span>}
+                            {b.verified && <span className="text-[9px] text-gray-500 border border-gray-800 px-1 py-0.5 rounded">verified</span>}
                           </div>
                           {b.description && <p className="text-[10px] text-gray-600 mt-0.5 line-clamp-1">{b.description}</p>}
                           <div className="flex flex-wrap gap-1 mt-1.5">
@@ -598,7 +598,7 @@ export function ScanTab({ onNavigate }: Props) {
               </div>
               <div className="flex items-center gap-3 text-[10px] text-gray-600">
                 <span className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-red-500 inline-block" />High Risk</span>
-                <span className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-orange-400 inline-block" />Medium</span>
+                <span className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-red-500 inline-block" />Medium</span>
                 <span className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-gray-600 inline-block" />Low</span>
               </div>
             </div>
@@ -629,7 +629,7 @@ export function ScanTab({ onNavigate }: Props) {
                   ))}
                 </div>
                 <div className="flex gap-2 text-[10px] text-gray-600">
-                  <ShieldCheck className="h-3.5 w-3.5 text-green-600 flex-shrink-0 mt-0.5" />
+                  <ShieldCheck className="h-3.5 w-3.5 text-gray-500 flex-shrink-0 mt-0.5" />
                   <span>100% secure scan · Data encrypted in transit · No data sold</span>
                 </div>
               </div>

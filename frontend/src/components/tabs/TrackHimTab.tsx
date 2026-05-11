@@ -94,12 +94,26 @@ export function TrackHimTab() {
 
   return (
     <div className="space-y-5">
+      {/* Hero */}
+      <div className="card-dark p-6 relative overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-br from-red-950/20 via-transparent to-transparent pointer-events-none" />
+        <div className="flex items-center gap-2 mb-3">
+          <span className="text-[10px] font-bold tracking-[0.15em] text-red-500 uppercase">Evidence Command Center</span>
+          <span className="h-px w-12 bg-red-900/50" />
+        </div>
+        <h1 className="text-2xl font-black text-white leading-tight mb-1">Document.</h1>
+        <h2 className="text-2xl font-black text-red-500 leading-tight mb-3">Build Your Case.</h2>
+        <p className="text-sm text-gray-400 max-w-md leading-relaxed">
+          Collect accounts, URLs, timeline events, and case notes into a law-enforcement-ready evidence package.
+        </p>
+      </div>
+
       {/* Safety notice */}
-      <div className="flex items-start gap-3 p-4 rounded-xl bg-orange-950/20 border border-orange-900/30">
-        <AlertTriangle className="h-5 w-5 text-orange-400 flex-shrink-0 mt-0.5" />
+      <div className="flex items-start gap-3 p-4 rounded-xl bg-red-950/30 border border-red-900/40">
+        <AlertTriangle className="h-5 w-5 text-red-400 flex-shrink-0 mt-0.5" />
         <div>
-          <p className="text-sm font-semibold text-orange-300 mb-1">Evidence Tracker — Not a Surveillance Tool</p>
-          <p className="text-xs text-orange-300/70 leading-relaxed">
+          <p className="text-sm font-semibold text-red-300 mb-1">Evidence Tracker — Not a Surveillance Tool</p>
+          <p className="text-xs text-red-300/70 leading-relaxed">
             This tool is for documenting <strong>known public accounts, URLs, report numbers, and case notes</strong> to share with law enforcement or attorneys.
             Do not record private location data, credentials, personal communications, or information obtained through unauthorized access.
             Physical surveillance, hacking, or doxxing is not supported and is illegal.
