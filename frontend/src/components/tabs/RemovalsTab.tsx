@@ -101,7 +101,7 @@ const STATUS_ICON: Record<Status, JSX.Element> = {
   failed:    <AlertCircle className="h-4 w-4 text-red-600" />,
 }
 
-const STORAGE_KEY = 'dataguard-removals-v1'
+const STORAGE_KEY = 'vindica-removals-v1'
 
 function loadSaved(): Record<string, Status> {
   try { return JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '{}') } catch { return {} }
