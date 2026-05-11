@@ -274,12 +274,60 @@ export function ScanTab({ onNavigate }: Props) {
         </motion.div>
       )}
 
-      {/* Empty state */}
+      {/* Pre-scan dashboard */}
       {!result && !scanning && (
-        <div className="card-dark p-8 text-center">
-          <ShieldCheck className="h-12 w-12 text-red-900/60 mx-auto mb-4" />
-          <h3 className="font-semibold text-gray-400 mb-2">No scan results yet</h3>
-          <p className="text-sm text-gray-600">Enter your name, email, phone, or username above and run a scan to see where your data appears across the web.</p>
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="card-dark p-5 col-span-2 sm:col-span-1">
+              <p className="text-xs text-gray-500 uppercase tracking-wide mb-3">Privacy Score</p>
+              <div className="flex items-center gap-4">
+                <div className="relative w-[72px] h-[72px]">
+                  <svg width={72} height={72}>
+                    <circle cx={36} cy={36} r={28} fill="none" stroke="#1f2937" strokeWidth={6} />
+                    <circle cx={36} cy={36} r={28} fill="none" stroke="#374151" strokeWidth={6} strokeLinecap="round" strokeDasharray={175.9} strokeDashoffset={175.9} transform="rotate(-90 36 36)" />
+                  </svg>
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <ShieldCheck className="h-6 w-6 text-gray-700" />
+                  </div>
+                </div>
+                <div>
+                  <div className="text-2xl font-bold text-gray-600">—</div>
+                  <div className="text-xs text-gray-600">Run a scan</div>
+                </div>
+              </div>
+            </div>
+            {[
+              { label: 'Sources Found', value: '—', sub: 'Across all categories' },
+              { label: 'Risk Level',    value: '—', sub: 'Based on breach data' },
+              { label: 'Brokers Found', value: '—', sub: 'With opt-out links' },
+            ].map(s => (
+              <div key={s.label} className="card-dark p-5">
+                <p className="text-xs text-gray-500 uppercase tracking-wide mb-2">{s.label}</p>
+                <div className="text-3xl font-bold text-gray-700">{s.value}</div>
+                <div className="text-xs text-gray-700 mt-1">{s.sub}</div>
+              </div>
+            ))}
+          </div>
+
+          <div className="card-dark p-5">
+            <h3 className="font-semibold text-white mb-4 flex items-center gap-2">
+              <Target className="h-4 w-4 text-red-500" /> Your Digital Footprint
+            </h3>
+            <div className="flex flex-col lg:flex-row items-center gap-6">
+              <NetworkGraph size={300} animated />
+              <div className="flex-1 space-y-3">
+                <p className="text-sm text-gray-500">Run a scan to see exactly where your personal data appears across data brokers, public records, ad networks, and breach databases.</p>
+                <div className="grid grid-cols-2 gap-2">
+                  {['People Search Sites', 'Data Broker DBs', 'Public Records', 'Ad Networks', 'Breach Databases', 'Social Profiles'].map(l => (
+                    <div key={l} className="flex items-center gap-2 text-xs text-gray-600">
+                      <div className="h-1.5 w-1.5 rounded-full bg-red-900" />
+                      {l}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>
