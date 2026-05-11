@@ -90,9 +90,9 @@ async def limit_request_size(request: Request, call_next) -> Response:
 # ── Metrics (internal only — put behind VPC/auth in prod) ────────────────────
 Instrumentator().instrument(app).expose(app, endpoint='/metrics', include_in_schema=False)
 
-app.include_router(auth_router.router, prefix='/api/v1')
-app.include_router(scans.router, prefix='/api/v1')
-app.include_router(webhooks.router, prefix='/api/v1')
+app.include_router(auth_router.router, prefix='/v1')
+app.include_router(scans.router, prefix='/v1')
+app.include_router(webhooks.router, prefix='/v1')
 
 
 @app.get('/health', include_in_schema=False)
