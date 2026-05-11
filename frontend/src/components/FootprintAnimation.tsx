@@ -21,7 +21,6 @@ interface Edge {
   revealDelay: number
 }
 
-const CORE_LABELS = ['YOU']
 const DATA_LABELS = ['Name', 'Email', 'Phone', 'Address', 'DOB', 'IP', 'Photos', 'Family']
 const BROKER_LABELS = ['Spokeo', 'WhitePages', 'BeenVerified', 'Intelius', 'PeopleFinder', 'Radaris', 'MyLife', 'ZabaSearch']
 
@@ -92,7 +91,6 @@ export function FootprintAnimation({ onComplete }: { onComplete: () => void }) {
       }
     })
     // Data to brokers
-    const dataNodes = nodes.filter((_, i) => nodes[i]?.type === 'data')
     nodes.forEach((n, i) => {
       if (n.type === 'broker') {
         const dataIdx = Math.floor(Math.random() * DATA_LABELS.length) + 1
