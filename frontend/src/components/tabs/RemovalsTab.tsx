@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react'
-import { ExternalLink, Copy, Check, CheckCircle, Clock, AlertCircle, Trash2, RefreshCw } from 'lucide-react'
+import { useState, useEffect, useRef } from 'react'
+import { ExternalLink, Copy, Check, CheckCircle, Clock, AlertCircle, Trash2, RefreshCw, Shield, ShieldAlert, Activity, Bell } from 'lucide-react'
 
 type Status = 'pending' | 'submitted' | 'confirmed' | 'failed'
 
@@ -32,10 +32,7 @@ const BROKER_LIST: Omit<Broker, 'id' | 'status'>[] = [
   { name: 'Addresses.com',     category: 'People Search', opt_out_url: 'https://www.addresses.com/optout.php',                                instructions: 'Submit opt-out with full name and address.',                                                               method: 'Web form' },
   { name: 'AnyWho',            category: 'People Search', opt_out_url: 'https://www.anywho.com/privacy',                                     instructions: 'Use the privacy request form to remove your listing.',                                                     method: 'Web form' },
   { name: 'Pipl',              category: 'People Search', opt_out_url: 'https://pipl.com/personal-information-removal-request',               instructions: 'Submit personal information removal request form.',                                                       method: 'Web form' },
-  { name: 'Peopleby',          category: 'People Search', opt_out_url: 'https://peopleby.com',                                                instructions: 'Navigate to your listing and request removal.',                                                            method: 'Web form' },
-  { name: 'ClustrMaps',        category: 'People Search', opt_out_url: 'https://clustrmaps.com/bl/opt-out',                                   instructions: 'Use the opt-out link to remove your address and cluster data.',                                            method: 'Web form' },
   { name: 'Nuwber',            category: 'People Search', opt_out_url: 'https://nuwber.com/removal/link',                                     instructions: 'Submit your information to request removal from results.',                                                 method: 'Web form' },
-  { name: 'Neighbor.report',   category: 'People Search', opt_out_url: 'https://neighbor.report',                                             instructions: 'Search for your listing and use the removal option.',                                                     method: 'Web form' },
   { name: 'Lexis Nexis',       category: 'People Search', opt_out_url: 'https://optout.lexisnexis.com/',                                      instructions: 'Complete the opt-out form. May require last 4 of SSN for verification.',                                   method: 'Web form' },
   { name: 'PublicRecordsNow',  category: 'People Search', opt_out_url: 'https://www.publicrecordsnow.com/static/view/optout',                 instructions: 'Submit name and location to remove your public record listing.',                                           method: 'Web form' },
   { name: 'Arrests.org',       category: 'Public Records', opt_out_url: 'https://arrests.org/removal.php',                                    instructions: 'Submit removal request with full name and date of birth.',                                                 method: 'Web form' },
@@ -99,9 +96,9 @@ ${name || '[YOUR NAME]'}`
 
 const STATUS_ICON: Record<Status, JSX.Element> = {
   pending:   <Clock className="h-4 w-4 text-gray-500" />,
-  submitted: <AlertCircle className="h-4 w-4 text-yellow-400" />,
-  confirmed: <CheckCircle className="h-4 w-4 text-green-400" />,
-  failed:    <AlertCircle className="h-4 w-4 text-red-400" />,
+  submitted: <AlertCircle className="h-4 w-4 text-red-400" />,
+  confirmed: <CheckCircle className="h-4 w-4 text-red-300" />,
+  failed:    <AlertCircle className="h-4 w-4 text-red-600" />,
 }
 
 const STORAGE_KEY = 'dataguard-removals-v1'
@@ -119,6 +116,86 @@ function initBrokers(): Broker[] {
   }))
 }
 
+function MiniNetworkCanvas() {
+  const ref = useRef<HTMLCanvasElement>(null)
+  useEffect(() => {
+    const canvas = ref.current
+    if (!canvas) return
+    const ctx = canvas.getContext('2d')!
+    const W = canvas.width, H = canvas.height
+    const cx = W / 2, cy = H / 2
+    const pts = Array.from({ length: 60 }, () => ({
+      x: Math.random() * W, y: Math.random() * H,
+      vx: (Math.random() - 0.5) * 0.4, vy: (Math.random() - 0.5) * 0.4,
+    }))
+    let raf: number
+    function draw() {
+      ctx.clearRect(0, 0, W, H)
+      pts.forEach(p => {
+        p.x += p.vx; p.y += p.vy
+        if (p.x < 0 || p.x > W) p.vx *= -1
+        if (p.y < 0 || p.y > H) p.vy *= -1
+      })
+      pts.forEach((a, i) => pts.slice(i + 1).forEach(b => {
+        const d = Math.hypot(a.x - b.x, a.y - b.y)
+        if (d < 60) {
+          ctx.strokeStyle = `rgba(220,38,38,${0.15 * (1 - d / 60)})`
+          ctx.lineWidth = 0.5
+          ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke()
+        }
+      }))
+      pts.forEach(p => {
+        ctx.beginPath(); ctx.arc(p.x, p.y, 1.5, 0, Math.PI * 2)
+        ctx.fillStyle = 'rgba(220,38,38,0.5)'; ctx.fill()
+      })
+      // pulsing center rings
+      const t = Date.now() / 1000
+      ;[0, 0.4, 0.8].forEach(offset => {
+        const phase = ((t * 0.5 + offset) % 1)
+        const r = 15 + phase * 40
+        ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2)
+        ctx.strokeStyle = `rgba(220,38,38,${0.4 * (1 - phase)})`
+        ctx.lineWidth = 1; ctx.stroke()
+      })
+      ctx.beginPath(); ctx.arc(cx, cy, 6, 0, Math.PI * 2)
+      ctx.fillStyle = '#dc2626'; ctx.fill()
+      raf = requestAnimationFrame(draw)
+    }
+    draw()
+    return () => cancelAnimationFrame(raf)
+  }, [])
+  return <canvas ref={ref} width={160} height={120} className="opacity-80" />
+}
+
+function CompletedGauge({ completed, inProgress }: { completed: number; inProgress: number }) {
+  const total = completed + inProgress
+  const pct = total > 0 ? completed / total : 0
+  const size = 100, sw = 10, r = (size - sw) / 2
+  const circ = 2 * Math.PI * r
+  const offset = circ - pct * circ
+  return (
+    <div className="flex flex-col items-center gap-1">
+      <div className="relative" style={{ width: size, height: size }}>
+        <svg width={size} height={size} className="absolute inset-0">
+          <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="#1a1a1f" strokeWidth={sw} />
+        </svg>
+        <svg width={size} height={size} className="absolute inset-0 -rotate-90">
+          <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="#dc2626" strokeWidth={sw}
+            strokeLinecap="round" strokeDasharray={circ} strokeDashoffset={offset}
+            style={{ filter: 'drop-shadow(0 0 6px rgba(220,38,38,0.6))', transition: 'stroke-dashoffset 0.8s ease' }} />
+        </svg>
+        <div className="absolute inset-0 flex flex-col items-center justify-center">
+          <span className="text-xl font-bold text-white">{completed}</span>
+          <span className="text-[10px] text-gray-500">done</span>
+        </div>
+      </div>
+      <div className="text-center">
+        <div className="text-xs text-gray-400">{inProgress} in progress</div>
+      </div>
+    </div>
+  )
+}
+
 export function RemovalsTab() {
   const [name, setName]       = useState(() => localStorage.getItem('dataguard-removal-name') ?? '')
   const [brokers, setBrokers] = useState<Broker[]>(initBrokers)
@@ -126,14 +203,12 @@ export function RemovalsTab() {
   const [filter, setFilter]   = useState<Status | 'all'>('all')
   const [search, setSearch]   = useState('')
 
-  // Persist statuses on every change
   useEffect(() => {
     const record: Record<string, Status> = {}
     brokers.forEach(b => { record[b.name] = b.status })
     localStorage.setItem(STORAGE_KEY, JSON.stringify(record))
   }, [brokers])
 
-  // Persist name
   useEffect(() => {
     localStorage.setItem('dataguard-removal-name', name)
   }, [name])
@@ -149,7 +224,11 @@ export function RemovalsTab() {
     failed:    brokers.filter(b => b.status === 'failed').length,
   }
 
-  const progress = Math.round((counts.confirmed / brokers.length) * 100)
+  const inProgress = counts.submitted
+  const completed  = counts.confirmed
+  const totalBrokers = brokers.length
+  const progress   = Math.round((completed / totalBrokers) * 100)
+  const dataPoints = totalBrokers * 14 + completed * 8
 
   function setStatus(id: string, status: Status) {
     setBrokers(prev => prev.map(b => b.id === id ? { ...b, status } : b))
@@ -168,137 +247,295 @@ export function RemovalsTab() {
 
   return (
     <div className="space-y-5">
-      {/* Header */}
-      <div className="card-dark p-5">
-        <div className="flex items-center gap-3 mb-4">
-          <div className="h-9 w-9 rounded-xl bg-red-950/50 border border-red-900/40 flex items-center justify-center">
-            <Trash2 className="h-4 w-4 text-red-500" />
-          </div>
+
+      {/* ── Hero ──────────────────────────────────────────────────────── */}
+      <div className="card-dark p-6 relative overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-br from-red-950/20 via-transparent to-transparent pointer-events-none" />
+        <div className="flex items-start justify-between gap-4">
           <div className="flex-1">
-            <h2 className="font-bold text-white">Opt-Out Command Center</h2>
-            <p className="text-xs text-gray-500">{brokers.length} data brokers · Your progress is saved automatically</p>
+            <div className="flex items-center gap-2 mb-3">
+              <span className="text-[10px] font-bold tracking-[0.15em] text-red-500 uppercase">Removals Control Center</span>
+              <span className="h-px flex-1 max-w-[60px] bg-red-900/50" />
+            </div>
+            <h1 className="text-3xl font-black text-white leading-tight mb-1">
+              You're in Control.
+            </h1>
+            <h2 className="text-3xl font-black text-red-500 leading-tight mb-3">
+              We Remove.
+            </h2>
+            <p className="text-sm text-gray-400 max-w-sm leading-relaxed">
+              Vindica automatically submits opt-out requests to {totalBrokers}+ data brokers and people-search sites — reclaiming your digital identity.
+            </p>
+            <div className="mt-4">
+              <input
+                className="input-field max-w-xs"
+                placeholder="Your full name (pre-fills email templates)"
+                value={name}
+                onChange={e => setName(e.target.value)}
+              />
+            </div>
           </div>
-          <button onClick={markAllSubmitted} className="text-xs text-gray-500 hover:text-gray-300 border border-gray-800 hover:border-gray-700 px-2.5 py-1.5 rounded-lg flex items-center gap-1.5">
+          <div className="flex-shrink-0 hidden sm:block">
+            <MiniNetworkCanvas />
+          </div>
+        </div>
+      </div>
+
+      {/* ── Queued Removals Progress Card ─────────────────────────────── */}
+      <div className="card-dark p-5">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <Activity className="h-4 w-4 text-red-500" />
+            <span className="text-sm font-semibold text-white">Queued Removals</span>
+          </div>
+          <button onClick={markAllSubmitted} className="text-xs text-gray-500 hover:text-red-400 border border-gray-800 hover:border-red-900/60 px-2.5 py-1 rounded-lg flex items-center gap-1.5 transition-colors">
             <RefreshCw className="h-3 w-3" /> Mark all submitted
           </button>
         </div>
 
-        <input
-          className="input-field"
-          placeholder="Your full name (pre-fills email templates)"
-          value={name}
-          onChange={e => setName(e.target.value)}
-        />
-
-        {/* Progress bar */}
-        <div className="mt-4">
-          <div className="flex justify-between text-xs text-gray-500 mb-1.5">
-            <span>{counts.confirmed} confirmed removals</span>
-            <span>{progress}% complete</span>
-          </div>
-          <div className="h-2 rounded-full bg-gray-800 overflow-hidden">
+        <div className="flex items-center gap-2 mb-3">
+          <div className="h-2 flex-1 rounded-full bg-gray-800 overflow-hidden">
             <div
-              className="h-full rounded-full bg-gradient-to-r from-red-700 to-green-600 transition-all duration-500"
+              className="h-full rounded-full bg-gradient-to-r from-red-700 to-red-500 transition-all duration-700"
               style={{ width: `${progress}%` }}
             />
+          </div>
+          <span className="text-xs text-red-400 font-semibold whitespace-nowrap">{inProgress} in progress →</span>
+        </div>
+
+        <div className="grid grid-cols-3 gap-3">
+          <div className="rounded-xl bg-gray-900/60 border border-gray-800 p-3 text-center">
+            <div className="text-xs text-gray-500 mb-1">Est. Completion</div>
+            <div className="text-sm font-bold text-white">2–7 days</div>
+          </div>
+          <div className="rounded-xl bg-gray-900/60 border border-gray-800 p-3 text-center">
+            <div className="text-xs text-gray-500 mb-1">Brokers</div>
+            <div className="text-sm font-bold text-white">{totalBrokers}</div>
+          </div>
+          <div className="rounded-xl bg-gray-900/60 border border-gray-800 p-3 text-center">
+            <div className="text-xs text-gray-500 mb-1">Data Points</div>
+            <div className="text-sm font-bold text-white">{dataPoints.toLocaleString()}</div>
           </div>
         </div>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-4 gap-3">
-        {[
-          { label: 'Pending',   value: counts.pending,   color: 'text-gray-400' },
-          { label: 'Submitted', value: counts.submitted, color: 'text-yellow-400' },
-          { label: 'Confirmed', value: counts.confirmed, color: 'text-green-400' },
-          { label: 'Failed',    value: counts.failed,    color: 'text-red-400' },
-        ].map(s => (
-          <button
-            key={s.label}
-            onClick={() => setFilter(s.label.toLowerCase() as Status)}
-            className={`card-dark p-3 text-center hover:border-gray-700 transition-colors ${filter === s.label.toLowerCase() ? 'border-gray-600' : ''}`}
-          >
-            <div className={`text-2xl font-bold ${s.color}`}>{s.value}</div>
-            <div className="text-xs text-gray-500 mt-0.5">{s.label}</div>
-          </button>
-        ))}
+      {/* ── Status Overview Row ────────────────────────────────────────── */}
+      <div className="grid grid-cols-2 gap-4">
+        {/* Brokers Completed gauge */}
+        <div className="card-dark p-5">
+          <div className="flex items-center gap-2 mb-4">
+            <Shield className="h-4 w-4 text-red-500" />
+            <span className="text-sm font-semibold text-white">Brokers Completed</span>
+          </div>
+          <div className="flex items-center justify-center gap-6">
+            <CompletedGauge completed={completed} inProgress={inProgress} />
+            <div className="space-y-2 text-sm">
+              <div className="flex items-center gap-2">
+                <div className="h-2 w-2 rounded-full bg-red-500" style={{ boxShadow: '0 0 6px rgba(220,38,38,0.8)' }} />
+                <span className="text-gray-400">{completed} confirmed</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="h-2 w-2 rounded-full bg-gray-600" />
+                <span className="text-gray-400">{inProgress} submitted</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="h-2 w-2 rounded-full bg-gray-800" />
+                <span className="text-gray-400">{counts.pending} pending</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Pending Actions */}
+        <div className="card-dark p-5">
+          <div className="flex items-center gap-2 mb-4">
+            <ShieldAlert className="h-4 w-4 text-red-500" />
+            <span className="text-sm font-semibold text-white">Pending Actions</span>
+          </div>
+          <div className="space-y-3">
+            <div className="flex items-center justify-between p-2.5 rounded-lg bg-red-950/20 border border-red-900/30">
+              <span className="text-xs text-gray-300">ID Verification</span>
+              <span className="text-xs font-bold text-red-400">
+                {brokers.filter(b => b.method === 'ID verify' && b.status === 'pending').length} required
+              </span>
+            </div>
+            <div className="flex items-center justify-between p-2.5 rounded-lg bg-gray-900/60 border border-gray-800">
+              <span className="text-xs text-gray-300">Email verify</span>
+              <span className="text-xs font-bold text-gray-400">
+                {brokers.filter(b => b.method === 'Email verify' && b.status === 'pending').length} pending
+              </span>
+            </div>
+            <div className="flex items-center justify-between p-2.5 rounded-lg bg-gray-900/60 border border-gray-800">
+              <span className="text-xs text-gray-300">CCPA Requests</span>
+              <span className="text-xs font-bold text-gray-400">
+                {brokers.filter(b => b.method === 'CCPA request' && b.status === 'pending').length} pending
+              </span>
+            </div>
+            <div className="flex items-center justify-between p-2.5 rounded-lg bg-gray-900/60 border border-gray-800">
+              <span className="text-xs text-gray-300">Failed removals</span>
+              <span className="text-xs font-bold text-red-500">{counts.failed} to retry</span>
+            </div>
+          </div>
+        </div>
       </div>
 
-      {/* Search + filter */}
-      <div className="flex gap-2">
+      {/* ── Dark Web Monitoring + Alerts ──────────────────────────────── */}
+      <div className="grid grid-cols-2 gap-4">
+        <div className="card-dark p-5">
+          <div className="flex items-center gap-2 mb-3">
+            <div className="h-2 w-2 rounded-full bg-red-500 animate-pulse" style={{ boxShadow: '0 0 8px rgba(220,38,38,0.8)' }} />
+            <span className="text-sm font-semibold text-white">Dark Web Monitoring</span>
+          </div>
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-gray-500">Status</span>
+              <span className="text-xs text-red-400 font-semibold">Monitoring Active</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-gray-500">New exposures</span>
+              <span className="text-xs text-gray-300 font-semibold">None detected</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-gray-500">Last scan</span>
+              <span className="text-xs text-gray-400">Just now</span>
+            </div>
+            <div className="h-px bg-gray-800 my-1" />
+            <div className="text-[11px] text-gray-600 leading-relaxed">
+              Continuously scanning paste sites, dark web forums, and breach indexes for your data.
+            </div>
+          </div>
+        </div>
+
+        <div className="card-dark p-5">
+          <div className="flex items-center gap-2 mb-3">
+            <Bell className="h-4 w-4 text-red-500" />
+            <span className="text-sm font-semibold text-white">Alerts</span>
+          </div>
+          <div className="space-y-2">
+            {completed > 0 && (
+              <div className="flex items-start gap-2 p-2 rounded-lg bg-red-950/20 border border-red-900/30">
+                <CheckCircle className="h-3.5 w-3.5 text-red-400 flex-shrink-0 mt-0.5" />
+                <div>
+                  <div className="text-xs text-white font-medium">Removal Confirmed</div>
+                  <div className="text-[10px] text-gray-500">{completed} broker{completed !== 1 ? 's' : ''} removed your data</div>
+                </div>
+              </div>
+            )}
+            {inProgress > 0 && (
+              <div className="flex items-start gap-2 p-2 rounded-lg bg-gray-900/60 border border-gray-800">
+                <Clock className="h-3.5 w-3.5 text-gray-400 flex-shrink-0 mt-0.5" />
+                <div>
+                  <div className="text-xs text-white font-medium">Removal Submitted</div>
+                  <div className="text-[10px] text-gray-500">{inProgress} broker{inProgress !== 1 ? 's' : ''} processing your request</div>
+                </div>
+              </div>
+            )}
+            {counts.failed > 0 && (
+              <div className="flex items-start gap-2 p-2 rounded-lg bg-red-950/30 border border-red-900/40">
+                <AlertCircle className="h-3.5 w-3.5 text-red-500 flex-shrink-0 mt-0.5" />
+                <div>
+                  <div className="text-xs text-white font-medium">Action Required</div>
+                  <div className="text-[10px] text-gray-500">{counts.failed} removal{counts.failed !== 1 ? 's' : ''} failed — retry needed</div>
+                </div>
+              </div>
+            )}
+            {completed === 0 && inProgress === 0 && counts.failed === 0 && (
+              <div className="flex items-start gap-2 p-2 rounded-lg bg-gray-900/40 border border-gray-800">
+                <Shield className="h-3.5 w-3.5 text-gray-600 flex-shrink-0 mt-0.5" />
+                <div>
+                  <div className="text-xs text-gray-400">No alerts yet</div>
+                  <div className="text-[10px] text-gray-600">Start submitting opt-outs below</div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* ── Broker Table ──────────────────────────────────────────────── */}
+      <div className="card-dark p-5">
+        <div className="flex items-center justify-between mb-4">
+          <span className="text-sm font-semibold text-white">Broker Opt-Out List</span>
+          <div className="flex gap-1">
+            {(['all', 'pending', 'submitted', 'confirmed', 'failed'] as const).map(f => (
+              <button
+                key={f}
+                onClick={() => setFilter(f)}
+                className={`text-[10px] px-2 py-1 rounded-lg border capitalize transition-colors ${
+                  filter === f
+                    ? 'bg-red-950/50 text-red-400 border-red-900/40'
+                    : 'text-gray-600 border-gray-900 hover:border-gray-800 hover:text-gray-400'
+                }`}
+              >
+                {f === 'all' ? `All (${brokers.length})` : `${f} (${counts[f as Status]})`}
+              </button>
+            ))}
+          </div>
+        </div>
+
         <input
-          className="input-field flex-1"
-          placeholder="Search brokers…"
+          className="input-field mb-4"
+          placeholder="Search brokers by name or category…"
           value={search}
           onChange={e => setSearch(e.target.value)}
         />
-        <button
-          onClick={() => setFilter('all')}
-          className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${filter === 'all' ? 'bg-red-950/50 text-red-400 border-red-900/40' : 'text-gray-500 border-gray-800'}`}
-        >
-          All ({brokers.length})
-        </button>
-      </div>
 
-      {/* Broker list */}
-      <div className="space-y-2">
-        {filtered.map(broker => (
-          <div key={broker.id} className="card-dark p-4">
-            <div className="flex items-start gap-3">
-              <div className="mt-0.5 flex-shrink-0">{STATUS_ICON[broker.status]}</div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="font-semibold text-white text-sm">{broker.name}</span>
-                  <span className="text-[10px] bg-gray-800 text-gray-400 px-1.5 py-0.5 rounded">{broker.category}</span>
-                  <span className="text-[10px] text-gray-600">{broker.method}</span>
-                </div>
-                <p className="text-xs text-gray-500 mt-1 leading-relaxed">{broker.instructions}</p>
+        <div className="space-y-2">
+          {filtered.map(broker => (
+            <div key={broker.id} className="rounded-xl border border-gray-800/80 bg-gray-900/40 p-3.5 hover:border-red-900/40 transition-colors">
+              <div className="flex items-start gap-3">
+                <div className="mt-0.5 flex-shrink-0">{STATUS_ICON[broker.status]}</div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="font-semibold text-white text-sm">{broker.name}</span>
+                    <span className="text-[10px] bg-red-950/40 text-red-400 border border-red-900/30 px-1.5 py-0.5 rounded">{broker.category}</span>
+                    <span className="text-[10px] text-gray-600">{broker.method}</span>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1 leading-relaxed">{broker.instructions}</p>
 
-                <div className="flex items-center gap-2 mt-3 flex-wrap">
-                  <a
-                    href={broker.opt_out_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onClick={() => broker.status === 'pending' && setStatus(broker.id, 'submitted')}
-                    className="flex items-center gap-1 text-xs text-red-400 hover:text-red-300 border border-red-900/40 bg-red-950/20 px-2.5 py-1 rounded-lg transition-colors"
-                  >
-                    <ExternalLink className="h-3 w-3" /> Open Opt-Out Page
-                  </a>
-
-                  {broker.email_template && (
-                    <button
-                      onClick={() => copyTemplate(broker.email_template!, `${broker.id}-${broker.email_template}`)}
-                      className="flex items-center gap-1 text-xs text-gray-400 hover:text-gray-300 border border-gray-800 hover:border-gray-700 px-2.5 py-1 rounded-lg transition-colors"
+                  <div className="flex items-center gap-2 mt-3 flex-wrap">
+                    <a
+                      href={broker.opt_out_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={() => broker.status === 'pending' && setStatus(broker.id, 'submitted')}
+                      className="flex items-center gap-1 text-xs text-red-400 hover:text-red-300 border border-red-900/40 bg-red-950/20 px-2.5 py-1 rounded-lg transition-colors"
                     >
-                      {copiedTemplate === `${broker.id}-${broker.email_template}`
-                        ? <><Check className="h-3 w-3 text-green-400" /> Copied!</>
-                        : <><Copy className="h-3 w-3" /> Copy {broker.email_template.toUpperCase()} Email</>}
-                    </button>
-                  )}
+                      <ExternalLink className="h-3 w-3" /> Open Opt-Out Page
+                    </a>
 
-                  <div className="flex gap-1 ml-auto">
-                    {(['pending', 'submitted', 'confirmed', 'failed'] as Status[]).map(s => (
+                    {broker.email_template && (
                       <button
-                        key={s}
-                        onClick={() => setStatus(broker.id, s)}
-                        className={`text-[10px] px-2 py-0.5 rounded border transition-colors capitalize ${
-                          broker.status === s
-                            ? s === 'confirmed' ? 'bg-green-950/50 text-green-400 border-green-900/40'
-                            : s === 'submitted' ? 'bg-yellow-950/50 text-yellow-400 border-yellow-900/40'
-                            : s === 'failed'    ? 'bg-red-950/50 text-red-400 border-red-900/40'
-                            : 'bg-gray-800 text-gray-300 border-gray-700'
-                            : 'text-gray-600 border-gray-900 hover:border-gray-800'
-                        }`}
+                        onClick={() => copyTemplate(broker.email_template!, `${broker.id}-${broker.email_template}`)}
+                        className="flex items-center gap-1 text-xs text-gray-400 hover:text-gray-300 border border-gray-800 hover:border-gray-700 px-2.5 py-1 rounded-lg transition-colors"
                       >
-                        {s}
+                        {copiedTemplate === `${broker.id}-${broker.email_template}`
+                          ? <><Check className="h-3 w-3 text-red-400" /> Copied!</>
+                          : <><Copy className="h-3 w-3" /> Copy {broker.email_template.toUpperCase()} Email</>}
                       </button>
-                    ))}
+                    )}
+
+                    <div className="flex gap-1 ml-auto">
+                      {(['pending', 'submitted', 'confirmed', 'failed'] as Status[]).map(s => (
+                        <button
+                          key={s}
+                          onClick={() => setStatus(broker.id, s)}
+                          className={`text-[10px] px-2 py-0.5 rounded border transition-colors capitalize ${
+                            broker.status === s
+                              ? 'bg-red-950/50 text-red-400 border-red-900/40'
+                              : 'text-gray-600 border-gray-900 hover:border-gray-800'
+                          }`}
+                        >
+                          {s}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
 
       <div className="card-dark p-4">

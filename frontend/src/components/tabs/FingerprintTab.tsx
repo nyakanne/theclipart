@@ -125,7 +125,7 @@ export function FingerprintTab() {
           <div className="flex items-center justify-between px-5 py-3">
             <span className="text-xs font-semibold text-gray-400">{hashes.length} fingerprint{hashes.length !== 1 ? 's' : ''}</span>
             <button onClick={exportAll} className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-300 transition-colors">
-              {copied === 'all' ? <><Check className="h-3.5 w-3.5 text-green-400" /> Copied all</> : <><Copy className="h-3.5 w-3.5" /> Copy all</>}
+              {copied === 'all' ? <><Check className="h-3.5 w-3.5 text-red-400" /> Copied all</> : <><Copy className="h-3.5 w-3.5" /> Copy all</>}
             </button>
           </div>
           {hashes.map(h => (
@@ -136,10 +136,10 @@ export function FingerprintTab() {
               </div>
               <p className="text-xs text-gray-600 mb-2 break-all">{h.input}</p>
               <div className="flex items-center gap-2 bg-gray-950 rounded-lg border border-gray-800 p-3">
-                <code className="flex-1 text-xs text-green-400 font-mono break-all leading-relaxed">{h.hash}</code>
+                <code className="flex-1 text-xs text-red-400 font-mono break-all leading-relaxed">{h.hash}</code>
                 <div className="flex gap-1 flex-shrink-0">
                   <button onClick={() => copy(h.hash, h.id)} className="p-1.5 rounded border border-gray-800 hover:border-gray-700 transition-colors">
-                    {copied === h.id ? <Check className="h-3 w-3 text-green-400" /> : <Copy className="h-3 w-3 text-gray-500" />}
+                    {copied === h.id ? <Check className="h-3 w-3 text-red-400" /> : <Copy className="h-3 w-3 text-gray-500" />}
                   </button>
                   <button onClick={() => remove(h.id)} className="p-1.5 rounded border border-gray-800 hover:border-red-900/50 transition-colors text-gray-600 hover:text-red-400">
                     ✕

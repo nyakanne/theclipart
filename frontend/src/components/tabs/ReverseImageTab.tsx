@@ -115,7 +115,7 @@ const CATEGORY_COLORS: Record<string, string> = {
   'Specialist':    'bg-red-950/40 text-red-400',
   'Face Search':   'bg-red-950/40 text-red-400',
   'Content Theft': 'bg-red-950/40 text-orange-400',
-  'DMCA':          'bg-green-950/40 text-green-400',
+  'DMCA':          'bg-red-950/40 text-red-400',
   'Social':        'bg-gray-800 text-gray-400',
 }
 
@@ -206,7 +206,7 @@ export function ReverseImageTab() {
               onChange={e => setImageUrl(e.target.value)}
             />
             <button onClick={copyUrl} disabled={!imageUrl} className="p-2.5 rounded-lg border border-gray-800 hover:border-gray-700 transition-colors flex-shrink-0">
-              {copied ? <Check className="h-4 w-4 text-green-400" /> : <Copy className="h-4 w-4 text-gray-500" />}
+              {copied ? <Check className="h-4 w-4 text-red-400" /> : <Copy className="h-4 w-4 text-gray-500" />}
             </button>
           </div>
           <textarea
@@ -264,7 +264,7 @@ export function ReverseImageTab() {
                     <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${CATEGORY_COLORS[engine.category] ?? 'bg-gray-800 text-gray-400'}`}>
                       {engine.category}
                     </span>
-                    {isLaunched && <span className="text-[10px] text-green-500">Launched</span>}
+                    {isLaunched && <span className="text-[10px] text-red-400">Launched</span>}
                   </div>
                   <p className="text-xs text-gray-500 leading-relaxed">{engine.description}</p>
                   {engine.specialNote && (

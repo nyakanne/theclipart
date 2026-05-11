@@ -176,7 +176,7 @@ export function EmailBlastTab() {
       </div>
 
       {(!yourName || !yourEmail) && (
-        <div className="px-4 py-3 rounded-xl border border-red-900/40 bg-yellow-950/20 text-xs text-yellow-400">
+        <div className="px-4 py-3 rounded-xl border border-red-900/40 bg-red-950/20 text-xs text-red-400">
           Enter your name and email above to personalize the deletion requests before sending.
         </div>
       )}
@@ -191,7 +191,7 @@ export function EmailBlastTab() {
           return (
             <div key={broker.name} className={`transition-colors ${isSent ? 'opacity-60' : ''}`}>
               <div className="flex items-center gap-3 p-4">
-                <div className={`h-2 w-2 rounded-full flex-shrink-0 ${isSent ? 'bg-green-500' : 'bg-gray-700'}`} />
+                <div className={`h-2 w-2 rounded-full flex-shrink-0 ${isSent ? 'bg-red-600' : 'bg-gray-700'}`} />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="text-sm font-semibold text-white">{broker.name}</span>
@@ -206,13 +206,13 @@ export function EmailBlastTab() {
                     {isOpen ? <ChevronUp className="h-3.5 w-3.5 text-gray-500" /> : <ChevronDown className="h-3.5 w-3.5 text-gray-500" />}
                   </button>
                   <button onClick={() => copyEmail(broker)} className="p-1.5 rounded-lg border border-gray-800 hover:border-gray-700 transition-colors">
-                    {copied === broker.name ? <Check className="h-3.5 w-3.5 text-green-400" /> : <Copy className="h-3.5 w-3.5 text-gray-500" />}
+                    {copied === broker.name ? <Check className="h-3.5 w-3.5 text-red-400" /> : <Copy className="h-3.5 w-3.5 text-gray-500" />}
                   </button>
                   <button
                     onClick={() => openMailto(broker)}
                     className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
                       isSent
-                        ? 'bg-green-950/40 text-green-500 border border-green-900/40'
+                        ? 'bg-red-950/40 text-red-400 border border-red-900/40'
                         : 'btn-red'
                     }`}
                   >
