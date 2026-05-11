@@ -176,7 +176,7 @@ export function EmailBlastTab() {
       </div>
 
       {(!yourName || !yourEmail) && (
-        <div className="px-4 py-3 rounded-xl border border-yellow-900/40 bg-yellow-950/20 text-xs text-yellow-400">
+        <div className="px-4 py-3 rounded-xl border border-red-900/40 bg-yellow-950/20 text-xs text-yellow-400">
           Enter your name and email above to personalize the deletion requests before sending.
         </div>
       )}

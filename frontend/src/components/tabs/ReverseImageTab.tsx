@@ -111,10 +111,10 @@ const ENGINES: Engine[] = [
 const STORAGE_KEY = 'phantom-reverse-image-v1'
 
 const CATEGORY_COLORS: Record<string, string> = {
-  'General':       'bg-blue-950/40 text-blue-400',
-  'Specialist':    'bg-purple-950/40 text-purple-400',
+  'General':       'bg-red-950/40 text-red-400',
+  'Specialist':    'bg-red-950/40 text-red-400',
   'Face Search':   'bg-red-950/40 text-red-400',
-  'Content Theft': 'bg-orange-950/40 text-orange-400',
+  'Content Theft': 'bg-red-950/40 text-orange-400',
   'DMCA':          'bg-green-950/40 text-green-400',
   'Social':        'bg-gray-800 text-gray-400',
 }

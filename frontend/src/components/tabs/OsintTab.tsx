@@ -49,11 +49,11 @@ const USERNAME_PLATFORMS: UPlatform[] = [
 ]
 
 const U_CATEGORY_COLORS: Record<string, string> = {
-  Social:    'bg-blue-950/40 text-blue-400 border-blue-900/40',
-  Gaming:    'bg-purple-950/40 text-purple-400 border-purple-900/40',
-  Dev:       'bg-green-950/40 text-green-400 border-green-900/40',
-  Content:   'bg-orange-950/40 text-orange-400 border-orange-900/40',
-  Messaging: 'bg-teal-950/40 text-teal-400 border-teal-900/40',
+  Social:    'bg-red-950/40 text-red-400 border-red-900/40',
+  Gaming:    'bg-red-950/40 text-red-400 border-red-900/40',
+  Dev:       'bg-red-950/40 text-red-400 border-red-900/40',
+  Content:   'bg-red-950/40 text-orange-400 border-red-900/40',
+  Messaging: 'bg-red-950/40 text-red-400 border-red-900/40',
   Other:     'bg-gray-800 text-gray-400 border-gray-700',
 }
 

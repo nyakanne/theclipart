@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { ExternalLink, Search, Copy, Check } from 'lucide-react'
+import { ExternalLink, Search, Copy, Check, ShieldCheck } from 'lucide-react'
+import { PageHeader } from '@/components/ui/PageHeader'
 
 const TOOLS = [
   {
@@ -48,9 +49,9 @@ const TOOLS = [
 
 const COLOR_MAP: Record<string, string> = {
   red: 'text-red-400 bg-red-950/30 border-red-900/40',
-  orange: 'text-orange-400 bg-orange-950/30 border-orange-900/40',
-  blue: 'text-blue-400 bg-blue-950/30 border-blue-900/40',
-  purple: 'text-purple-400 bg-purple-950/30 border-purple-900/40',
+  orange: 'text-red-400 bg-red-950/30 border-red-900/40',
+  blue: 'text-red-400 bg-red-950/30 border-red-900/40',
+  purple: 'text-red-400 bg-red-950/30 border-red-900/40',
 }
 
 export function FindYourselfTab() {
@@ -70,11 +71,15 @@ export function FindYourselfTab() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <div className="card-dark p-5">
-        <h2 className="font-bold text-white mb-1">Find Yourself</h2>
-        <p className="text-sm text-gray-500 mb-4">Enter your name, email, username, or phone to generate pre-filled lookup links across every major tool.</p>
-        <div className="flex gap-3">
+        <PageHeader
+          icon={Search}
+          title="Find Yourself"
+          subtitle="Generate pre-filled lookup links across every major breach database, broker, and OSINT tool"
+          badge={query ? `Searching: ${query.slice(0, 20)}` : undefined}
+        />
+        <div className="flex gap-3 mt-4">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500" />
             <input

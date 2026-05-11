@@ -10,12 +10,12 @@ interface EvidenceEntry {
 }
 
 const TYPE_CONFIG = {
-  account:    { label: 'Account / Handle', icon: User,     color: 'text-blue-400',   bg: 'bg-blue-950/30 border-blue-900/40' },
-  url:        { label: 'URL / Link',        icon: Link,     color: 'text-purple-400', bg: 'bg-purple-950/30 border-purple-900/40' },
-  timeline:   { label: 'Timeline Event',    icon: Clock,    color: 'text-orange-400', bg: 'bg-orange-950/30 border-orange-900/40' },
-  report:     { label: 'Report Number',     icon: FileText, color: 'text-green-400',  bg: 'bg-green-950/30 border-green-900/40' },
+  account:    { label: 'Account / Handle', icon: User,     color: 'text-red-400',   bg: 'bg-red-950/30 border-red-900/40' },
+  url:        { label: 'URL / Link',        icon: Link,     color: 'text-red-400', bg: 'bg-red-950/30 border-red-900/40' },
+  timeline:   { label: 'Timeline Event',    icon: Clock,    color: 'text-red-400', bg: 'bg-red-950/30 border-red-900/40' },
+  report:     { label: 'Report Number',     icon: FileText, color: 'text-red-400',  bg: 'bg-red-950/30 border-red-900/40' },
   note:       { label: 'Case Note',         icon: FileText, color: 'text-gray-400',   bg: 'bg-gray-900/50 border-gray-800' },
-  screenshot: { label: 'Screenshot URL',    icon: ExternalLink, color: 'text-yellow-400', bg: 'bg-yellow-950/30 border-yellow-900/40' },
+  screenshot: { label: 'Screenshot URL',    icon: ExternalLink, color: 'text-red-400', bg: 'bg-red-950/30 border-red-900/40' },
 }
 
 const REPORT_LINKS = [
@@ -191,7 +191,7 @@ export function TrackHimTab() {
                   <p className="text-sm text-gray-300 break-all leading-relaxed">{entry.content}</p>
                   {entry.type === 'url' || entry.type === 'screenshot' ? (
                     <a href={entry.content} target="_blank" rel="noopener noreferrer"
-                       className="text-xs text-blue-400 hover:text-blue-300 flex items-center gap-1 mt-1">
+                       className="text-xs text-red-400 hover:text-red-300 flex items-center gap-1 mt-1">
                       <ExternalLink className="h-3 w-3" /> Open link
                     </a>
                   ) : null}

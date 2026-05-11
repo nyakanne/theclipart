@@ -32,9 +32,9 @@ interface ScanResult {
 
 const SEV: Record<string, string> = {
   critical: 'text-red-400 bg-red-950/40 border-red-900/50',
-  high:     'text-orange-400 bg-orange-950/40 border-orange-900/50',
+  high:     'text-orange-400 bg-red-950/40 border-orange-900/50',
   medium:   'text-yellow-400 bg-yellow-950/40 border-yellow-900/50',
-  low:      'text-green-400 bg-green-950/40 border-green-900/50',
+  low:      'text-red-400 bg-green-950/40 border-green-900/50',
 }
 
 function deriveScore(r: ScanResult) {
@@ -286,7 +286,7 @@ export function ScanTab({ onNavigate }: Props) {
           const score = deriveScore(result)
           const riskLevel = deriveRisk(score, result.compliance)
           const riskColor = riskLevel === 'critical' ? 'text-red-500' : riskLevel === 'high' ? 'text-orange-400' : riskLevel === 'medium' ? 'text-yellow-400' : 'text-green-400'
-          const riskBg    = riskLevel === 'critical' ? 'bg-red-950/40 border-red-900/50' : riskLevel === 'high' ? 'bg-orange-950/40 border-orange-900/50' : riskLevel === 'medium' ? 'bg-yellow-950/40 border-yellow-900/50' : 'bg-green-950/40 border-green-900/50'
+          const riskBg    = riskLevel === 'critical' ? 'bg-red-950/40 border-red-900/50' : riskLevel === 'high' ? 'bg-red-950/40 border-orange-900/50' : riskLevel === 'medium' ? 'bg-yellow-950/40 border-yellow-900/50' : 'bg-green-950/40 border-green-900/50'
 
           const highSev = result.breaches.filter(b => b.severity === 'critical' || b.severity === 'high').length
 

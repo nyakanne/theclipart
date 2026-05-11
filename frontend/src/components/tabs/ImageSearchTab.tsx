@@ -39,9 +39,9 @@ const SEARCH_TOOLS = [
 
 const POWER_BADGE: Record<string, string> = {
   high: 'bg-red-950/50 text-red-400 border-red-900/40',
-  medium: 'bg-orange-950/50 text-orange-400 border-orange-900/40',
-  optout: 'bg-purple-950/50 text-purple-400 border-purple-900/40',
-  protection: 'bg-green-950/50 text-green-400 border-green-900/40',
+  medium: 'bg-red-950/40 text-red-400 border-red-900/40',
+  optout: 'bg-red-950/40 text-red-400 border-red-900/40',
+  protection: 'bg-red-950/40 text-red-400 border-red-900/40',
 }
 
 const POWER_LABEL: Record<string, string> = {
