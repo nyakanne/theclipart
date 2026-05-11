@@ -18,7 +18,7 @@ class ScanRequest(BaseModel):
     @field_validator('phone')
     @classmethod
     def validate_phone(cls, v: str | None) -> str | None:
-        if v and not re.match(r'^\+?[\d\s\-()\.]{ 7,20}$', v):
+        if v and not re.match(r'^\+?[\d\s\-().]{7,20}$', v):
             raise ValueError('Invalid phone number format')
         return v
 
