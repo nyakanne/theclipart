@@ -76,12 +76,21 @@ The frontend uses Supabase magic-link sign-in. The API client automatically atta
 3. Copy the Supabase project URL and anon key into the frontend environment.
 4. Copy the Supabase JWT secret into `SUPABASE_JWT_SECRET`.
 5. In Supabase Auth, add the hosted domain to allowed redirect URLs.
-6. Run migrations against Supabase Postgres:
+6. Run migrations against Supabase Postgres.
+7. Confirm RLS is enabled and policies are present on `scans`, `breach_records`, `broker_listings`, `honey_tokens`, `honey_token_hits`, `dsar_requests`, and `compliance_results`.
 
 ```bash
 cd backend
 SYNC_DATABASE_URL='postgresql://...' alembic upgrade head
 ```
+
+If using Supabase SQL migrations instead of Alembic, apply:
+
+```bash
+supabase db push
+```
+
+The RLS policies intentionally allow each authenticated user to read and mutate their own scan graph only. The backend also scopes API queries by Supabase user id when `REQUIRE_AUTH=true`.
 
 ## Backend Start Commands
 
@@ -142,6 +151,8 @@ CORS_ORIGINS=https://vindica.me,https://www.vindica.me
 PUBLIC_APP_URL=https://vindica.me
 SES_FROM_EMAIL=noreply@vindica.me
 HONEY_DOMAIN=honey.vindica.me
+REQUIRE_AUTH=true
+SUPABASE_JWT_SECRET=<Supabase JWT secret>
 ```
 
 Then run:
@@ -157,6 +168,8 @@ curl -I https://vindica.me
 curl https://vindica.me/api/health
 ```
 
+The tracked nginx config does not apply request rate limiting. It keeps HTTPS/security headers and API proxying only.
+
 If you deploy behind a managed host such as Render, Railway, Fly.io, Vercel, Netlify, or Cloudflare, let that host terminate HTTPS and set `PUBLIC_APP_URL` plus `CORS_ORIGINS` to the managed HTTPS URL.
 
 ## One-Stop Opt-Out Reality Check
@@ -169,6 +182,7 @@ What is real now:
 - The backend queues Celery jobs and sends removal emails through SES when configured.
 - The frontend shows an explicit runtime confirmation before transmitting user identifiers.
 - Scan access is scoped to the Supabase authenticated user when `REQUIRE_AUTH=true`.
+- Row Level Security is enabled for scan-owned tables, with policies that allow authenticated users to access their own records.
 
 What still depends on live services:
 
