@@ -32,7 +32,7 @@ export function Account() {
       const { error } = await supabase.auth.signInWithOtp({
         email,
         options: {
-          emailRedirectTo: window.location.origin,
+          emailRedirectTo: `${window.location.origin}/account`,
         },
       })
       if (error) throw error
