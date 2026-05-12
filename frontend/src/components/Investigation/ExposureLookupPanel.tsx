@@ -141,7 +141,7 @@ export function ExposureLookupPanel({ compact = false }: { compact?: boolean }) 
               Build lookup map
             </button>
             <button type="button" onClick={copyLookup} className="inline-flex items-center justify-center rounded-lg border border-white/10 bg-black/55 px-4 text-gray-300 transition-colors hover:border-red-500/50 hover:text-white">
-              {copied ? <CheckCircle2 className="h-5 w-5 text-green-300" /> : <Copy className="h-5 w-5" />}
+              {copied ? <CheckCircle2 className="h-5 w-5 text-red-300" /> : <Copy className="h-5 w-5" />}
             </button>
           </div>
         </form>
@@ -151,10 +151,10 @@ export function ExposureLookupPanel({ compact = false }: { compact?: boolean }) 
           <LookupMetric label="Exposure priority" value={`${score}%`} />
         </div>
 
-        <div className="mt-4 rounded-lg border border-yellow-500/25 bg-yellow-950/10 p-3">
+        <div className="mt-4 rounded-lg border border-red-500/25 bg-red-950/10 p-3">
           <div className="flex items-start gap-2">
-            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-yellow-300" />
-            <p className="text-xs leading-5 text-yellow-100/80">
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-red-300" />
+            <p className="text-xs leading-5 text-red-100/80">
               This panel does not auto-submit your lookup term to third-party sites. Use copy, open the official site, then decide what to paste.
             </p>
           </div>

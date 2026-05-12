@@ -99,7 +99,7 @@ export function CompliancePanel({ compliance }: { compliance: ComplianceScore })
         <Card>
           <CardHeader>
             <div className="flex items-center gap-2">
-              <ShieldCheck className="h-4 w-4 text-green-400" />
+              <ShieldCheck className="h-4 w-4 text-red-300" />
               <span className="font-semibold text-white">Recommendations</span>
             </div>
           </CardHeader>

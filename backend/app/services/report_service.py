@@ -52,11 +52,11 @@ def _build_pdf(scan_id: str, data: dict) -> bytes:
     buf = io.BytesIO()
     doc = SimpleDocTemplate(buf, pagesize=A4, topMargin=20 * mm, bottomMargin=20 * mm)
     styles = getSampleStyleSheet()
-    title_style = ParagraphStyle('Title', parent=styles['Heading1'], fontSize=20, textColor=colors.HexColor('#1a4fff'))
+    title_style = ParagraphStyle('Title', parent=styles['Heading1'], fontSize=20, textColor=colors.HexColor('#ef233c'))
     mono = ParagraphStyle('Mono', parent=styles['Normal'], fontName='Courier', fontSize=8)
 
     story = [
-        Paragraph('DataGuard — Regulator Ready-Pack', title_style),
+        Paragraph('Vindica — Regulator Ready-Pack', title_style),
         Spacer(1, 6 * mm),
         Paragraph(f'Scan ID: {scan_id}', mono),
         Paragraph(f'Generated: {datetime.now(timezone.utc).isoformat()}Z', mono),
@@ -76,7 +76,7 @@ def _build_pdf(scan_id: str, data: dict) -> bytes:
             ])
         t = Table(table_data, repeatRows=1)
         t.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#001880')),
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#7f1018')),
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
             ('FONTSIZE', (0, 0), (-1, -1), 8),
             ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#374151')),
@@ -95,7 +95,7 @@ def _build_pdf(scan_id: str, data: dict) -> bytes:
         story.append(Spacer(1, 4 * mm))
 
     story.append(Paragraph(
-        'This document was generated automatically by DataGuard and may be submitted '
+        'This document was generated automatically by Vindica and may be submitted '
         'to the FTC (ftccomplaintassistant.gov), ICO (ico.org.uk), or your national DPA as evidence.',
         styles['Italic']
     ))

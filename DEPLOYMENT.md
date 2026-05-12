@@ -138,10 +138,10 @@ Example production `.env` values:
 APP_ENV=production
 DEMO_MODE=false
 SECRET_KEY=<64+ random chars>
-CORS_ORIGINS=https://www.clipcraft.io,https://clipcraft.io
-PUBLIC_APP_URL=https://www.clipcraft.io
-SES_FROM_EMAIL=noreply@clipcraft.io
-HONEY_DOMAIN=honey.clipcraft.io
+CORS_ORIGINS=https://vindica.me,https://www.vindica.me
+PUBLIC_APP_URL=https://vindica.me
+SES_FROM_EMAIL=noreply@vindica.me
+HONEY_DOMAIN=honey.vindica.me
 ```
 
 Then run:
@@ -153,8 +153,8 @@ docker compose --profile production up -d --build
 Verify:
 
 ```bash
-curl -I https://www.clipcraft.io
-curl https://www.clipcraft.io/health
+curl -I https://vindica.me
+curl https://vindica.me/api/health
 ```
 
 If you deploy behind a managed host such as Render, Railway, Fly.io, Vercel, Netlify, or Cloudflare, let that host terminate HTTPS and set `PUBLIC_APP_URL` plus `CORS_ORIGINS` to the managed HTTPS URL.

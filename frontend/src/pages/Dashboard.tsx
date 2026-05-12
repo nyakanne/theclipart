@@ -8,9 +8,9 @@ import type { ScanJob } from '@/types'
 
 const statusIcon = {
   idle:      <Clock className="h-4 w-4 text-gray-500" />,
-  queued:    <Clock className="h-4 w-4 text-yellow-400" />,
+  queued:    <Clock className="h-4 w-4 text-red-200" />,
   scanning:  <Loader className="h-4 w-4 text-brand-400 animate-spin" />,
-  completed: <CheckCircle className="h-4 w-4 text-green-400" />,
+  completed: <CheckCircle className="h-4 w-4 text-gray-200" />,
   failed:    <XCircle className="h-4 w-4 text-red-400" />,
 }
 
@@ -72,7 +72,7 @@ export function Dashboard() {
                 </div>
               )}
               <span className={`text-xs capitalize ${
-                scan.status === 'completed' ? 'text-green-400' :
+                scan.status === 'completed' ? 'text-gray-200' :
                 scan.status === 'failed'    ? 'text-red-400' :
                 scan.status === 'scanning'  ? 'text-brand-400' : 'text-gray-500'
               }`}>

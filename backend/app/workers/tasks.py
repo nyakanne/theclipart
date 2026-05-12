@@ -61,7 +61,9 @@ def run_scan(self, scan_id: str):
 
         _update_scan(db, scan_id, current_stage='data_broker — scanning Playwright workers', progress=30.0)
 
-        broker_listings = run_playwright_scan.delay(scan_id, query).get(timeout=settings.SCAN_TIMEOUT_SECONDS)
+        from app.workers.playwright_worker import scan_all_brokers
+
+        broker_listings = scan_all_brokers(query, settings.BROKER_LIST_PATH)
         if broker_listings:
             for bl in broker_listings:
                 db.add(BrokerListing(scan_id=scan_id, **bl))

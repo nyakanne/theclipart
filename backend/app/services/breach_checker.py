@@ -49,7 +49,7 @@ async def check_hibp(email: str) -> list[dict]:
 
     headers = {
         'hibp-api-key': settings.HIBP_API_KEY,
-        'user-agent': 'DataGuard/1.0',
+        'user-agent': 'Vindica/1.0',
     }
     url = f'https://haveibeenpwned.com/api/v3/breachedaccount/{email}?truncateResponse=false'
 
@@ -89,7 +89,7 @@ async def check_paste_sites(email: str) -> list[dict]:
 
     headers = {
         'hibp-api-key': settings.HIBP_API_KEY,
-        'user-agent': 'DataGuard/1.0',
+        'user-agent': 'Vindica/1.0',
     }
     url = f'https://haveibeenpwned.com/api/v3/pasteaccount/{email}'
 

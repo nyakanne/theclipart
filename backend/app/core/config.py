@@ -22,7 +22,7 @@ class Settings(BaseSettings):
     AWS_SECRET_ACCESS_KEY: str = ''
     S3_BUCKET: str = 'dataguard-artefacts'
     KMS_KEY_ID: str = ''
-    SES_FROM_EMAIL: str = 'noreply@dataguard.example.com'
+    SES_FROM_EMAIL: str = 'noreply@vindica.me'
     PUBLIC_APP_URL: str = 'http://localhost:3000'
     ALLOW_REAL_OPT_OUTS: bool = False
     REQUIRE_AUTH: bool = False
@@ -30,7 +30,7 @@ class Settings(BaseSettings):
 
     HIBP_API_KEY: str = ''
 
-    HONEY_DOMAIN: str = 'honey.dataguard.example.com'
+    HONEY_DOMAIN: str = 'honey.vindica.me'
     MAILGUN_API_KEY: str = ''
 
     MAX_CONCURRENT_PLAYWRIGHT: int = 5

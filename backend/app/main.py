@@ -20,24 +20,27 @@ structlog.configure(
     ]
 )
 logging.basicConfig(level=logging.INFO)
+log = logging.getLogger(__name__)
 
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     if settings.DEMO_MODE:
+        log.info('Vindica started (env=%s)', settings.APP_ENV)
         yield
         return
     from app.core.database import engine, Base
 
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+    log.info('Vindica started (env=%s)', settings.APP_ENV)
     yield
 
 
 app = FastAPI(
-    title='DataGuard API',
+    title='Vindica API',
     version='1.0.0',
-    description='Data breach detection, broker scanning, and compliance enforcement platform.',
+    description='Personal-data exposure detection, broker removal, and compliance reporting platform.',
     docs_url='/api/docs',
     openapi_url='/api/openapi.json',
     lifespan=lifespan,

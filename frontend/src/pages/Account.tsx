@@ -58,7 +58,7 @@ export function Account() {
           </div>
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.22em] text-red-300">Secure account</p>
-            <h1 className="mt-2 text-3xl font-black text-white">Your DataGuard vault</h1>
+            <h1 className="mt-2 text-3xl font-black text-white">Your Vindica vault</h1>
             <p className="mt-2 text-sm leading-6 text-gray-400">
               Production mode uses Supabase Auth. Scans, opt-outs, reports, and evidence records are scoped to the signed-in user.
             </p>
@@ -66,14 +66,14 @@ export function Account() {
         </div>
 
         {!supabase && (
-          <div className="mt-6 rounded-lg border border-yellow-500/30 bg-yellow-950/15 p-4 text-sm leading-6 text-yellow-100/85">
+          <div className="mt-6 rounded-lg border border-red-500/30 bg-red-950/15 p-4 text-sm leading-6 text-red-100/85">
             Supabase is not configured in this frontend build. Set `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` before hosting.
           </div>
         )}
 
         {sessionEmail ? (
-          <div className="mt-6 rounded-xl border border-green-500/30 bg-green-950/15 p-5">
-            <div className="flex items-center gap-3 text-green-200">
+          <div className="mt-6 rounded-xl border border-red-500/30 bg-red-950/15 p-5">
+            <div className="flex items-center gap-3 text-red-100">
               <CheckCircle2 className="h-5 w-5" />
               <span className="font-bold">Signed in as {sessionEmail}</span>
             </div>

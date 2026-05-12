@@ -6,10 +6,10 @@ import { api } from '@/services/api'
 import type { BrokerListing } from '@/types'
 
 const optOutStatusConfig = {
-  not_started: { icon: <AlertTriangle className="h-4 w-4" />, color: 'text-yellow-400', label: 'Action needed' },
-  in_progress:  { icon: <Clock className="h-4 w-4" />, color: 'text-blue-400', label: 'In progress' },
+  not_started: { icon: <AlertTriangle className="h-4 w-4" />, color: 'text-red-300', label: 'Action needed' },
+  in_progress:  { icon: <Clock className="h-4 w-4" />, color: 'text-red-100', label: 'In progress' },
   submitted:    { icon: <Send className="h-4 w-4" />, color: 'text-brand-400', label: 'Submitted' },
-  confirmed:    { icon: <CheckCircle className="h-4 w-4" />, color: 'text-green-400', label: 'Confirmed' },
+  confirmed:    { icon: <CheckCircle className="h-4 w-4" />, color: 'text-gray-200', label: 'Confirmed' },
   failed:       { icon: <XCircle className="h-4 w-4" />, color: 'text-red-400', label: 'Failed' },
 }
 
@@ -71,8 +71,8 @@ export function BrokerList({ listings, scanId, onUpdate }: {
   return (
     <div className="space-y-4">
       {pendingCount > 0 && (
-        <div className="flex items-center justify-between border border-orange-500/30 bg-orange-950/20 px-4 py-3">
-          <span className="text-sm text-yellow-300">
+        <div className="flex items-center justify-between border border-red-500/30 bg-red-950/20 px-4 py-3">
+          <span className="text-sm text-red-100">
             {pendingCount} brokers still need action. One-stop opt-out sends real deletion requests when backend email delivery is configured.
           </span>
           <Button

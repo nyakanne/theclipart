@@ -1,10 +1,10 @@
-# DataGuard / The Clipart
+# Vindica
 
-DataGuard is a full-stack privacy command center for finding personal-data exposure, staging broker removals, documenting compliance issues, preparing authority reports, and supporting image-abuse safety workflows.
+Vindica is a full-stack privacy command center for finding personal-data exposure, staging broker removals, documenting compliance issues, preparing authority reports, and supporting image-abuse safety workflows.
 
 The current app combines:
 
-- A React/Vite frontend with a dark red/black Data Guard visual system inspired by the supplied mockups.
+- A React/Vite frontend with a dark red/black Vindica visual system inspired by the supplied mockups.
 - A FastAPI backend with demo-mode scan results, broker listings, breach records, compliance findings, and report endpoints.
 - An animated "second brain" exposure graph that turns a scan into linked broker, breach, people-search, social-profile, public-record, and ad-network signals.
 - A one-stop opt-out workspace for data brokers, with copyable deletion requests and official portal links.

@@ -1,4 +1,4 @@
-# DataGuard Infrastructure
+# Vindica Infrastructure
 
 ## Stack
 
@@ -33,14 +33,14 @@ docker compose -f docker-compose.prod.yml build
 docker compose -f docker-compose.prod.yml push
 
 # 5. Update ECS task definitions
-aws ecs update-service --cluster dataguard --service backend --force-new-deployment
+aws ecs update-service --cluster vindica --service backend --force-new-deployment
 ```
 
 ## Honey-Token Architecture
 
-1. Each scan seeds `n` unique email aliases at `honey.dataguard.example.com`
+1. Each scan seeds `n` unique email aliases at `honey.vindica.me`
 2. Aliases are stored in Postgres (`honey_tokens` table) with their scan ID
-3. Mailgun or SES catch-all receives any inbound mail to `*@honey.dataguard.example.com`
+3. Mailgun or SES catch-all receives any inbound mail to `*@honey.vindica.me`
 4. Webhook or Lambda fires → POST `/api/v1/webhooks/mailgun/inbound`
 5. Backend matches alias → creates `honey_token_hits` record → user alerted
 

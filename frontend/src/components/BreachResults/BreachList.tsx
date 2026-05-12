@@ -30,7 +30,7 @@ export function BreachList({ breaches }: { breaches: BreachRecord[] }) {
                 <span className="text-gray-500">{sourceIcon[b.source_type]}</span>
                 <span className="font-semibold text-white">{b.source}</span>
                 {!b.verified && (
-                  <span className="rounded bg-yellow-900/40 px-1.5 py-0.5 text-[10px] text-yellow-400">
+                  <span className="rounded border border-red-500/25 bg-red-950/30 px-1.5 py-0.5 text-[10px] text-red-100">
                     UNVERIFIED
                   </span>
                 )}

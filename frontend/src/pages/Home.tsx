@@ -133,8 +133,8 @@ type HomeSection = 'overview' | 'lookup' | 'track' | 'removal' | 'shield' | 'rep
 
 const PRIORITY_STYLES = {
   CRITICAL: 'border-red-500/40 bg-red-950/30 text-red-200',
-  HIGH: 'border-orange-500/40 bg-orange-950/30 text-orange-200',
-  MEDIUM: 'border-yellow-500/40 bg-yellow-950/20 text-yellow-200',
+  HIGH: 'border-red-400/30 bg-red-950/20 text-red-100',
+  MEDIUM: 'border-white/15 bg-white/[0.04] text-gray-200',
 }
 
 async function copyText(text: string) {
@@ -245,7 +245,7 @@ export function Home({ initialTab = 'scan' }: { initialTab?: 'scan' | 'optout' |
   const [introSettled, setIntroSettled] = useState(false)
   const [completed, setCompleted] = useState<Record<string, boolean>>(() => {
     if (typeof window === 'undefined') return {}
-    const saved = window.localStorage.getItem('dataguard-command-progress')
+    const saved = window.localStorage.getItem('vindica-command-progress')
     return saved ? JSON.parse(saved) as Record<string, boolean> : {}
   })
   const [removalProfile, setRemovalProfile] = useState<RemovalProfile>(DEFAULT_REMOVAL_PROFILE)
@@ -307,7 +307,7 @@ export function Home({ initialTab = 'scan' }: { initialTab?: 'scan' | 'optout' |
   const toggle = (id: string) => {
     setCompleted(prev => {
       const next = { ...prev, [id]: !prev[id] }
-      window.localStorage.setItem('dataguard-command-progress', JSON.stringify(next))
+      window.localStorage.setItem('vindica-command-progress', JSON.stringify(next))
       return next
     })
   }
@@ -793,7 +793,7 @@ function ActorTracker({
             <p className="text-xs text-gray-500">Actor evidence, accounts, reports, and safety timeline.</p>
           </div>
         </div>
-        <div className="mt-4 rounded-lg border border-yellow-500/25 bg-yellow-950/10 p-3 text-xs leading-5 text-yellow-100/80">
+        <div className="mt-4 rounded-lg border border-red-500/25 bg-red-950/10 p-3 text-xs leading-5 text-red-100/80">
           Evidence tracking only. This does not support physical tracking, credential access, harassment, or doxxing.
         </div>
         <div className="mt-4 space-y-3">
@@ -885,7 +885,7 @@ function RemovalHub({
     <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="grid gap-5 lg:grid-cols-[380px_1fr]">
       <aside className="glass-panel rounded-xl p-5">
         <div className="flex items-center gap-3 border-b border-white/10 pb-4">
-          <ClipboardCheck className="h-6 w-6 text-orange-300" />
+          <ClipboardCheck className="h-6 w-6 text-red-300" />
           <div>
             <h2 className="font-bold">One Stop Removal</h2>
             <p className="text-xs text-gray-500">{completion}% broker queue complete</p>
@@ -918,12 +918,12 @@ function RemovalHub({
           </div>
         </div>
         {DATA_BROKERS.map((broker, index) => (
-          <article key={broker.name} className={clsx('rounded-xl border p-4', completed[`broker-${index}`] ? 'border-green-500/30 bg-green-950/15' : 'border-white/10 bg-white/[0.03]')}>
+          <article key={broker.name} className={clsx('rounded-xl border p-4', completed[`broker-${index}`] ? 'border-red-500/30 bg-red-950/15' : 'border-white/10 bg-white/[0.03]')}>
             <div className="grid gap-3 lg:grid-cols-[auto_1fr_auto]">
               <button
                 type="button"
                 onClick={() => toggle(`broker-${index}`)}
-                className={clsx('grid h-9 w-9 place-items-center rounded-lg border', completed[`broker-${index}`] ? 'border-green-400 bg-green-400 text-black' : 'border-white/20 text-transparent hover:text-white')}
+                className={clsx('grid h-9 w-9 place-items-center rounded-lg border', completed[`broker-${index}`] ? 'border-red-400 bg-red-500 text-white' : 'border-white/20 text-transparent hover:text-white')}
                 aria-label={completed[`broker-${index}`] ? `Mark ${broker.name} incomplete` : `Mark ${broker.name} submitted`}
               >
                 <Check className="h-5 w-5" />
@@ -938,7 +938,7 @@ function RemovalHub({
                 <p className="mt-1 text-sm text-gray-500">{broker.note}</p>
               </div>
               <div className="flex flex-wrap gap-2 lg:justify-end">
-                <button type="button" onClick={() => copyRemovalRequest(broker.name)} className="rounded-lg border border-orange-500/35 bg-orange-950/30 px-3 py-2 text-xs font-bold text-orange-100">
+                <button type="button" onClick={() => copyRemovalRequest(broker.name)} className="rounded-lg border border-red-500/35 bg-red-950/30 px-3 py-2 text-xs font-bold text-red-100">
                   {copied === broker.name ? 'Copied' : 'Copy request'}
                 </button>
                 <a href={broker.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-black/55 px-3 py-2 text-xs font-bold text-gray-200">
@@ -972,7 +972,7 @@ function ShieldVault({
             <Hash className="h-8 w-8" />
           </div>
           <div>
-            <h2 className="text-3xl font-bold">Data Guard Shield</h2>
+            <h2 className="text-3xl font-bold">Vindica Shield</h2>
             <p className="mt-2 text-gray-400">
               Select a private image or video you already have. The browser creates a SHA-256 fingerprint locally. This demo does not upload the raw file.
             </p>

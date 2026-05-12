@@ -22,7 +22,7 @@ export function Navbar() {
         <div className="flex h-20 items-center justify-between">
           <Link to="/" className="flex items-center gap-2.5">
             <ShieldAlert className="h-8 w-8 fill-red-600 text-red-500" />
-            <span className="text-2xl font-black tracking-tight text-white">Data Guard</span>
+            <span className="text-2xl font-black tracking-tight text-white">Vindica</span>
           </Link>
 
           <div className="hidden items-center gap-5 xl:gap-8 lg:flex">
