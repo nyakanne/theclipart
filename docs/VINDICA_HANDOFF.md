@@ -124,6 +124,7 @@ Do not commit any of these. Keep them only in server `.env`, hosting dashboards,
 - `VITE_DD_CLIENT_TOKEN`
 - `MAILGUN_API_KEY`
 - `HIBP_API_KEY`
+- Supabase secret key
 - Supabase service role key
 - Supabase legacy JWT secret, if the project still uses the shared-secret auth system
 - AWS keys, KMS key ID, SES credentials, S3 credentials
@@ -150,6 +151,15 @@ SUPABASE_JWT_AUDIENCE=authenticated
 ```
 
 Copy the Discovery URL into `SUPABASE_JWKS_URL`. Do not paste the public key JSON into `.env`. If the project still uses the legacy shared JWT secret, leave `SUPABASE_JWKS_URL` blank and set `SUPABASE_JWT_SECRET` instead.
+
+For the frontend build, set:
+
+```bash
+VITE_SUPABASE_URL=https://your-project-ref.supabase.co
+VITE_SUPABASE_PUBLISHABLE_KEY=<publishable key>
+```
+
+Supabase secret keys and service-role keys are backend-only and must never be baked into the Vite frontend bundle.
 
 ## GitHub OAuth Setup
 

@@ -125,6 +125,15 @@ SUPABASE_JWT_AUDIENCE=authenticated
 
 Do not paste the public key JSON into `.env`; the backend fetches that JWKS endpoint and caches it.
 
+Frontend Supabase Auth should use only public browser-safe values:
+
+```bash
+VITE_SUPABASE_URL=https://your-project-ref.supabase.co
+VITE_SUPABASE_PUBLISHABLE_KEY=<publishable key>
+```
+
+Do not use Supabase secret keys or service-role keys in the frontend build args, Vercel/Netlify public env, or any committed file.
+
 ### Secrets And Safety
 
 Secrets have been shared during the work and should be treated as exposed. Rotate before serious public launch:

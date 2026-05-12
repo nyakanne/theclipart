@@ -67,7 +67,7 @@ export function Account() {
 
         {!supabase && (
           <div className="mt-6 rounded-lg border border-red-500/30 bg-red-950/15 p-4 text-sm leading-6 text-red-100/85">
-            Supabase is not configured in this frontend build. Set `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` before hosting.
+            Supabase is not configured in this frontend build. Set `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` before hosting.
           </div>
         )}
 

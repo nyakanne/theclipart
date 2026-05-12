@@ -18,6 +18,8 @@ Never commit these values:
 
 - `SECRET_KEY`
 - `SUPABASE_JWT_SECRET`
+- `SUPABASE_SECRET_KEY`
+- `SUPABASE_SERVICE_ROLE_KEY`
 - `DATABASE_URL`
 - `SYNC_DATABASE_URL`
 - `REDIS_URL`
@@ -26,7 +28,8 @@ Never commit these values:
 - `KMS_KEY_ID`
 - `HIBP_API_KEY`
 - `MAILGUN_API_KEY`
-- `VITE_SUPABASE_ANON_KEY`
+- `VITE_SUPABASE_PUBLISHABLE_KEY`
+- `VITE_SUPABASE_ANON_KEY` for legacy projects
 
 Store backend secrets in the backend host's encrypted environment settings. Store frontend public Supabase values in the frontend host environment.
 
@@ -67,7 +70,9 @@ KMS_KEY_ID=<optional AWS KMS key arn>
 
 ```bash
 VITE_SUPABASE_URL=https://your-project.supabase.co
-VITE_SUPABASE_ANON_KEY=<Supabase anon key>
+VITE_SUPABASE_PUBLISHABLE_KEY=<Supabase publishable key>
+# Legacy fallback:
+# VITE_SUPABASE_ANON_KEY=<Supabase anon key>
 ```
 
 The frontend uses Supabase magic-link sign-in. The API client automatically attaches the Supabase bearer token to scan, report, and opt-out requests.
@@ -76,7 +81,7 @@ The frontend uses Supabase magic-link sign-in. The API client automatically atta
 
 1. Create a Supabase project.
 2. Copy the Postgres connection string into `DATABASE_URL` and `SYNC_DATABASE_URL`.
-3. Copy the Supabase project URL and anon key into the frontend environment.
+3. Copy the Supabase project URL and publishable key into the frontend environment.
 4. In Auth -> Signing Keys, copy the Discovery URL into `SUPABASE_JWKS_URL`.
 5. In Supabase Auth, add the hosted domain to allowed redirect URLs.
 6. Run migrations against Supabase Postgres.
@@ -89,6 +94,8 @@ SUPABASE_JWKS_URL=https://your-project-ref.supabase.co/auth/v1/.well-known/jwks.
 ```
 
 Do not paste the public key JSON into `.env`. The backend fetches and caches that key set automatically. If your project still uses the legacy shared JWT secret, leave `SUPABASE_JWKS_URL` blank and set `SUPABASE_JWT_SECRET` instead.
+
+The publishable key is safe to expose in the browser, but Supabase secret keys and service-role keys are backend-only. Vindica does not need a service-role key for the browser build.
 
 ```bash
 cd backend
