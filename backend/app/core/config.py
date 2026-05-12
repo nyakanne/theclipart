@@ -27,6 +27,8 @@ class Settings(BaseSettings):
     ALLOW_REAL_OPT_OUTS: bool = False
     REQUIRE_AUTH: bool = False
     SUPABASE_JWT_SECRET: str = ''
+    SUPABASE_JWKS_URL: str = ''
+    SUPABASE_JWT_AUDIENCE: str = 'authenticated'
 
     HIBP_API_KEY: str = ''
 
@@ -58,8 +60,8 @@ class Settings(BaseSettings):
             raise RuntimeError('DEMO_MODE cannot be enabled in production.')
         if self.is_production and self.SECRET_KEY in {'dev-secret-change-me', 'change-me-32-chars-minimum-please'}:
             raise RuntimeError('Set a strong SECRET_KEY before running in production.')
-        if self.is_production and self.REQUIRE_AUTH and not self.SUPABASE_JWT_SECRET:
-            raise RuntimeError('Set SUPABASE_JWT_SECRET when REQUIRE_AUTH=true.')
+        if self.is_production and self.REQUIRE_AUTH and not (self.SUPABASE_JWT_SECRET or self.SUPABASE_JWKS_URL):
+            raise RuntimeError('Set SUPABASE_JWT_SECRET or SUPABASE_JWKS_URL when REQUIRE_AUTH=true.')
         if self.ALLOW_REAL_OPT_OUTS and not self.SES_FROM_EMAIL:
             raise RuntimeError('SES_FROM_EMAIL is required when ALLOW_REAL_OPT_OUTS=true.')
 

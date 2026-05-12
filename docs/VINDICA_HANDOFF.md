@@ -125,7 +125,7 @@ Do not commit any of these. Keep them only in server `.env`, hosting dashboards,
 - `MAILGUN_API_KEY`
 - `HIBP_API_KEY`
 - Supabase service role key
-- Supabase JWT secret
+- Supabase legacy JWT secret, if the project still uses the shared-secret auth system
 - AWS keys, KMS key ID, SES credentials, S3 credentials
 - Hetzner root password or SSH private key
 
@@ -138,6 +138,18 @@ Credentials known to have appeared in chat or screenshots should be rotated:
 - GitHub OAuth client secret.
 - SSH private key.
 - Server root password.
+
+## Supabase Auth Setup
+
+For the current Supabase JWT signing-key system, use the Key Details modal:
+
+```bash
+REQUIRE_AUTH=true
+SUPABASE_JWKS_URL=https://your-project-ref.supabase.co/auth/v1/.well-known/jwks.json
+SUPABASE_JWT_AUDIENCE=authenticated
+```
+
+Copy the Discovery URL into `SUPABASE_JWKS_URL`. Do not paste the public key JSON into `.env`. If the project still uses the legacy shared JWT secret, leave `SUPABASE_JWKS_URL` blank and set `SUPABASE_JWT_SECRET` instead.
 
 ## GitHub OAuth Setup
 

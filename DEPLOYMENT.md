@@ -46,7 +46,10 @@ SYNC_DATABASE_URL=postgresql://...
 REDIS_URL=redis://...
 
 REQUIRE_AUTH=true
-SUPABASE_JWT_SECRET=<Supabase JWT secret>
+SUPABASE_JWKS_URL=https://your-project-ref.supabase.co/auth/v1/.well-known/jwks.json
+SUPABASE_JWT_AUDIENCE=authenticated
+# Legacy Supabase projects can use this instead of SUPABASE_JWKS_URL:
+# SUPABASE_JWT_SECRET=<Supabase JWT secret>
 
 AWS_REGION=us-east-1
 SES_FROM_EMAIL=noreply@your-domain.com
@@ -74,10 +77,18 @@ The frontend uses Supabase magic-link sign-in. The API client automatically atta
 1. Create a Supabase project.
 2. Copy the Postgres connection string into `DATABASE_URL` and `SYNC_DATABASE_URL`.
 3. Copy the Supabase project URL and anon key into the frontend environment.
-4. Copy the Supabase JWT secret into `SUPABASE_JWT_SECRET`.
+4. In Auth -> Signing Keys, copy the Discovery URL into `SUPABASE_JWKS_URL`.
 5. In Supabase Auth, add the hosted domain to allowed redirect URLs.
 6. Run migrations against Supabase Postgres.
 7. Confirm RLS is enabled and policies are present on `scans`, `breach_records`, `broker_listings`, `honey_tokens`, `honey_token_hits`, `dsar_requests`, and `compliance_results`.
+
+For the current Supabase JWT signing-key system, use the Discovery URL from the key details modal, for example:
+
+```bash
+SUPABASE_JWKS_URL=https://your-project-ref.supabase.co/auth/v1/.well-known/jwks.json
+```
+
+Do not paste the public key JSON into `.env`. The backend fetches and caches that key set automatically. If your project still uses the legacy shared JWT secret, leave `SUPABASE_JWKS_URL` blank and set `SUPABASE_JWT_SECRET` instead.
 
 ```bash
 cd backend
@@ -152,7 +163,7 @@ PUBLIC_APP_URL=https://vindica.me
 SES_FROM_EMAIL=noreply@vindica.me
 HONEY_DOMAIN=honey.vindica.me
 REQUIRE_AUTH=true
-SUPABASE_JWT_SECRET=<Supabase JWT secret>
+SUPABASE_JWKS_URL=https://your-project-ref.supabase.co/auth/v1/.well-known/jwks.json
 ```
 
 Then run:

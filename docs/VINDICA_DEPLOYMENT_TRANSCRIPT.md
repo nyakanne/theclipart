@@ -115,6 +115,16 @@ https://vindica.me/api/v1/auth/github/callback
 
 The server `.env` and root `.env` must both contain the GitHub client id and secret. Do not commit these values.
 
+Supabase Auth can verify user access tokens using either the current JWT signing-key Discovery URL or the legacy shared JWT secret. Prefer the Discovery URL from Supabase Auth -> Signing Keys:
+
+```bash
+REQUIRE_AUTH=true
+SUPABASE_JWKS_URL=https://your-project-ref.supabase.co/auth/v1/.well-known/jwks.json
+SUPABASE_JWT_AUDIENCE=authenticated
+```
+
+Do not paste the public key JSON into `.env`; the backend fetches that JWKS endpoint and caches it.
+
 ### Secrets And Safety
 
 Secrets have been shared during the work and should be treated as exposed. Rotate before serious public launch:
