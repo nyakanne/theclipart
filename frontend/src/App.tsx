@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { Home } from '@/pages/Home'
 import { Login } from '@/pages/Login'
 import { AuthCallback } from '@/pages/AuthCallback'
+import { Account } from '@/pages/Account'
 import { CommandCenter } from '@/pages/CommandCenter'
 import { useAuthStore } from '@/store/authStore'
 
@@ -25,6 +26,7 @@ export default function App() {
           <Route path="/" element={<Home />} />
           <Route path="/login" element={<Login />} />
           <Route path="/auth/callback" element={<AuthCallback />} />
+          <Route path="/account" element={<Account />} />
 
           {/* Command center — all feature tabs live here */}
           <Route
