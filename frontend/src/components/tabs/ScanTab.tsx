@@ -35,7 +35,6 @@ const SEV: Record<string, string> = {
   low:      'text-gray-400 bg-gray-900/40 border-gray-800',
 }
 
-
 function deriveScore(r: ScanResult) {
   if (r.risk_score != null) return Math.max(5, Math.round(100 - r.risk_score))
   return Math.max(5, 100 - Math.min(60, r.breaches.length * 12) - Math.min(30, r.broker_listings.length * 3))
