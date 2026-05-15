@@ -1,6 +1,6 @@
 import axios from 'axios'
 import type {
-  ScanRequest, ScanJob, ScanResult, DsarRequest, ReportPackage
+  ScanRequest, ScanJob, ScanResult, DsarRequest, ReportPackage, CommandAction, CommandActionRequest
 } from '@/types'
 import { getSupabaseAccessToken } from '@/services/supabase'
 
@@ -63,5 +63,16 @@ export const api = {
 
     initiateAll: (scanId: string) =>
       http.post<{ queued: number; skipped: number; status: string; message: string }>(`/scans/${scanId}/opt-out/all`, { confirmed: true }).then(r => r.data),
+  },
+
+  command: {
+    list: (feature?: string) =>
+      http.get<CommandAction[]>('/command/actions', { params: feature ? { feature } : undefined }).then(r => r.data),
+
+    create: (body: CommandActionRequest) =>
+      http.post<CommandAction>('/command/actions', body).then(r => r.data),
+
+    update: (id: string, body: Partial<Pick<CommandActionRequest, 'status' | 'payload'>>) =>
+      http.patch<CommandAction>(`/command/actions/${id}`, body).then(r => r.data),
   },
 }

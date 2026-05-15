@@ -33,17 +33,46 @@ const EDGES = [
 
 const categoryById = Object.fromEntries(CATEGORIES.map(category => [category.id, category]))
 
+export type ExposureCategoryId = typeof CATEGORIES[number]['id']
+export type ExposureSignalCounts = Partial<Record<ExposureCategoryId, number>>
+export type ExposureGraphMode = 'idle' | 'scanning' | 'resolved'
+
 export function ExposureGraph({
   focused = false,
-  totalSources = 132,
+  totalSources,
+  subject = 'Your Digital Footprint',
+  mode = 'idle',
+  signalCounts,
   className,
 }: {
   focused?: boolean
   totalSources?: number
+  subject?: string
+  mode?: ExposureGraphMode
+  signalCounts?: ExposureSignalCounts
   className?: string
 }) {
+  const categories = CATEGORIES.map(category => ({
+    ...category,
+    count: signalCounts?.[category.id] ?? category.count,
+  }))
+  const displayTotal = totalSources ?? categories.reduce((sum, category) => sum + category.count, 0)
+  const activeIds = new Set<ExposureCategoryId>(
+    mode === 'idle'
+      ? []
+      : categories.filter(category => category.count > 0).map(category => category.id)
+  )
+  const subjectLabel = subject.length > 23 ? `${subject.slice(0, 20)}...` : subject
+  const coreLabel =
+    mode === 'scanning'
+      ? 'Resolving graph'
+      : mode === 'resolved'
+        ? 'Matched identity'
+        : 'Your Digital Footprint'
+  const privacyScore = mode === 'idle' ? (focused ? '27/100' : '72/100') : `${Math.max(12, 78 - Math.round(displayTotal / 4))}/100`
+
   return (
-    <div className={clsx('exposure-graph relative min-h-[520px] overflow-hidden', focused && 'is-focused', className)}>
+    <div className={clsx('exposure-graph relative min-h-[520px] overflow-hidden', focused && 'is-focused', mode === 'scanning' && 'is-scanning', className)}>
       <div className="pixel-storm" />
       <div className="identity-dissolve" aria-hidden="true" />
 
@@ -58,6 +87,7 @@ export function ExposureGraph({
         {EDGES.map(([fromId, toId]) => {
           const from = categoryById[fromId]
           const to = categoryById[toId]
+          const active = activeIds.has(fromId) && activeIds.has(toId)
           return (
             <line
               key={`${fromId}-${toId}`}
@@ -65,7 +95,7 @@ export function ExposureGraph({
               y1={from.y}
               x2={to.x}
               y2={to.y}
-              className="graph-edge"
+              className={clsx('graph-edge', active && 'is-active')}
             />
           )
         })}
@@ -81,19 +111,20 @@ export function ExposureGraph({
           <div className="radar-core">
             <Fingerprint className="h-9 w-9 text-white" />
             <span className="mt-2 text-center text-[10px] font-semibold uppercase tracking-[0.12em] text-white">
-              Your Digital Footprint
+              {coreLabel}
             </span>
-            <span className="mt-1 font-mono text-[10px] text-red-200">{totalSources}+ sources</span>
+            <span className="mt-1 max-w-[92px] truncate text-center font-mono text-[10px] text-red-200">{subjectLabel}</span>
           </div>
         </div>
       </div>
 
-      {CATEGORIES.map((category, index) => {
+      {categories.map((category, index) => {
         const Icon = category.icon
+        const active = activeIds.has(category.id)
         return (
           <div
             key={category.id}
-            className="graph-card"
+            className={clsx('graph-card', active && 'is-active', mode === 'scanning' && active && 'is-scanning')}
             style={{
               left: `${category.x}%`,
               top: `${category.y}%`,
@@ -113,9 +144,10 @@ export function ExposureGraph({
 
       <div className="absolute bottom-5 left-1/2 z-20 grid w-[min(88%,760px)] -translate-x-1/2 grid-cols-2 border border-white/10 bg-black/55 backdrop-blur-xl sm:grid-cols-4">
         {[
-          ['Privacy Score', focused ? '27/100' : '72/100'],
-          ['Sources Found', `${totalSources}`],
-          ['Removal Queue', focused ? '20 brokers' : 'Ready'],
+          ['Privacy Score', privacyScore],
+          ['Sources Found', `${displayTotal}`],
+          ['Graph State', mode === 'scanning' ? 'Resolving' : mode === 'resolved' ? 'Linked' : 'Ready'],
+          ['Removal Queue', `${categories.find(category => category.id === 'brokers')?.count ?? 0} brokers`],
           ['Report Pack', 'IC3 + State'],
         ].map(([label, value]) => (
           <div key={label} className="border-white/10 px-4 py-3 even:border-l sm:border-l sm:first:border-l-0">

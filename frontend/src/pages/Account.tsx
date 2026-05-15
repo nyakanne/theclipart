@@ -1,6 +1,24 @@
 import { FormEvent, useEffect, useState } from 'react'
-import { CheckCircle2, LogOut, Mail, ShieldAlert } from 'lucide-react'
+import { CheckCircle2, Database, FileText, ListChecks, LogOut, Mail, ShieldAlert, Lock, Bell } from 'lucide-react'
 import { supabase, getSupabaseSession } from '@/services/supabase'
+
+const VAULT_ITEMS = [
+  { icon: Database, title: 'Saved scans', detail: 'Keep exposure maps and source links tied to your account.' },
+  { icon: ListChecks, title: 'Removal queues', detail: 'Return to opt-outs, broker targets, and action status.' },
+  { icon: FileText, title: 'Evidence records', detail: 'Preserve receipts, reports, and authority-ready notes.' },
+] as const
+
+function authRedirectUrl() {
+  const configuredUrl = import.meta.env.VITE_PUBLIC_APP_URL as string | undefined
+  if (configuredUrl) return `${configuredUrl.replace(/\/$/, '')}/account`
+
+  const origin = window.location.origin
+  if (window.location.hostname === 'vindica.me' || window.location.hostname === 'www.vindica.me') {
+    return 'https://www.vindica.me/account'
+  }
+
+  return `${origin}/account`
+}
 
 export function Account() {
   const [email, setEmail] = useState('')
@@ -32,7 +50,7 @@ export function Account() {
       const { error } = await supabase.auth.signInWithOtp({
         email,
         options: {
-          emailRedirectTo: `${window.location.origin}/account`,
+          emailRedirectTo: authRedirectUrl(),
         },
       })
       if (error) throw error
@@ -50,72 +68,108 @@ export function Account() {
   }
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-12 sm:px-6 lg:px-8">
-      <div className="glass-panel rounded-xl p-6">
-        <div className="flex items-start gap-4">
-          <div className="rounded-full border border-red-500/40 bg-red-950/25 p-4 text-red-300">
-            <ShieldAlert className="h-8 w-8" />
-          </div>
-          <div>
-            <p className="text-xs font-bold uppercase tracking-[0.22em] text-red-300">Secure account</p>
-            <h1 className="mt-2 text-3xl font-black text-white">Your Vindica vault</h1>
-            <p className="mt-2 text-sm leading-6 text-gray-400">
-              Production mode uses Supabase Auth. Scans, opt-outs, reports, and evidence records are scoped to the signed-in user.
-            </p>
-          </div>
-        </div>
+    <div className="relative overflow-hidden">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_18%,rgba(186,24,27,0.16),transparent_26rem),radial-gradient(circle_at_84%_14%,rgba(212,175,55,0.11),transparent_20rem)]" />
+      <div className="mx-auto max-w-5xl px-4 py-12 sm:px-6 lg:px-8">
+        <div className="premium-panel rounded-[28px] p-6 sm:p-8">
+          <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
+            <div>
+              <div className="flex items-start gap-4">
+                <div className="rounded-[22px] border border-[#d4af37]/20 bg-[radial-gradient(circle_at_50%_30%,rgba(212,175,55,0.18),rgba(186,24,27,0.16),rgba(0,0,0,0.88))] p-4 text-[#f5d7a1]">
+                  <ShieldAlert className="h-8 w-8" />
+                </div>
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-[0.22em] text-[#f5d7a1]">Secure account</p>
+                  <h1 className="mt-2 text-3xl font-black text-white sm:text-4xl">Your Vindica vault</h1>
+                  <p className="mt-3 max-w-xl text-sm leading-7 text-gray-300">
+                    Sign in to preserve scans, removals, reports, evidence receipts, and alert history inside a private vault scoped to your account.
+                  </p>
+                </div>
+              </div>
 
-        {!supabase && (
-          <div className="mt-6 rounded-lg border border-red-500/30 bg-red-950/15 p-4 text-sm leading-6 text-red-100/85">
-            Supabase is not configured in this frontend build. Set `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` before hosting.
-          </div>
-        )}
-
-        {sessionEmail ? (
-          <div className="mt-6 rounded-xl border border-red-500/30 bg-red-950/15 p-5">
-            <div className="flex items-center gap-3 text-red-100">
-              <CheckCircle2 className="h-5 w-5" />
-              <span className="font-bold">Signed in as {sessionEmail}</span>
+              <div className="mt-6 grid gap-4 border-y border-white/10 py-5 sm:grid-cols-3">
+                {VAULT_ITEMS.map(({ icon: Icon, title, detail }) => (
+                  <div key={title} className="rounded-2xl border border-white/8 bg-black/30 p-4">
+                    <Icon className="h-4 w-4 text-[#f5d7a1]" />
+                    <div className="mt-3 text-sm font-bold text-white">{title}</div>
+                    <p className="mt-1 text-xs leading-5 text-gray-500">{detail}</p>
+                  </div>
+                ))}
+              </div>
             </div>
-            <button
-              type="button"
-              onClick={signOut}
-              className="mt-4 inline-flex items-center gap-2 rounded-lg border border-white/10 bg-black/55 px-4 py-3 text-sm font-bold text-gray-200 transition-colors hover:border-red-500/50 hover:text-white"
-            >
-              <LogOut className="h-4 w-4" />
-              Sign out
-            </button>
-          </div>
-        ) : (
-          <form onSubmit={signIn} className="mt-6 space-y-4">
-            <label className="block">
-              <span className="mb-1.5 block text-xs font-bold uppercase tracking-[0.16em] text-gray-500">Email</span>
-              <input
-                type="email"
-                value={email}
-                onChange={event => setEmail(event.target.value)}
-                placeholder="you@example.com"
-                required
-                disabled={!supabase}
-                className="input-field"
-              />
-            </label>
-            <button
-              type="submit"
-              disabled={!supabase || loading}
-              className="red-button-glow inline-flex w-full items-center justify-center gap-2 rounded-lg bg-red-600 px-4 py-3 font-bold text-white disabled:opacity-50"
-            >
-              <Mail className="h-4 w-4" />
-              {loading ? 'Sending link...' : 'Send secure sign-in link'}
-            </button>
-          </form>
-        )}
 
-        {message && (
-          <div className="mt-4 rounded-lg border border-white/10 bg-black/45 p-4 text-sm leading-6 text-gray-300">
-            {message}
+            <div className="grid gap-4">
+              {[
+                { icon: Lock, title: 'Vault security', detail: 'Magic-link access, account-scoped storage, and retained case history.' },
+                { icon: Bell, title: 'Signal continuity', detail: 'Return to live alerts, unresolved removals, and evidence chains.' },
+              ].map(({ icon: Icon, title, detail }) => (
+                <div key={title} className="tilt-card premium-panel rounded-2xl p-5">
+                  <Icon className="h-5 w-5 text-[#f5d7a1]" />
+                  <div className="mt-3 text-lg font-black text-[#fff7e8]">{title}</div>
+                  <p className="mt-2 text-sm leading-6 text-gray-400">{detail}</p>
+                </div>
+              ))}
+            </div>
           </div>
-        )}
+
+          {!supabase && (
+            <div className="mt-6 rounded-xl border border-red-500/30 bg-red-950/15 p-4 text-sm leading-6 text-red-100/85">
+              Supabase is not configured in this frontend build. Set `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` before hosting.
+            </div>
+          )}
+
+          {sessionEmail ? (
+            <div className="mt-6 rounded-[24px] border border-red-500/30 bg-red-950/15 p-5">
+              <div className="flex items-center gap-3 text-red-100">
+                <CheckCircle2 className="h-5 w-5" />
+                <span className="font-bold">Signed in as {sessionEmail}</span>
+              </div>
+              <p className="mt-2 text-sm leading-6 text-gray-400">
+                New scans and command actions can now be sealed into your Vindica vault.
+              </p>
+              <button
+                type="button"
+                onClick={signOut}
+                className="mt-4 inline-flex items-center gap-2 rounded-xl border border-white/10 bg-black/55 px-4 py-3 text-sm font-bold text-gray-200 transition-colors hover:border-red-500/50 hover:text-white"
+              >
+                <LogOut className="h-4 w-4" />
+                Sign out
+              </button>
+            </div>
+          ) : (
+            <form onSubmit={signIn} className="mt-6 max-w-2xl space-y-4">
+              <p className="text-sm leading-6 text-gray-400">
+                Use a secure email link before scanning when you want the exposure graph, removals, reports, and evidence history saved for later.
+              </p>
+              <label className="block">
+                <span className="mb-1.5 block text-xs font-bold uppercase tracking-[0.16em] text-gray-500">Email</span>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={event => setEmail(event.target.value)}
+                  placeholder="you@example.com"
+                  required
+                  disabled={!supabase}
+                  className="input-field"
+                />
+              </label>
+              <button
+                type="submit"
+                disabled={!supabase || loading}
+                className="red-button-glow inline-flex w-full items-center justify-center gap-2 rounded-xl bg-red-600 px-4 py-3 font-bold text-white disabled:opacity-50"
+              >
+                <Mail className="h-4 w-4" />
+                {loading ? 'Sending link...' : 'Send secure sign-in link'}
+              </button>
+            </form>
+          )}
+
+          {message && (
+            <div className="mt-4 rounded-xl border border-white/10 bg-black/45 p-4 text-sm leading-6 text-gray-300">
+              {message}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   )

@@ -5,7 +5,7 @@ from pydantic import field_validator
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file='.env', env_file_encoding='utf-8')
+    model_config = SettingsConfigDict(env_file='.env', env_file_encoding='utf-8', extra='ignore')
 
     APP_ENV: str = 'development'
     DEMO_MODE: bool = False

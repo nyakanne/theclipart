@@ -46,6 +46,8 @@ services:
       PUBLIC_APP_URL: ${PUBLIC_APP_URL:-https://vindica.me}
       REQUIRE_AUTH: ${REQUIRE_AUTH:-false}
       SUPABASE_JWT_SECRET: ${SUPABASE_JWT_SECRET:-}
+      SUPABASE_JWKS_URL: ${SUPABASE_JWKS_URL:-}
+      SUPABASE_JWT_AUDIENCE: ${SUPABASE_JWT_AUDIENCE:-authenticated}
       DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://dataguard:secret@postgres:5432/dataguard}
       SYNC_DATABASE_URL: ${SYNC_DATABASE_URL:-postgresql://dataguard:secret@postgres:5432/dataguard}
       REDIS_URL: redis://redis:6379/0

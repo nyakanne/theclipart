@@ -129,3 +129,16 @@ class ComplianceResult(Base):
     recommendations: Mapped[list] = mapped_column(JSON)
 
     scan: Mapped['Scan'] = relationship(back_populates='compliance_result')
+
+
+class CommandAction(Base):
+    __tablename__ = 'command_actions'
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=lambda: uuid.uuid4().hex)
+    user_id: Mapped[str | None] = mapped_column(String(128), index=True, nullable=True)
+    feature: Mapped[str] = mapped_column(String(64), index=True)
+    title: Mapped[str] = mapped_column(String(256))
+    status: Mapped[str] = mapped_column(String(32), default='saved')
+    payload: Mapped[dict] = mapped_column(JSON, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)

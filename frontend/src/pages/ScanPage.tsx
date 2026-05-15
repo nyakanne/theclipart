@@ -44,15 +44,15 @@ export function ScanPage() {
 
   return (
     <div className="mx-auto max-w-7xl space-y-6 px-4 py-8 sm:px-6 lg:px-8">
-      <div className="glass-panel rounded-xl p-5">
+      <div className="premium-panel rounded-[28px] p-5 sm:p-6">
         <div className="flex items-center gap-3">
-          <Link to="/" className="rounded-lg border border-white/10 p-2 text-gray-500 transition-colors hover:border-red-400 hover:text-gray-100">
+          <Link to="/" className="rounded-xl border border-white/10 p-2 text-gray-500 transition-colors hover:border-red-400 hover:text-gray-100">
             <ArrowLeft className="h-5 w-5" />
           </Link>
           <div>
-            <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-red-300">Exposure dashboard</p>
+            <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-[#f5d7a1]">Exposure command file</p>
             <h1 className="mt-1 text-3xl font-black tracking-tight text-white">Your Personal Data Exposure Overview</h1>
-            <p className="font-mono text-xs text-gray-500">{scanId}</p>
+            <p className="mt-1 font-mono text-xs text-gray-500">{scanId}</p>
           </div>
         </div>
       </div>
@@ -86,23 +86,23 @@ export function ScanPage() {
 
           <Link
             to="/#scan"
-            className="red-button-glow flex items-center justify-between rounded-xl border border-red-500/45 bg-red-950/45 px-6 py-4 text-lg font-bold text-white transition-colors hover:bg-red-700"
+            className="red-button-glow flex items-center justify-between rounded-2xl border border-red-500/45 bg-red-950/45 px-6 py-4 text-lg font-bold text-white transition-colors hover:bg-red-700"
           >
             <span className="inline-flex items-center gap-3"><RefreshCw className="h-6 w-6" /> Rescan Exposure</span>
             <ChevronRight className="h-6 w-6" />
           </Link>
 
-          <div className="glass-panel overflow-hidden rounded-xl">
+          <div className="premium-panel overflow-hidden rounded-[28px]">
             <ExposureGraph focused totalSources={result.total_exposures} className="min-h-[620px]" />
           </div>
 
-          <div className="glass-panel rounded-xl p-5">
+          <div className="premium-panel rounded-[28px] p-5">
             <div className="flex items-center gap-4">
-              <div className="rounded-full border border-red-500/40 p-4 text-red-400">
+              <div className="rounded-[20px] border border-red-500/40 bg-red-950/25 p-4 text-red-400">
                 <ShieldAlert className="h-7 w-7" />
               </div>
               <div>
-                <h2 className="text-xl font-bold">Your data is widely exposed</h2>
+                <h2 className="text-xl font-black text-[#fff7e8]">Your data is widely exposed</h2>
                 <p className="mt-1 text-gray-400">
                   Personal information was found across {result.total_exposures} sources. Use the broker queue, compliance analysis, and regulator pack below to remove and document it.
                 </p>
@@ -110,7 +110,7 @@ export function ScanPage() {
             </div>
           </div>
 
-          <div className="flex gap-1 overflow-x-auto border-b border-red-500/20 bg-black/70 px-1">
+          <div className="flex gap-1 overflow-x-auto rounded-2xl border border-white/8 bg-black/70 px-2 py-1">
             {TABS.map(t => {
               const Icon = t.icon
               const count = t.id === 'breaches' ? result.breaches.length
@@ -123,7 +123,7 @@ export function ScanPage() {
                   onClick={() => setTab(t.id)}
                   className={`flex items-center gap-1.5 whitespace-nowrap border-b-2 px-4 py-3 text-xs font-bold uppercase tracking-[0.14em] transition-colors ${
                     tab === t.id
-                      ? 'border-red-500 text-white'
+                      ? 'border-[#d4af37] text-[#fff7e8]'
                       : 'border-transparent text-gray-400 hover:text-gray-200'
                   }`}
                 >
@@ -150,7 +150,7 @@ export function ScanPage() {
       )}
 
       {statusData?.status === 'failed' && (
-        <div className="border border-red-800 bg-red-900/20 p-6 text-center">
+        <div className="rounded-2xl border border-red-800 bg-red-900/20 p-6 text-center">
           <p className="text-red-300 font-medium">Scan failed</p>
           <p className="mt-1 text-sm text-gray-400">Please try again or contact support.</p>
         </div>
@@ -175,7 +175,7 @@ function DashboardCard({
   footer: string
 }) {
   return (
-    <div className="glass-panel rounded-xl p-6">
+    <div className="premium-panel rounded-[28px] p-6">
       <div className="flex items-center justify-between gap-4">
         <div>
           <div className="text-xs font-bold uppercase tracking-[0.18em] text-gray-400">{label}</div>

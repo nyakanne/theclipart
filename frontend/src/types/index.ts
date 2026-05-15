@@ -107,3 +107,21 @@ export interface ReportPackage {
   includes_compliance: boolean
   expires_at: string
 }
+
+export interface CommandAction {
+  id: string
+  user_id?: string | null
+  feature: string
+  title: string
+  status: string
+  payload: Record<string, unknown>
+  created_at: string
+  updated_at: string
+}
+
+export interface CommandActionRequest {
+  feature: string
+  title: string
+  status?: string
+  payload?: Record<string, unknown>
+}

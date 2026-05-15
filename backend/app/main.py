@@ -61,8 +61,9 @@ if settings.DEMO_MODE:
 
     app.include_router(demo_scans.router, prefix='/api/v1')
 else:
-    from app.api.v1 import scans, webhooks
+    from app.api.v1 import command_actions, scans, webhooks
 
+    app.include_router(command_actions.router, prefix='/api/v1')
     app.include_router(scans.router, prefix='/api/v1')
     app.include_router(webhooks.router, prefix='/api/v1')
 

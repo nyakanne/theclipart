@@ -24,10 +24,16 @@ export default function App() {
           <main>
             <Routes>
               <Route path="/" element={<Home />} />
+              <Route path="/scan-yourself" element={<Home initialTab="scanSelf" />} />
               <Route path="/lookup" element={<Home initialTab="find" />} />
+              <Route path="/osint" element={<Home initialTab="osint" />} />
               <Route path="/opt-out" element={<Home initialTab="optout" />} />
+              <Route path="/brokers" element={<Home initialTab="brokers" />} />
               <Route path="/image-search" element={<Home initialTab="image" />} />
+              <Route path="/fingerprint" element={<Home initialTab="fingerprint" />} />
               <Route path="/track" element={<Home initialTab="monitor" />} />
+              <Route path="/platform-reporter" element={<Home initialTab="platform" />} />
+              <Route path="/email-blast" element={<Home initialTab="email" />} />
               <Route path="/reports" element={<Home initialTab="authority" />} />
               <Route path="/account" element={<Account />} />
               <Route path="/scan/:scanId" element={<ScanPage />} />
