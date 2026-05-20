@@ -3,6 +3,8 @@ from typing import Literal, Optional
 from pydantic import BaseModel, EmailStr, field_validator
 import re
 
+HibpStatus = Literal['unavailable', 'no_match', 'failed', 'completed']
+
 
 ScanStatus = Literal['idle', 'queued', 'scanning', 'completed', 'failed']
 SeverityLevel = Literal['critical', 'high', 'medium', 'low', 'info']
@@ -97,6 +99,23 @@ class ComplianceScoreOut(BaseModel):
     model_config = {'from_attributes': True}
 
 
+class HibpEvidenceRow(BaseModel):
+    source_name: str
+    source_url: Optional[str] = None
+    detail: str
+    risk_level: SeverityLevel
+    captured_at: Optional[str] = None
+    exposed_fields: list[str]
+    action_label: str
+
+
+class HibpProviderOut(BaseModel):
+    status: HibpStatus
+    breach_count: int
+    paste_count: int
+    evidence: list[HibpEvidenceRow]
+
+
 class DsarRequestOut(BaseModel):
     id: str
     scan_id: str
@@ -121,6 +140,7 @@ class ScanResultOut(BaseModel):
     compliance: Optional[ComplianceScoreOut]
     total_exposures: int
     risk_score: float
+    hibp_provider: Optional[HibpProviderOut] = None
 
     model_config = {'from_attributes': True}
 

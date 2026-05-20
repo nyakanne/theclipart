@@ -11,6 +11,7 @@ from app.core.database import get_db
 from app.core.security import encrypt_pii, generate_scan_id
 from app.models.scan import Scan, BreachRecord, BrokerListing, HoneyToken, HoneyTokenHit, DsarRequest, ComplianceResult
 from app.schemas.scan import ScanRequest, ScanJobOut, ScanResultOut, DsarRequestOut, ReportPackageOut
+from app.services.breach_checker import to_evidence_row
 from app.workers.tasks import run_scan, send_dsar, generate_report
 
 log = logging.getLogger(__name__)
@@ -107,6 +108,24 @@ async def get_scan_result(scan_id: str, db: AsyncSession = Depends(get_db)):
             'recommendations': cr.recommendations,
         }
 
+    hibp_provider = None
+    if scan.hibp_status:
+        hibp_records = [b for b in scan.breaches if b.source_type in ('breach_db', 'paste_site')]
+        evidence = [to_evidence_row({
+            'source': b.source,
+            'source_type': b.source_type,
+            'breach_date': b.breach_date,
+            'severity': b.severity,
+            'exposed_fields': b.exposed_fields,
+            'description': b.description,
+        }) for b in hibp_records]
+        hibp_provider = {
+            'status': scan.hibp_status,
+            'breach_count': sum(1 for b in hibp_records if b.source_type == 'breach_db'),
+            'paste_count': sum(1 for b in hibp_records if b.source_type == 'paste_site'),
+            'evidence': evidence,
+        }
+
     return {
         'scan_id': scan.id,
         'status': scan.status,
@@ -118,6 +137,7 @@ async def get_scan_result(scan_id: str, db: AsyncSession = Depends(get_db)):
         'compliance': compliance,
         'total_exposures': scan.total_exposures,
         'risk_score': scan.risk_score,
+        'hibp_provider': hibp_provider,
     }
 
 

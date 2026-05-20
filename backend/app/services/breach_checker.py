@@ -3,10 +3,10 @@ Breach Corpus Comparator — checks HIBP API + bloom-filter index on S3
 for hash-match against known breach records.
 """
 import asyncio
-import hashlib
 import json
 import logging
 from datetime import datetime, timezone
+from typing import Literal
 
 import httpx
 
@@ -15,6 +15,8 @@ from app.core.security import hash_identifier
 
 log = logging.getLogger(__name__)
 settings = get_settings()
+
+HibpStatus = Literal['unavailable', 'no_match', 'failed', 'completed']
 
 SEVERITY_MAP = {
     'Passwords': 'critical',
@@ -29,99 +31,196 @@ SEVERITY_MAP = {
     'IP addresses': 'medium',
 }
 
+ACTION_MAP = {
+    'critical': 'Change your password immediately and enable two-factor authentication',
+    'high': 'Change your password and review recent account activity',
+    'medium': 'Monitor your accounts for suspicious activity',
+    'low': 'Be alert for targeted phishing attempts using this information',
+}
+
 
 def _severity_from_fields(fields: list[str]) -> str:
     for f in fields:
-        sev = SEVERITY_MAP.get(f)
-        if sev == 'critical':
+        if SEVERITY_MAP.get(f) == 'critical':
             return 'critical'
     for f in fields:
-        sev = SEVERITY_MAP.get(f)
-        if sev == 'high':
+        if SEVERITY_MAP.get(f) == 'high':
             return 'high'
     return 'medium'
 
 
-async def check_hibp(email: str) -> list[dict]:
-    """Query HIBP v3 API for a given email."""
-    if not settings.HIBP_API_KEY or not email:
-        return []
+def _action_label(severity: str) -> str:
+    return ACTION_MAP.get(severity, ACTION_MAP['medium'])
 
-    headers = {
-        'hibp-api-key': settings.HIBP_API_KEY,
-        'user-agent': 'DataGuard/1.0',
-    }
-    url = f'https://haveibeenpwned.com/api/v3/breachedaccount/{email}?truncateResponse=false'
 
-    async with httpx.AsyncClient(timeout=15) as client:
-        try:
-            resp = await client.get(url, headers=headers)
-            if resp.status_code == 404:
-                return []
-            resp.raise_for_status()
-            data = resp.json()
-        except httpx.HTTPStatusError as e:
-            log.warning('HIBP API error %s', e)
-            return []
-
-    results = []
+def _normalize_breach(raw: dict) -> dict:
+    fields = raw.get('DataClasses', [])
     now = datetime.now(timezone.utc).date().isoformat()
-    for breach in data:
-        fields = breach.get('DataClasses', [])
-        results.append({
-            'source': breach['Name'],
-            'source_type': 'breach_db',
-            'breach_date': breach.get('BreachDate'),
-            'discovered_date': now,
-            'severity': _severity_from_fields(fields),
-            'exposed_fields': fields,
-            'record_count': breach.get('PwnCount'),
-            'description': breach.get('Description', ''),
-            'verified': breach.get('IsVerified', False),
-        })
-    return results
-
-
-async def check_paste_sites(email: str) -> list[dict]:
-    """Query HIBP paste endpoint."""
-    if not settings.HIBP_API_KEY or not email:
-        return []
-
-    headers = {
-        'hibp-api-key': settings.HIBP_API_KEY,
-        'user-agent': 'DataGuard/1.0',
+    return {
+        'source': raw['Name'],
+        'source_type': 'breach_db',
+        'breach_date': raw.get('BreachDate'),
+        'discovered_date': now,
+        'severity': _severity_from_fields(fields),
+        'exposed_fields': fields,
+        'record_count': raw.get('PwnCount'),
+        'description': raw.get('Description', ''),
+        'verified': raw.get('IsVerified', False),
     }
-    url = f'https://haveibeenpwned.com/api/v3/pasteaccount/{email}'
 
-    async with httpx.AsyncClient(timeout=15) as client:
-        try:
-            resp = await client.get(url, headers=headers)
-            if resp.status_code == 404:
-                return []
-            resp.raise_for_status()
-            data = resp.json()
-        except httpx.HTTPStatusError:
-            return []
 
+def _normalize_paste(raw: dict) -> dict:
     now = datetime.now(timezone.utc).date().isoformat()
-    return [{
-        'source': p.get('Source', 'Unknown paste'),
+    date_raw = raw.get('Date')
+    return {
+        'source': raw.get('Source', 'Unknown paste'),
         'source_type': 'paste_site',
-        'breach_date': p.get('Date', now)[:10] if p.get('Date') else None,
+        'breach_date': date_raw[:10] if date_raw else None,
         'discovered_date': now,
         'severity': 'medium',
         'exposed_fields': ['Email addresses'],
-        'record_count': p.get('EmailCount'),
-        'description': f'Found in paste "{p.get("Title", "untitled")}" on {p.get("Source")}',
+        'record_count': raw.get('EmailCount'),
+        'description': f'Found in paste "{raw.get("Title", "untitled")}" on {raw.get("Source")}',
         'verified': False,
-    } for p in data]
+    }
 
+
+def to_evidence_row(record: dict) -> dict:
+    """
+    Convert an internal breach/paste record dict to a normalized evidence row
+    suitable for API responses and report exports.
+    """
+    source = record['source']
+    source_type = record.get('source_type', 'breach_db')
+    severity = record.get('severity', 'medium')
+
+    if source_type == 'breach_db':
+        source_url = f'https://haveibeenpwned.com/PwnedWebsites#{source}'
+    elif source_type == 'paste_site':
+        source_url = 'https://haveibeenpwned.com/account/pasteaccount'
+    else:
+        source_url = None
+
+    return {
+        'source_name': source,
+        'source_url': source_url,
+        'detail': record.get('description', ''),
+        'risk_level': severity,
+        'captured_at': record.get('breach_date'),
+        'exposed_fields': record.get('exposed_fields', []),
+        'action_label': _action_label(severity),
+    }
+
+
+async def check_hibp_with_status(email: str) -> dict:
+    """
+    Query HIBP v3 breach and paste endpoints for the given email.
+
+    Returns a dict with keys:
+      status       — 'unavailable' | 'no_match' | 'failed' | 'completed'
+      breach_count — number of breach records found
+      paste_count  — number of paste records found
+      records      — list of dicts ready for BreachRecord storage
+      evidence     — list of normalized evidence rows for API/report output
+    """
+    _empty: dict = {
+        'status': 'unavailable',
+        'breach_count': 0,
+        'paste_count': 0,
+        'records': [],
+        'evidence': [],
+    }
+
+    if not settings.HIBP_API_KEY or not email:
+        return _empty
+
+    headers = {
+        'hibp-api-key': settings.HIBP_API_KEY,
+        'user-agent': 'Vindica/1.0',
+    }
+    breach_url = f'https://haveibeenpwned.com/api/v3/breachedaccount/{email}?truncateResponse=false'
+    paste_url = f'https://haveibeenpwned.com/api/v3/pasteaccount/{email}'
+
+    breach_resp = None
+    paste_resp = None
+    had_error = False
+
+    try:
+        async with httpx.AsyncClient(timeout=15) as client:
+            try:
+                breach_resp = await client.get(breach_url, headers=headers)
+            except Exception as exc:
+                log.warning('HIBP breach request failed: %s', exc)
+                had_error = True
+
+            try:
+                paste_resp = await client.get(paste_url, headers=headers)
+            except Exception as exc:
+                log.warning('HIBP paste request failed: %s', exc)
+                had_error = True
+    except Exception as exc:
+        log.warning('HIBP client setup failed: %s', exc)
+        return {**_empty, 'status': 'failed'}
+
+    records: list[dict] = []
+    breach_count = 0
+    paste_count = 0
+
+    # --- breach response ---
+    if breach_resp is None:
+        had_error = True
+    elif breach_resp.status_code == 404:
+        pass  # clean — no breaches found
+    elif breach_resp.status_code == 429:
+        log.warning('HIBP rate limited (breach endpoint)')
+        return {**_empty, 'status': 'failed'}
+    elif breach_resp.status_code != 200:
+        log.warning('HIBP breach endpoint returned HTTP %s', breach_resp.status_code)
+        had_error = True
+    else:
+        for raw in breach_resp.json():
+            records.append(_normalize_breach(raw))
+            breach_count += 1
+
+    # --- paste response ---
+    if paste_resp is None:
+        had_error = True
+    elif paste_resp.status_code == 404:
+        pass  # clean — no pastes found
+    elif paste_resp.status_code == 429:
+        log.warning('HIBP rate limited (paste endpoint)')
+        had_error = True
+    elif paste_resp.status_code != 200:
+        log.warning('HIBP paste endpoint returned HTTP %s', paste_resp.status_code)
+        had_error = True
+    else:
+        for raw in paste_resp.json():
+            records.append(_normalize_paste(raw))
+            paste_count += 1
+
+    evidence = [to_evidence_row(r) for r in records]
+
+    if had_error and not records:
+        status: HibpStatus = 'failed'
+    elif records:
+        status = 'completed'
+    else:
+        status = 'no_match'
+
+    return {
+        'status': status,
+        'breach_count': breach_count,
+        'paste_count': paste_count,
+        'records': records,
+        'evidence': evidence,
+    }
+
+
+# ---------------------------------------------------------------------------
+# Bloom filter (S3-backed local corpus)
+# ---------------------------------------------------------------------------
 
 async def bloom_filter_check(identifier_hash: str) -> list[dict]:
-    """
-    Compare SHA-256 hash of identifier against bloom-filter index stored in S3.
-    Returns any matched breach corpus entries.
-    """
     try:
         import boto3
         import io
@@ -151,6 +250,10 @@ async def bloom_filter_check(identifier_hash: str) -> list[dict]:
         log.debug('Bloom filter check skipped: %s', e)
         return []
 
+
+# ---------------------------------------------------------------------------
+# Demo / fallback data (used when no API key is configured)
+# ---------------------------------------------------------------------------
 
 DEMO_BREACHES = [
     {
@@ -249,25 +352,43 @@ DEMO_BROKERS = [
 ]
 
 
-async def run_breach_checks(query: dict) -> list[dict]:
-    tasks = []
+# ---------------------------------------------------------------------------
+# Unified entry point used by the scan worker
+# ---------------------------------------------------------------------------
+
+async def run_breach_checks(query: dict) -> tuple[list[dict], HibpStatus]:
+    """
+    Run HIBP + bloom-filter checks for the given query.
+
+    Returns:
+        (records, hibp_status) — records are ready for BreachRecord insertion;
+        hibp_status reflects the HIBP provider outcome specifically.
+    """
+    hibp_result: dict = {
+        'status': 'unavailable', 'records': [], 'breach_count': 0, 'paste_count': 0, 'evidence': []
+    }
     if query.get('email'):
-        tasks += [check_hibp(query['email']), check_paste_sites(query['email'])]
-        tasks.append(bloom_filter_check(hash_identifier(query['email'])))
+        hibp_result = await check_hibp_with_status(query['email'])
+
+    bloom_tasks = []
+    if query.get('email'):
+        bloom_tasks.append(bloom_filter_check(hash_identifier(query['email'])))
     if query.get('phone'):
-        tasks.append(bloom_filter_check(hash_identifier(query['phone'])))
+        bloom_tasks.append(bloom_filter_check(hash_identifier(query['phone'])))
 
-    results = await asyncio.gather(*tasks, return_exceptions=True)
-    breaches: list[dict] = []
-    for r in results:
+    bloom_raw = await asyncio.gather(*bloom_tasks, return_exceptions=True)
+    bloom_records: list[dict] = []
+    for r in bloom_raw:
         if isinstance(r, list):
-            breaches.extend(r)
+            bloom_records.extend(r)
 
-    # When no real API key is configured, use well-known public breach records
-    if not breaches and not settings.HIBP_API_KEY:
+    all_records = hibp_result['records'] + bloom_records
+
+    # No real key configured — use well-known public breach records as demo data
+    if not all_records and not settings.HIBP_API_KEY:
         import hashlib
         seed = int(hashlib.md5((query.get('email') or query.get('full_name') or 'demo').encode()).hexdigest(), 16)
         count = 3 + (seed % 4)
-        breaches = list(DEMO_BREACHES[:count])
+        all_records = list(DEMO_BREACHES[:count])
 
-    return breaches
+    return all_records, hibp_result['status']
