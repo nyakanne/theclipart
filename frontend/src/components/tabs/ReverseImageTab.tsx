@@ -1,114 +1,45 @@
 import { useState, useEffect } from 'react'
-import { Search, ExternalLink, Copy, Check, AlertTriangle, Image, Trash2 } from 'lucide-react'
+import { Search, ExternalLink, Copy, Check, AlertTriangle, Image, Trash2, Loader, RotateCcw, Zap } from 'lucide-react'
 
 interface SearchEntry {
-  id: string
-  url: string
-  label: string
-  timestamp: string
-  notes: string
+  id: string; url: string; label: string; timestamp: string; notes: string
+}
+
+interface SauceMatch {
+  similarity: number
+  thumbnail: string | null
+  source: string | null
+  all_urls: string[]
+  index: string
+  title: string
+  author: string
+}
+interface SauceResult {
+  query_url: string
+  results: SauceMatch[]
+  total: number
 }
 
 interface Engine {
-  name: string
-  description: string
-  category: string
-  buildUrl: (imageUrl: string) => string
-  supportsUpload: boolean
-  uploadUrl?: string
-  specialNote?: string
+  name: string; description: string; category: string
+  buildUrl: (imageUrl: string) => string; supportsUpload: boolean
+  uploadUrl?: string; specialNote?: string
 }
 
 const ENGINES: Engine[] = [
-  {
-    name: 'Google Images',
-    description: 'Largest index — best for finding stolen photos and reposts across the web',
-    category: 'General',
-    buildUrl: url => `https://lens.google.com/uploadbyurl?url=${encodeURIComponent(url)}`,
-    supportsUpload: true,
-    uploadUrl: 'https://lens.google.com/',
-    specialNote: 'For private images, use Google Lens upload (no URL needed)',
-  },
-  {
-    name: 'Yandex Images',
-    description: 'Often finds results Google misses — especially powerful for face matching',
-    category: 'General',
-    buildUrl: url => `https://yandex.com/images/search?rpt=imageview&url=${encodeURIComponent(url)}`,
-    supportsUpload: true,
-    uploadUrl: 'https://yandex.com/images/',
-    specialNote: 'Best face-match engine available publicly — use this first for headshots',
-  },
-  {
-    name: 'Bing Visual Search',
-    description: 'Microsoft index — catches different results than Google',
-    category: 'General',
-    buildUrl: url => `https://www.bing.com/images/search?view=detailv2&q=imgurl:${encodeURIComponent(url)}&iss=sbi`,
-    supportsUpload: true,
-    uploadUrl: 'https://www.bing.com/visualsearch',
-  },
-  {
-    name: 'TinEye',
-    description: 'Specialist reverse image search — tracks exact copies and edited versions over time',
-    category: 'Specialist',
-    buildUrl: url => `https://tineye.com/search?url=${encodeURIComponent(url)}`,
-    supportsUpload: true,
-    uploadUrl: 'https://tineye.com/',
-    specialNote: 'Best for tracking re-uploads and edited copies of stolen images',
-  },
-  {
-    name: 'PimEyes',
-    description: 'Face recognition search — finds your face across billions of images',
-    category: 'Face Search',
-    buildUrl: () => 'https://pimeyes.com/',
-    supportsUpload: true,
-    uploadUrl: 'https://pimeyes.com/',
-    specialNote: 'Upload only — paste the URL into PimEyes directly. Paid tier finds more results.',
-  },
-  {
-    name: 'FaceCheck.ID',
-    description: 'Free face search across social media and public sites',
-    category: 'Face Search',
-    buildUrl: () => 'https://facecheck.id/',
-    supportsUpload: true,
-    uploadUrl: 'https://facecheck.id/',
-    specialNote: 'Free alternative to PimEyes — good for social profile matching',
-  },
-  {
-    name: 'Shutterstock',
-    description: 'Check if your images were stolen and sold as stock photos',
-    category: 'Content Theft',
-    buildUrl: url => `https://www.shutterstock.com/search?searchterm=${encodeURIComponent(url)}&search_source=base_landing_page`,
-    supportsUpload: false,
-    uploadUrl: 'https://www.shutterstock.com/search',
-    specialNote: 'Search for your name or upload to check for stolen/sold content',
-  },
-  {
-    name: 'Getty Images',
-    description: 'Check if your images appear in Getty\'s commercial database',
-    category: 'Content Theft',
-    buildUrl: () => 'https://www.gettyimages.com/',
-    supportsUpload: false,
-    uploadUrl: 'https://www.gettyimages.com/',
-  },
-  {
-    name: 'DMCA.com Search',
-    description: 'Find stolen content and file DMCA takedowns directly',
-    category: 'DMCA',
-    buildUrl: () => 'https://www.dmca.com/Protection/Search.aspx',
-    supportsUpload: false,
-    uploadUrl: 'https://www.dmca.com/',
-    specialNote: 'Use this to file takedowns once you\'ve found stolen content',
-  },
-  {
-    name: 'Reddit Image Search',
-    description: 'Find reposts of your images on Reddit',
-    category: 'Social',
-    buildUrl: url => `https://www.reddit.com/search/?q=url:${encodeURIComponent(url)}&type=link`,
-    supportsUpload: false,
-  },
+  { name: 'Google Images',    description: 'Largest index — best for finding stolen photos and reposts across the web',             category: 'General',       buildUrl: url => `https://lens.google.com/uploadbyurl?url=${encodeURIComponent(url)}`,                           supportsUpload: true,  uploadUrl: 'https://lens.google.com/',           specialNote: 'For private images, use Google Lens upload (no URL needed)' },
+  { name: 'Yandex Images',    description: 'Often finds results Google misses — especially powerful for face matching',             category: 'General',       buildUrl: url => `https://yandex.com/images/search?rpt=imageview&url=${encodeURIComponent(url)}`,                supportsUpload: true,  uploadUrl: 'https://yandex.com/images/',         specialNote: 'Best face-match engine available publicly — use this first for headshots' },
+  { name: 'Bing Visual',      description: 'Microsoft index — catches different results than Google',                               category: 'General',       buildUrl: url => `https://www.bing.com/images/search?view=detailv2&q=imgurl:${encodeURIComponent(url)}&iss=sbi`,  supportsUpload: true,  uploadUrl: 'https://www.bing.com/visualsearch' },
+  { name: 'TinEye',           description: 'Specialist reverse image search — tracks exact copies and edited versions over time',   category: 'Specialist',    buildUrl: url => `https://tineye.com/search?url=${encodeURIComponent(url)}`,                                    supportsUpload: true,  uploadUrl: 'https://tineye.com/',                specialNote: 'Best for tracking re-uploads and edited copies of stolen images' },
+  { name: 'PimEyes',          description: 'Face recognition search — finds your face across billions of images',                  category: 'Face Search',   buildUrl: () => 'https://pimeyes.com/',                                                                          supportsUpload: true,  uploadUrl: 'https://pimeyes.com/',               specialNote: 'Upload only — paste the URL into PimEyes directly. Paid tier finds more results.' },
+  { name: 'FaceCheck.ID',     description: 'Free face search across social media and public sites',                                category: 'Face Search',   buildUrl: () => 'https://facecheck.id/',                                                                         supportsUpload: true,  uploadUrl: 'https://facecheck.id/',              specialNote: 'Free alternative to PimEyes — good for social profile matching' },
+  { name: 'Shutterstock',     description: 'Check if your images were stolen and sold as stock photos',                            category: 'Content Theft', buildUrl: url => `https://www.shutterstock.com/search?searchterm=${encodeURIComponent(url)}&search_source=base_landing_page`, supportsUpload: false, uploadUrl: 'https://www.shutterstock.com/search' },
+  { name: 'Getty Images',     description: "Check if your images appear in Getty's commercial database",                           category: 'Content Theft', buildUrl: () => 'https://www.gettyimages.com/',                                                                  supportsUpload: false, uploadUrl: 'https://www.gettyimages.com/' },
+  { name: 'DMCA.com',         description: 'Find stolen content and file DMCA takedowns directly',                                 category: 'DMCA',          buildUrl: () => 'https://www.dmca.com/Protection/Search.aspx',                                                   supportsUpload: false, uploadUrl: 'https://www.dmca.com/',              specialNote: "Use this to file takedowns once you've found stolen content" },
+  { name: 'Reddit Search',    description: 'Find reposts of your images on Reddit',                                                category: 'Social',        buildUrl: url => `https://www.reddit.com/search/?q=url:${encodeURIComponent(url)}&type=link`,                    supportsUpload: false },
 ]
 
-const STORAGE_KEY = 'phantom-reverse-image-v1'
+const STORAGE_KEY = 'vindica-reverse-image-v1'
 
 const CATEGORY_COLORS: Record<string, string> = {
   'General':       'bg-red-950/40 text-red-400',
@@ -119,16 +50,27 @@ const CATEGORY_COLORS: Record<string, string> = {
   'Social':        'bg-gray-800 text-gray-400',
 }
 
+function similarityColor(s: number) {
+  if (s >= 85) return 'text-red-400'
+  if (s >= 60) return 'text-yellow-500'
+  return 'text-gray-400'
+}
+
 export function ReverseImageTab() {
   const [imageUrl, setImageUrl] = useState('')
-  const [label, setLabel] = useState('')
-  const [notes, setNotes] = useState('')
+  const [label, setLabel]       = useState('')
+  const [notes, setNotes]       = useState('')
   const [searches, setSearches] = useState<SearchEntry[]>(() => {
     try { return JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '[]') } catch { return [] }
   })
-  const [launched, setLaunched] = useState<Set<string>>(new Set())
-  const [copied, setCopied] = useState(false)
+  const [launched, setLaunched]           = useState<Set<string>>(new Set())
+  const [copied, setCopied]               = useState(false)
   const [activeCategory, setActiveCategory] = useState<string>('All')
+
+  // In-app SauceNAO state
+  const [sauceLoading, setSauceLoading] = useState(false)
+  const [sauceResult, setSauceResult]   = useState<SauceResult | null>(null)
+  const [sauceError, setSauceError]     = useState('')
 
   useEffect(() => { localStorage.setItem(STORAGE_KEY, JSON.stringify(searches)) }, [searches])
 
@@ -162,6 +104,22 @@ export function ReverseImageTab() {
     setTimeout(() => setCopied(false), 2000)
   }
 
+  async function runSauceNAO() {
+    const u = imageUrl.trim()
+    if (!u) return
+    setSauceLoading(true); setSauceResult(null); setSauceError('')
+    try {
+      const r = await fetch(`/api/v1/osint/reverse-image?url=${encodeURIComponent(u)}`)
+      if (r.status === 429) { setSauceError('Daily limit reached (100/day free). Try again tomorrow or paste the URL into TinEye/Google below.'); return }
+      if (!r.ok) { const d = await r.json(); setSauceError(d.detail ?? `Error ${r.status}`); return }
+      setSauceResult(await r.json())
+    } catch {
+      setSauceError('Search failed — check your connection')
+    } finally {
+      setSauceLoading(false)
+    }
+  }
+
   const categories = ['All', ...Array.from(new Set(ENGINES.map(e => e.category)))]
   const filteredEngines = activeCategory === 'All' ? ENGINES : ENGINES.filter(e => e.category === activeCategory)
 
@@ -177,7 +135,7 @@ export function ReverseImageTab() {
         <h1 className="text-2xl font-black text-white leading-tight mb-1">Find Every Copy.</h1>
         <h2 className="text-2xl font-black text-red-500 leading-tight mb-3">Remove Them All.</h2>
         <p className="text-sm text-gray-400 max-w-md leading-relaxed">
-          Launch reverse image searches across {ENGINES.length} engines simultaneously — Google, Yandex, TinEye, PimEyes and more.
+          In-app reverse search via SauceNAO — plus {ENGINES.length} engine launchers for Google, Yandex, TinEye and more.
         </p>
       </div>
 
@@ -186,9 +144,8 @@ export function ReverseImageTab() {
         <div>
           <p className="text-sm font-semibold text-red-300 mb-1">Reverse Image Search — Find Stolen Content</p>
           <p className="text-xs text-red-300/70 leading-relaxed">
-            Paste a public URL to your image and launch searches across all engines simultaneously.
-            For private or local images, use the upload option on each engine directly.
-            <strong className="text-red-300"> Yandex and PimEyes are most effective for face matching.</strong>
+            Paste a public URL to your image. <strong className="text-red-300">Search In-App</strong> runs SauceNAO (free, 100/day) and shows results here.
+            For face matching, use Yandex or PimEyes via the engine grid below.
           </p>
         </div>
       </div>
@@ -201,64 +158,104 @@ export function ReverseImageTab() {
           </div>
           <div>
             <h2 className="font-bold text-white">Reverse Image Search</h2>
-            <p className="text-xs text-gray-500">Find where your images appear across {ENGINES.length} search engines</p>
+            <p className="text-xs text-gray-500">Paste a public image URL — search in-app or launch external engines</p>
           </div>
         </div>
 
         <div className="space-y-3">
-          <input
-            className="input-field"
-            placeholder="Label (e.g. 'profile photo', 'leaked headshot')"
-            value={label}
-            onChange={e => setLabel(e.target.value)}
-          />
+          <input className="input-field" placeholder="Label (e.g. 'profile photo', 'leaked headshot')"
+            value={label} onChange={e => setLabel(e.target.value)} />
           <div className="flex gap-2">
             <input
               className="input-field flex-1"
-              placeholder="Paste public image URL (https://…) or use upload on each engine for private images"
+              placeholder="Paste public image URL (https://…)"
               value={imageUrl}
-              onChange={e => setImageUrl(e.target.value)}
+              onChange={e => { setImageUrl(e.target.value); setSauceResult(null); setSauceError('') }}
             />
             <button onClick={copyUrl} disabled={!imageUrl} className="p-2.5 rounded-lg border border-gray-800 hover:border-gray-700 transition-colors flex-shrink-0">
               {copied ? <Check className="h-4 w-4 text-red-400" /> : <Copy className="h-4 w-4 text-gray-500" />}
             </button>
           </div>
-          <textarea
-            className="input-field resize-none"
-            rows={2}
-            placeholder="Notes (optional — what you're looking for, where you found it)"
-            value={notes}
-            onChange={e => setNotes(e.target.value)}
-          />
-          <div className="flex gap-3">
-            <button onClick={saveSearch} disabled={!imageUrl.trim()} className="btn-red">
+          <textarea className="input-field resize-none" rows={2}
+            placeholder="Notes (optional)" value={notes} onChange={e => setNotes(e.target.value)} />
+          <div className="flex gap-2 flex-wrap">
+            <button
+              onClick={sauceResult ? () => { setSauceResult(null); setSauceError('') } : runSauceNAO}
+              disabled={!imageUrl.trim() && !sauceResult}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white text-sm font-bold transition-colors disabled:opacity-40"
+            >
+              {sauceLoading ? <Loader className="h-4 w-4 animate-spin" /> : sauceResult ? <RotateCcw className="h-4 w-4" /> : <Zap className="h-4 w-4" />}
+              {sauceLoading ? 'Searching…' : sauceResult ? 'New Search' : 'Search In-App'}
+            </button>
+            <button onClick={saveSearch} disabled={!imageUrl.trim()}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-700 bg-gray-900 text-sm font-semibold text-white hover:bg-gray-800 transition-colors disabled:opacity-40">
               <Image className="h-4 w-4" /> Save & Track
             </button>
-            <button
-              onClick={() => launchAll(imageUrl)}
-              disabled={!imageUrl.trim()}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gray-900 border border-gray-700 text-sm font-semibold text-white hover:bg-gray-800 transition-colors"
-            >
+            <button onClick={() => launchAll(imageUrl)} disabled={!imageUrl.trim()}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-700 bg-gray-900 text-sm font-semibold text-white hover:bg-gray-800 transition-colors disabled:opacity-40">
               <ExternalLink className="h-4 w-4" /> Launch All Engines
             </button>
           </div>
         </div>
       </div>
 
+      {/* ── In-app SauceNAO results ──────────────────────────────────────────── */}
+      {sauceError && (
+        <div className="p-4 rounded-xl bg-red-950/20 border border-red-900/30 text-xs text-red-400 font-mono">! {sauceError}</div>
+      )}
+
+      {sauceResult && (
+        <div className="card-dark p-5">
+          <div className="flex items-center gap-2 mb-4">
+            <Zap className="h-4 w-4 text-red-500" />
+            <span className="text-sm font-bold text-white">SauceNAO Results</span>
+            <span className="text-[10px] bg-red-950/50 text-red-400 border border-red-900/40 px-2 py-0.5 rounded-full">{sauceResult.total} match{sauceResult.total !== 1 ? 'es' : ''}</span>
+            <span className="text-[10px] text-gray-600 ml-auto">Free · 100/day</span>
+          </div>
+          {sauceResult.total === 0 ? (
+            <p className="text-center py-6 text-gray-600 text-sm">No matches found above 40% similarity</p>
+          ) : (
+            <div className="space-y-3">
+              {sauceResult.results.map((match, i) => (
+                <div key={i} className="flex gap-3 p-3 rounded-xl border border-gray-800/80 bg-gray-900/30">
+                  {match.thumbnail && (
+                    <img src={match.thumbnail} alt="" className="w-16 h-16 object-cover rounded-lg flex-shrink-0 bg-gray-800" />
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1 flex-wrap">
+                      <span className={`text-lg font-black ${similarityColor(match.similarity)}`}>{match.similarity}%</span>
+                      <span className="text-[10px] text-gray-600 font-mono">{match.index}</span>
+                    </div>
+                    {match.title && <p className="text-xs text-white font-medium mb-1 truncate">{match.title}</p>}
+                    {match.author && <p className="text-[10px] text-gray-500 mb-1">by {match.author}</p>}
+                    <div className="flex flex-wrap gap-1.5 mt-1">
+                      {match.all_urls.slice(0, 3).map(u => (
+                        <a key={u} href={u} target="_blank" rel="noopener noreferrer"
+                          className="flex items-center gap-1 text-[10px] text-red-400 hover:text-red-300 transition-colors font-mono truncate max-w-[200px]">
+                          <ExternalLink className="h-2.5 w-2.5 flex-shrink-0" />
+                          {new URL(u).hostname}
+                        </a>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+          <p className="text-[10px] text-gray-700 mt-4">
+            SauceNAO covers anime, manga, art, stock, and adult content databases. For general photos/faces, also run Yandex and Google below.
+          </p>
+        </div>
+      )}
+
       {/* Category filter */}
       <div className="flex flex-wrap gap-2">
         {categories.map(cat => (
-          <button
-            key={cat}
-            onClick={() => setActiveCategory(cat)}
+          <button key={cat} onClick={() => setActiveCategory(cat)}
             className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${
-              activeCategory === cat
-                ? 'bg-red-950/60 text-red-400 border-red-900/50'
-                : 'border-gray-800 text-gray-600 hover:border-gray-700 hover:text-gray-400'
+              activeCategory === cat ? 'bg-red-950/60 text-red-400 border-red-900/50' : 'border-gray-800 text-gray-600 hover:border-gray-700 hover:text-gray-400'
             }`}
-          >
-            {cat}
-          </button>
+          >{cat}</button>
         ))}
       </div>
 
@@ -268,42 +265,29 @@ export function ReverseImageTab() {
           const isLaunched = launched.has(engine.name)
           const url = imageUrl.trim()
           const href = url ? engine.buildUrl(url) : (engine.uploadUrl ?? '#')
-
           return (
             <div key={engine.name} className={`card-dark p-4 transition-colors ${isLaunched ? 'opacity-60' : ''}`}>
               <div className="flex items-start justify-between gap-2 mb-2">
                 <div className="flex-1">
                   <div className="flex items-center gap-2 flex-wrap mb-1">
                     <span className="text-sm font-semibold text-white">{engine.name}</span>
-                    <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${CATEGORY_COLORS[engine.category] ?? 'bg-gray-800 text-gray-400'}`}>
-                      {engine.category}
-                    </span>
+                    <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${CATEGORY_COLORS[engine.category] ?? 'bg-gray-800 text-gray-400'}`}>{engine.category}</span>
                     {isLaunched && <span className="text-[10px] text-red-400">Launched</span>}
                   </div>
                   <p className="text-xs text-gray-500 leading-relaxed">{engine.description}</p>
-                  {engine.specialNote && (
-                    <p className="text-[11px] text-red-400/80 mt-1 leading-relaxed">{engine.specialNote}</p>
-                  )}
+                  {engine.specialNote && <p className="text-[11px] text-red-400/80 mt-1 leading-relaxed">{engine.specialNote}</p>}
                 </div>
               </div>
               <div className="flex gap-2 mt-3">
-                <a
-                  href={href}
-                  target="_blank"
-                  rel="noopener noreferrer"
+                <a href={href} target="_blank" rel="noopener noreferrer"
                   onClick={() => setLaunched(prev => new Set([...prev, engine.name]))}
-                  className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg bg-gray-900 border border-gray-700 hover:border-gray-600 text-xs font-semibold text-white transition-colors"
-                >
+                  className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg bg-gray-900 border border-gray-700 hover:border-gray-600 text-xs font-semibold text-white transition-colors">
                   <ExternalLink className="h-3.5 w-3.5" />
                   {url ? 'Search' : 'Upload'}
                 </a>
                 {engine.supportsUpload && engine.uploadUrl && (
-                  <a
-                    href={engine.uploadUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="px-3 py-2 rounded-lg border border-gray-800 hover:border-gray-700 text-xs text-gray-500 hover:text-gray-300 transition-colors"
-                  >
+                  <a href={engine.uploadUrl} target="_blank" rel="noopener noreferrer"
+                    className="px-3 py-2 rounded-lg border border-gray-800 hover:border-gray-700 text-xs text-gray-500 hover:text-gray-300 transition-colors">
                     Upload
                   </a>
                 )}
@@ -318,12 +302,8 @@ export function ReverseImageTab() {
         <div className="card-dark divide-y divide-gray-900">
           <div className="flex items-center justify-between px-5 py-3">
             <h3 className="text-xs font-semibold text-gray-400">Search History</h3>
-            <button
-              onClick={() => { setSearches([]); localStorage.removeItem(STORAGE_KEY) }}
-              className="text-xs text-gray-700 hover:text-red-400 transition-colors"
-            >
-              Clear all
-            </button>
+            <button onClick={() => { setSearches([]); localStorage.removeItem(STORAGE_KEY) }}
+              className="text-xs text-gray-700 hover:text-red-400 transition-colors">Clear all</button>
           </div>
           {searches.map(s => (
             <div key={s.id} className="flex items-start gap-3 p-4">
@@ -335,17 +315,11 @@ export function ReverseImageTab() {
                 </div>
                 <p className="text-xs text-gray-600 break-all">{s.url}</p>
                 {s.notes && <p className="text-xs text-gray-500 mt-1">{s.notes}</p>}
-                <button
-                  onClick={() => { setImageUrl(s.url); setLabel(s.label) }}
-                  className="text-xs text-red-500 hover:text-red-400 mt-1 transition-colors"
-                >
-                  Load into search
-                </button>
+                <button onClick={() => { setImageUrl(s.url); setLabel(s.label); setSauceResult(null) }}
+                  className="text-xs text-red-500 hover:text-red-400 mt-1 transition-colors">Load into search</button>
               </div>
-              <button
-                onClick={() => setSearches(prev => prev.filter(x => x.id !== s.id))}
-                className="p-1.5 rounded hover:bg-gray-800 transition-colors flex-shrink-0"
-              >
+              <button onClick={() => setSearches(prev => prev.filter(x => x.id !== s.id))}
+                className="p-1.5 rounded hover:bg-gray-800 transition-colors flex-shrink-0">
                 <Trash2 className="h-3.5 w-3.5 text-gray-700 hover:text-red-400" />
               </button>
             </div>

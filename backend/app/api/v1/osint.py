@@ -7,7 +7,7 @@ import logging
 from typing import Literal
 
 import httpx
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Query, HTTPException
 
 log = logging.getLogger(__name__)
 router = APIRouter(prefix='/osint', tags=['osint'])
@@ -109,3 +109,71 @@ async def probe_username(
         )
 
     return [r for r in results if isinstance(r, dict)]
+
+
+# ---------------------------------------------------------------------------
+# Reverse image search — SauceNAO proxy (free, no key, 100 req/day)
+# ---------------------------------------------------------------------------
+
+_SAUCENAO_URL = 'https://saucenao.com/search.php'
+_SAUCENAO_HEADERS = {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124.0 Safari/537.36',
+}
+
+
+@router.get('/reverse-image')
+async def reverse_image_search(
+    url: str = Query(..., description='Public image URL to search'),
+):
+    """
+    Proxy a reverse image search through SauceNAO (free, no API key required).
+    Returns up to 10 matches with thumbnail, source URL, and similarity score.
+    Rate limit: ~100 searches/day on the free tier.
+    """
+    url = url.strip()
+    if not url.startswith(('http://', 'https://')):
+        raise HTTPException(status_code=400, detail='URL must start with http:// or https://')
+
+    params = {
+        'output_type': '2',   # JSON
+        'numres': '10',
+        'url': url,
+    }
+
+    try:
+        async with httpx.AsyncClient(timeout=15) as client:
+            r = await client.get(_SAUCENAO_URL, params=params, headers=_SAUCENAO_HEADERS, follow_redirects=True)
+    except Exception as exc:
+        log.warning('SauceNAO request failed: %s', exc)
+        raise HTTPException(status_code=502, detail='Reverse image search unavailable — try again shortly')
+
+    if r.status_code == 429:
+        raise HTTPException(status_code=429, detail='Daily search limit reached (100/day on free tier). Try again tomorrow.')
+    if r.status_code != 200:
+        raise HTTPException(status_code=502, detail=f'SauceNAO returned {r.status_code}')
+
+    try:
+        data = r.json()
+    except Exception:
+        raise HTTPException(status_code=502, detail='Invalid response from SauceNAO')
+
+    results = []
+    for item in (data.get('results') or []):
+        h = item.get('header', {})
+        d = item.get('data', {})
+        similarity = float(h.get('similarity', 0))
+        if similarity < 40:
+            continue
+        ext_urls = d.get('ext_urls') or []
+        results.append({
+            'similarity': round(similarity, 1),
+            'thumbnail': h.get('thumbnail'),
+            'source': ext_urls[0] if ext_urls else None,
+            'all_urls': ext_urls,
+            'index': h.get('index_name', ''),
+            'title': d.get('title') or d.get('source') or d.get('author_name') or '',
+            'author': d.get('author_name') or d.get('member_name') or '',
+        })
+
+    results.sort(key=lambda x: x['similarity'], reverse=True)
+    return {'query_url': url, 'results': results, 'total': len(results)}
