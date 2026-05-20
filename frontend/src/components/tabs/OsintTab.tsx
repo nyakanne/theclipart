@@ -1,147 +1,135 @@
 import { useState } from 'react'
-import { Search, ExternalLink, AlertTriangle, Globe, MapPin, User, Mail, Hash, ChevronDown, ChevronUp, Loader } from 'lucide-react'
+import { Search, ExternalLink, AlertTriangle, Globe, MapPin, User, Mail, Hash, ChevronDown, ChevronUp, Loader, CheckCircle, XCircle, ShieldOff, HelpCircle, RotateCcw } from 'lucide-react'
+import { useAuthStore } from '@/store/authStore'
 
-// ── Username platforms ────────────────────────────────────────────────────────
-interface UPlatform {
+// ── Username platform probe result ────────────────────────────────────────────
+interface PlatformResult {
   name: string
-  url: (u: string) => string
   category: string
+  url: string
+  status: 'found' | 'not_found' | 'protected' | 'error'
 }
 
-const USERNAME_PLATFORMS: UPlatform[] = [
-  // Social
-  { name: 'Instagram',   url: u => `https://instagram.com/${u}`,              category: 'Social' },
-  { name: 'Twitter/X',   url: u => `https://twitter.com/${u}`,                category: 'Social' },
-  { name: 'TikTok',      url: u => `https://tiktok.com/@${u}`,                category: 'Social' },
-  { name: 'Snapchat',    url: u => `https://snapchat.com/add/${u}`,           category: 'Social' },
-  { name: 'Facebook',    url: u => `https://facebook.com/${u}`,               category: 'Social' },
-  { name: 'Pinterest',   url: u => `https://pinterest.com/${u}`,              category: 'Social' },
-  { name: 'LinkedIn',    url: u => `https://linkedin.com/in/${u}`,            category: 'Social' },
-  { name: 'Reddit',      url: u => `https://reddit.com/u/${u}`,               category: 'Social' },
-  { name: 'Tumblr',      url: u => `https://tumblr.com/${u}`,                 category: 'Social' },
-  { name: 'Mastodon',    url: u => `https://mastodon.social/@${u}`,           category: 'Social' },
-  // Gaming
-  { name: 'Twitch',      url: u => `https://twitch.tv/${u}`,                  category: 'Gaming' },
-  { name: 'Steam',       url: u => `https://steamcommunity.com/id/${u}`,      category: 'Gaming' },
-  { name: 'Xbox',        url: u => `https://xboxgamertag.com/search/${u}`,    category: 'Gaming' },
-  { name: 'PSN',         url: u => `https://psnprofiles.com/${u}`,            category: 'Gaming' },
-  { name: 'Roblox',      url: u => `https://roblox.com/users/profile?username=${u}`, category: 'Gaming' },
-  // Dev / Tech
-  { name: 'GitHub',      url: u => `https://github.com/${u}`,                 category: 'Dev' },
-  { name: 'GitLab',      url: u => `https://gitlab.com/${u}`,                 category: 'Dev' },
-  { name: 'Bitbucket',   url: u => `https://bitbucket.org/${u}`,              category: 'Dev' },
-  { name: 'Hacker News', url: u => `https://news.ycombinator.com/user?id=${u}`, category: 'Dev' },
-  { name: 'Dev.to',      url: u => `https://dev.to/${u}`,                     category: 'Dev' },
-  // Content
-  { name: 'YouTube',     url: u => `https://youtube.com/@${u}`,               category: 'Content' },
-  { name: 'Medium',      url: u => `https://medium.com/@${u}`,                category: 'Content' },
-  { name: 'Substack',    url: u => `https://substack.com/@${u}`,              category: 'Content' },
-  { name: 'Patreon',     url: u => `https://patreon.com/${u}`,                category: 'Content' },
-  { name: 'OnlyFans',    url: u => `https://onlyfans.com/${u}`,               category: 'Content' },
-  // Forums
-  { name: 'Kik',         url: u => `https://kik.me/${u}`,                     category: 'Messaging' },
-  { name: 'Telegram',    url: u => `https://t.me/${u}`,                       category: 'Messaging' },
-  { name: 'Keybase',     url: u => `https://keybase.io/${u}`,                 category: 'Messaging' },
-  // Other
-  { name: 'Gravatar',    url: u => `https://gravatar.com/${u}`,               category: 'Other' },
-  { name: 'About.me',    url: u => `https://about.me/${u}`,                   category: 'Other' },
-  { name: 'Linktree',    url: u => `https://linktr.ee/${u}`,                  category: 'Other' },
-]
-
-const U_CATEGORY_COLORS: Record<string, string> = {
-  Social:    'bg-red-950/40 text-red-400 border-red-900/40',
-  Gaming:    'bg-red-950/40 text-red-400 border-red-900/40',
-  Dev:       'bg-red-950/40 text-red-400 border-red-900/40',
-  Content:   'bg-red-950/40 text-red-400 border-red-900/40',
-  Messaging: 'bg-red-950/40 text-red-400 border-red-900/40',
-  Other:     'bg-gray-800 text-gray-400 border-gray-700',
+const STATUS_STYLE: Record<string, string> = {
+  found:     'text-red-400 bg-red-950/40 border-red-900/50',
+  not_found: 'text-gray-600 bg-gray-900/30 border-gray-800',
+  protected: 'text-yellow-500 bg-yellow-950/20 border-yellow-900/30',
+  error:     'text-gray-700 bg-gray-950 border-gray-900',
+}
+const STATUS_ICON: Record<string, typeof CheckCircle> = {
+  found:     CheckCircle,
+  not_found: XCircle,
+  protected: ShieldOff,
+  error:     HelpCircle,
+}
+const STATUS_LABEL: Record<string, string> = {
+  found:     'Found',
+  not_found: 'Not found',
+  protected: 'Protected',
+  error:     'Error',
 }
 
 // ── IP Lookup ────────────────────────────────────────────────────────────────
 interface IpResult {
-  ip: string
-  city?: string
-  region?: string
-  country_name?: string
-  org?: string
-  timezone?: string
-  latitude?: number
-  longitude?: number
-  error?: boolean
-  reason?: string
+  ip: string; city?: string; region?: string; country_name?: string
+  org?: string; timezone?: string; latitude?: number; longitude?: number
+  error?: boolean; reason?: string
 }
 
 // ── Domain Lookup ────────────────────────────────────────────────────────────
 interface DomainResult {
-  domain: string
-  registrar?: string
-  created?: string
-  expires?: string
-  nameservers?: string[]
-  status?: string[]
-  error?: string
+  domain: string; registrar?: string; created?: string; expires?: string
+  nameservers?: string[]; status?: string[]; error?: string
 }
 
-// ── Email Breach links ────────────────────────────────────────────────────────
-const BREACH_TOOLS = [
-  { name: 'Have I Been Pwned', url: (e: string) => `https://haveibeenpwned.com/account/${encodeURIComponent(e)}`, desc: 'Check if email appeared in data breaches' },
-  { name: 'DeHashed', url: () => 'https://dehashed.com/', desc: 'Deep breach search — email, username, IP, name, address' },
-  { name: 'Intelx.io', url: (e: string) => `https://intelx.io/?s=${encodeURIComponent(e)}`, desc: 'Search paste sites, dark web, breaches' },
-  { name: 'Spycloud', url: () => 'https://spycloud.com/', desc: 'Enterprise breach exposure lookup' },
-  { name: 'Email Rep', url: (e: string) => `https://emailrep.io/${encodeURIComponent(e)}`, desc: 'Email reputation, age, and risk scoring' },
-]
+// ── Email scan result (subset we need) ───────────────────────────────────────
+interface BreachRecord {
+  source: string; severity: string; exposed_fields: string[]
+  breach_date?: string; record_count?: number; description?: string
+}
+interface HibpProvider {
+  status: string; breach_count: number; paste_count: number
+  evidence: Array<{ source_name: string; source_url?: string; action_label: string; risk_level: string; exposed_fields: string[] }>
+}
+interface EmailScanResult {
+  total_exposures: number; risk_score: number
+  breaches: BreachRecord[]; hibp_provider?: HibpProvider | null
+}
 
-// ── Phone lookup links ────────────────────────────────────────────────────────
-const PHONE_TOOLS = [
-  { name: 'Spokeo', url: (p: string) => `https://spokeo.com/search?q=${encodeURIComponent(p)}`, desc: 'Name, address, relatives from phone number' },
-  { name: 'TrueCaller', url: () => 'https://truecaller.com/', desc: 'Caller ID and spam detection globally' },
-  { name: 'NumLookup', url: (p: string) => `https://www.numlookup.com/?number=${encodeURIComponent(p)}`, desc: 'Free reverse phone lookup' },
-  { name: 'WhoCalledMe', url: (p: string) => `https://whocalledme.com/PhoneNumber/${p.replace(/\D/g, '')}`, desc: 'Spam reports and caller identification' },
-  { name: 'BeenVerified', url: () => 'https://beenverified.com/', desc: 'Comprehensive public records search' },
-]
+const SEV: Record<string, string> = {
+  critical: 'text-red-400 bg-red-950/40 border-red-900/50',
+  high:     'text-red-400 bg-red-950/30 border-red-900/40',
+  medium:   'text-red-300 bg-red-950/20 border-red-900/30',
+  low:      'text-gray-400 bg-gray-900/40 border-gray-800',
+}
 
 type Tool = 'username' | 'ip' | 'domain' | 'email' | 'phone'
-
 const TOOLS: { id: Tool; label: string; icon: typeof Search }[] = [
-  { id: 'username', label: 'Username Search',  icon: User   },
-  { id: 'ip',       label: 'IP Geolocation',   icon: MapPin  },
-  { id: 'domain',   label: 'Domain Lookup',    icon: Globe   },
-  { id: 'email',    label: 'Email Breach',     icon: Mail    },
-  { id: 'phone',    label: 'Phone Lookup',     icon: Hash    },
+  { id: 'username', label: 'Username Search', icon: User  },
+  { id: 'ip',       label: 'IP Geolocation',  icon: MapPin },
+  { id: 'domain',   label: 'Domain Lookup',   icon: Globe  },
+  { id: 'email',    label: 'Email Breach',    icon: Mail   },
+  { id: 'phone',    label: 'Phone Lookup',    icon: Hash   },
+]
+
+const PHONE_TOOLS = [
+  { name: 'Spokeo',       url: (p: string) => `https://spokeo.com/search?q=${encodeURIComponent(p)}`,       desc: 'Name, address, relatives from phone number' },
+  { name: 'TrueCaller',   url: () => 'https://truecaller.com/',                                             desc: 'Caller ID and spam detection globally' },
+  { name: 'NumLookup',    url: (p: string) => `https://www.numlookup.com/?number=${encodeURIComponent(p)}`, desc: 'Free reverse phone lookup' },
+  { name: 'WhoCalledMe',  url: (p: string) => `https://whocalledme.com/PhoneNumber/${p.replace(/\D/g, '')}`, desc: 'Spam reports and caller identification' },
+  { name: 'BeenVerified', url: () => 'https://beenverified.com/',                                           desc: 'Comprehensive public records search' },
 ]
 
 export function OsintTab() {
   const [activeTool, setActiveTool] = useState<Tool>('username')
+  const token = useAuthStore(s => s.token)
 
-  // Username search
-  const [username, setUsername] = useState('')
-  const [uLaunched, setULaunched] = useState<Set<string>>(new Set())
-  const [uCategory, setUCategory] = useState('All')
+  function authHeaders(): Record<string, string> {
+    const h: Record<string, string> = { 'Content-Type': 'application/json' }
+    if (token && token !== 'demo-token-vindica') h['Authorization'] = `Bearer ${token}`
+    return h
+  }
 
-  // IP lookup
-  const [ipInput, setIpInput] = useState('')
-  const [ipResult, setIpResult] = useState<IpResult | null>(null)
+  // ── Username state ──────────────────────────────────────────────────────────
+  const [username, setUsername]           = useState('')
+  const [uLoading, setULoading]           = useState(false)
+  const [uResults, setUResults]           = useState<PlatformResult[] | null>(null)
+  const [uError, setUError]               = useState('')
+  const [uCategory, setUCategory]         = useState('All')
+
+  async function probeUsername() {
+    const u = username.trim().replace(/^@+/, '')
+    if (!u) return
+    setULoading(true); setUResults(null); setUError('')
+    try {
+      const r = await fetch(`/api/v1/osint/username/${encodeURIComponent(u)}`, { headers: authHeaders() })
+      if (!r.ok) throw new Error(`Probe failed (${r.status})`)
+      setUResults(await r.json())
+    } catch (e) {
+      setUError(e instanceof Error ? e.message : 'Probe failed')
+    } finally {
+      setULoading(false)
+    }
+  }
+
+  const uCategories = uResults
+    ? ['All', ...Array.from(new Set(uResults.map(r => r.category)))]
+    : ['All']
+  const filteredResults = uResults
+    ? (uCategory === 'All' ? uResults : uResults.filter(r => r.category === uCategory))
+    : []
+  const foundCount = uResults?.filter(r => r.status === 'found').length ?? 0
+
+  // ── IP state ────────────────────────────────────────────────────────────────
+  const [ipInput, setIpInput]     = useState('')
+  const [ipResult, setIpResult]   = useState<IpResult | null>(null)
   const [ipLoading, setIpLoading] = useState(false)
-  const [ipError, setIpError] = useState('')
-
-  // Domain lookup
-  const [domainInput, setDomainInput] = useState('')
-  const [domainResult, setDomainResult] = useState<DomainResult | null>(null)
-  const [domainLoading, setDomainLoading] = useState(false)
-  const [domainExpanded, setDomainExpanded] = useState(false)
-
-  // Email
-  const [emailInput, setEmailInput] = useState('')
-
-  // Phone
-  const [phoneInput, setPhoneInput] = useState('')
+  const [ipError, setIpError]     = useState('')
 
   async function lookupIp() {
     const q = ipInput.trim()
     if (!q) return
-    setIpLoading(true)
-    setIpResult(null)
-    setIpError('')
+    setIpLoading(true); setIpResult(null); setIpError('')
     try {
       const r = await fetch(`https://ipapi.co/${encodeURIComponent(q)}/json/`)
       const d = await r.json()
@@ -154,11 +142,16 @@ export function OsintTab() {
     }
   }
 
+  // ── Domain state ────────────────────────────────────────────────────────────
+  const [domainInput, setDomainInput]       = useState('')
+  const [domainResult, setDomainResult]     = useState<DomainResult | null>(null)
+  const [domainLoading, setDomainLoading]   = useState(false)
+  const [domainExpanded, setDomainExpanded] = useState(false)
+
   async function lookupDomain() {
     const q = domainInput.trim().replace(/^https?:\/\//, '').replace(/\/.*/, '')
     if (!q) return
-    setDomainLoading(true)
-    setDomainResult(null)
+    setDomainLoading(true); setDomainResult(null)
     try {
       const r = await fetch(`https://rdap.org/domain/${encodeURIComponent(q)}`)
       const d = await r.json()
@@ -168,14 +161,7 @@ export function OsintTab() {
       const registrar = d.entities?.find((e: { roles: string[] }) => e.roles?.includes('registrar'))?.vcardArray?.[1]?.find(
         (v: string[]) => v[0] === 'fn'
       )?.[3]
-      setDomainResult({
-        domain: q,
-        registrar: registrar ?? 'Unknown',
-        created: getDate('registration'),
-        expires: getDate('expiration'),
-        nameservers: ns,
-        status: d.status ?? [],
-      })
+      setDomainResult({ domain: q, registrar: registrar ?? 'Unknown', created: getDate('registration'), expires: getDate('expiration'), nameservers: ns, status: d.status ?? [] })
     } catch {
       setDomainResult({ domain: domainInput.trim(), error: 'Lookup failed — domain may not exist or RDAP is unavailable' })
     } finally {
@@ -183,20 +169,41 @@ export function OsintTab() {
     }
   }
 
-  function launchAllUsernames() {
-    const u = username.trim()
-    if (!u) return
-    const toOpen = filteredPlatforms
-    toOpen.forEach((p, i) => {
-      setTimeout(() => {
-        window.open(p.url(u), '_blank')
-        setULaunched(prev => new Set([...prev, p.name]))
-      }, i * 300)
-    })
+  // ── Email scan state ────────────────────────────────────────────────────────
+  const [emailInput, setEmailInput]       = useState('')
+  const [emailScanning, setEmailScanning] = useState(false)
+  const [emailProgress, setEmailProgress] = useState(0)
+  const [emailStage, setEmailStage]       = useState('')
+  const [emailResult, setEmailResult]     = useState<EmailScanResult | null>(null)
+  const [emailError, setEmailError]       = useState('')
+
+  async function runEmailScan() {
+    const e = emailInput.trim()
+    if (!e || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)) { setEmailError('Enter a valid email address'); return }
+    setEmailScanning(true); setEmailResult(null); setEmailError(''); setEmailProgress(0); setEmailStage('Starting scan…')
+    try {
+      const res = await fetch('/api/v1/scans', { method: 'POST', headers: authHeaders(), body: JSON.stringify({ email: e }) })
+      if (!res.ok) throw new Error(`Scan failed (${res.status})`)
+      const { scan_id } = await res.json()
+      while (true) {
+        await new Promise(r => setTimeout(r, 1000))
+        const s = await fetch(`/api/v1/scans/${scan_id}/status`, { headers: authHeaders() })
+        const job = await s.json()
+        setEmailProgress(job.progress ?? 0)
+        if (job.current_stage) setEmailStage(job.current_stage)
+        if (job.status === 'completed' || job.status === 'failed') break
+      }
+      const full = await fetch(`/api/v1/scans/${scan_id}`, { headers: authHeaders() })
+      setEmailResult(await full.json())
+    } catch (err) {
+      setEmailError(err instanceof Error ? err.message : 'Scan failed')
+    } finally {
+      setEmailScanning(false)
+    }
   }
 
-  const uCategories = ['All', ...Array.from(new Set(USERNAME_PLATFORMS.map(p => p.category)))]
-  const filteredPlatforms = uCategory === 'All' ? USERNAME_PLATFORMS : USERNAME_PLATFORMS.filter(p => p.category === uCategory)
+  // ── Phone state ─────────────────────────────────────────────────────────────
+  const [phoneInput, setPhoneInput] = useState('')
 
   return (
     <div className="space-y-5">
@@ -228,22 +235,17 @@ export function OsintTab() {
       {/* Tool selector */}
       <div className="flex flex-wrap gap-2">
         {TOOLS.map(t => (
-          <button
-            key={t.id}
-            onClick={() => setActiveTool(t.id)}
+          <button key={t.id} onClick={() => setActiveTool(t.id)}
             className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold border transition-colors ${
-              activeTool === t.id
-                ? 'bg-red-950/60 text-red-400 border-red-900/50'
-                : 'border-gray-800 text-gray-600 hover:border-gray-700 hover:text-gray-400'
+              activeTool === t.id ? 'bg-red-950/60 text-red-400 border-red-900/50' : 'border-gray-800 text-gray-600 hover:border-gray-700 hover:text-gray-400'
             }`}
           >
-            <t.icon className="h-3.5 w-3.5" />
-            {t.label}
+            <t.icon className="h-3.5 w-3.5" />{t.label}
           </button>
         ))}
       </div>
 
-      {/* ── USERNAME SEARCH ──────────────────────────────────────────── */}
+      {/* ── USERNAME SEARCH ───────────────────────────────────────────────────── */}
       {activeTool === 'username' && (
         <div className="space-y-4">
           <div className="card-dark p-5">
@@ -253,75 +255,83 @@ export function OsintTab() {
               </div>
               <div>
                 <h2 className="font-bold text-white">Username Search</h2>
-                <p className="text-xs text-gray-500">Check {USERNAME_PLATFORMS.length} platforms for a username simultaneously</p>
+                <p className="text-xs text-gray-500">Live-probe 26 platforms — results appear in-app, no redirects</p>
               </div>
             </div>
 
             <div className="flex gap-2 mb-3">
               <input
                 className="input-field flex-1"
-                placeholder="Enter username to search (no @ needed)"
+                placeholder="Enter username to probe (no @ needed)"
                 value={username}
                 onChange={e => setUsername(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && launchAllUsernames()}
+                onKeyDown={e => e.key === 'Enter' && !uLoading && probeUsername()}
+                disabled={uLoading}
               />
               <button
-                onClick={launchAllUsernames}
-                disabled={!username.trim()}
-                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gray-900 border border-gray-700 text-sm font-semibold text-white hover:bg-gray-800 transition-colors disabled:opacity-40"
+                onClick={uResults ? () => { setUResults(null); setUCategory('All') } : probeUsername}
+                disabled={!username.trim() && !uResults}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white text-sm font-bold transition-colors disabled:opacity-40"
               >
-                <ExternalLink className="h-4 w-4" /> Open All
+                {uLoading ? <Loader className="h-4 w-4 animate-spin" /> : uResults ? <RotateCcw className="h-4 w-4" /> : <Search className="h-4 w-4" />}
+                {uLoading ? 'Probing…' : uResults ? 'New Search' : 'Check Platforms'}
               </button>
             </div>
 
-            <div className="flex flex-wrap gap-2">
-              {uCategories.map(cat => (
-                <button
-                  key={cat}
-                  onClick={() => setUCategory(cat)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${
-                    uCategory === cat
-                      ? 'bg-red-950/60 text-red-400 border-red-900/50'
-                      : 'border-gray-800 text-gray-600 hover:border-gray-700 hover:text-gray-400'
-                  }`}
-                >
-                  {cat}
-                </button>
-              ))}
-            </div>
+            {uError && <div className="mt-2 p-3 rounded-xl bg-red-950/20 border border-red-900/30 text-xs text-red-400 font-mono">! {uError}</div>}
+
+            {uResults && (
+              <div className="mt-3 flex items-center gap-3 flex-wrap">
+                <span className="text-sm font-bold text-white">{foundCount} found</span>
+                <span className="text-xs text-gray-600">across {uResults.length} platforms</span>
+                <div className="flex flex-wrap gap-1.5 ml-auto">
+                  {uCategories.map(cat => (
+                    <button key={cat} onClick={() => setUCategory(cat)}
+                      className={`px-2.5 py-1 rounded-lg text-[10px] font-semibold border transition-colors ${
+                        uCategory === cat ? 'bg-red-950/60 text-red-400 border-red-900/50' : 'border-gray-800 text-gray-600 hover:border-gray-700 hover:text-gray-400'
+                      }`}
+                    >{cat}</button>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-            {filteredPlatforms.map(platform => {
-              const isLaunched = uLaunched.has(platform.name)
-              const href = username.trim() ? platform.url(username.trim()) : '#'
-              const catClass = U_CATEGORY_COLORS[platform.category] ?? 'bg-gray-800 text-gray-400 border-gray-700'
-
-              return (
-                <a
-                  key={platform.name}
-                  href={href}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={() => username.trim() && setULaunched(prev => new Set([...prev, platform.name]))}
-                  className={`flex items-center justify-between p-3 rounded-xl border transition-colors group ${
-                    isLaunched ? 'opacity-60 border-red-900/40 bg-red-950/10' : 'border-gray-800 bg-gray-900/30 hover:border-gray-700'
-                  }`}
-                >
-                  <div className="flex items-center gap-2">
-                    <span className={`text-[10px] px-1.5 py-0.5 rounded border font-medium ${catClass}`}>{platform.category}</span>
-                    <span className="text-sm font-medium text-white">{platform.name}</span>
-                    {isLaunched && <span className="text-[10px] text-red-400">✓</span>}
+          {uResults && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+              {filteredResults.map(platform => {
+                const Icon = STATUS_ICON[platform.status] ?? HelpCircle
+                const styleClass = STATUS_STYLE[platform.status] ?? STATUS_STYLE.error
+                return (
+                  <div key={platform.name} className={`flex items-center justify-between p-3 rounded-xl border ${styleClass}`}>
+                    <div className="flex items-center gap-2 min-w-0">
+                      <Icon className="h-3.5 w-3.5 flex-shrink-0" />
+                      <span className="text-sm font-medium text-white truncate">{platform.name}</span>
+                      <span className="text-[9px] text-current opacity-70 flex-shrink-0">{STATUS_LABEL[platform.status]}</span>
+                    </div>
+                    {platform.status === 'found' && (
+                      <a href={platform.url} target="_blank" rel="noopener noreferrer"
+                        className="ml-2 flex-shrink-0 text-red-400 hover:text-red-300 transition-colors">
+                        <ExternalLink className="h-3.5 w-3.5" />
+                      </a>
+                    )}
                   </div>
-                  <ExternalLink className="h-3.5 w-3.5 text-gray-600 group-hover:text-gray-400 flex-shrink-0" />
-                </a>
-              )
-            })}
-          </div>
+                )
+              })}
+            </div>
+          )}
+
+          {!uResults && !uLoading && (
+            <div className="card-dark p-8 text-center">
+              <User className="h-8 w-8 text-gray-700 mx-auto mb-3" />
+              <p className="text-sm text-gray-600">Enter a username above and click <strong className="text-gray-400">Check Platforms</strong></p>
+              <p className="text-xs text-gray-700 mt-1">Results show as found / not found / protected — no external redirects</p>
+            </div>
+          )}
         </div>
       )}
 
-      {/* ── IP GEOLOCATION ───────────────────────────────────────────── */}
+      {/* ── IP GEOLOCATION ───────────────────────────────────────────────────── */}
       {activeTool === 'ip' && (
         <div className="space-y-4">
           <div className="card-dark p-5">
@@ -336,28 +346,18 @@ export function OsintTab() {
             </div>
 
             <div className="flex gap-2">
-              <input
-                className="input-field flex-1"
-                placeholder="Enter IP address (e.g. 8.8.8.8)"
-                value={ipInput}
-                onChange={e => setIpInput(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && lookupIp()}
-              />
+              <input className="input-field flex-1" placeholder="Enter IP address (e.g. 8.8.8.8)"
+                value={ipInput} onChange={e => setIpInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && lookupIp()} />
               <button onClick={lookupIp} disabled={!ipInput.trim() || ipLoading} className="btn-red">
-                {ipLoading ? <Loader className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
-                Lookup
+                {ipLoading ? <Loader className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />} Lookup
               </button>
             </div>
 
-            {ipError && (
-              <div className="mt-3 p-3 rounded-xl bg-red-950/20 border border-red-900/30">
-                <p className="text-xs text-red-400">{ipError}</p>
-              </div>
-            )}
+            {ipError && <div className="mt-3 p-3 rounded-xl bg-red-950/20 border border-red-900/30"><p className="text-xs text-red-400">{ipError}</p></div>}
 
             {ipResult && !ipResult.error && (
               <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {[
+                {([
                   ['IP Address', ipResult.ip],
                   ['City', ipResult.city ?? '—'],
                   ['Region / State', ipResult.region ?? '—'],
@@ -365,19 +365,15 @@ export function OsintTab() {
                   ['ISP / Org', ipResult.org ?? '—'],
                   ['Timezone', ipResult.timezone ?? '—'],
                   ['Coordinates', ipResult.latitude && ipResult.longitude ? `${ipResult.latitude}, ${ipResult.longitude}` : '—'],
-                ].map(([label, value]) => (
+                ] as [string, string][]).map(([label, value]) => (
                   <div key={label} className="bg-gray-950 rounded-xl border border-gray-800 p-3">
                     <p className="text-[10px] text-gray-600 font-semibold uppercase mb-1">{label}</p>
                     <p className="text-sm text-white font-mono break-all">{value}</p>
                   </div>
                 ))}
                 {ipResult.latitude && ipResult.longitude && (
-                  <a
-                    href={`https://maps.google.com/?q=${ipResult.latitude},${ipResult.longitude}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="sm:col-span-2 flex items-center justify-center gap-2 py-2.5 rounded-xl border border-gray-700 text-sm font-semibold text-white hover:border-gray-600 hover:bg-gray-900 transition-colors"
-                  >
+                  <a href={`https://maps.google.com/?q=${ipResult.latitude},${ipResult.longitude}`} target="_blank" rel="noopener noreferrer"
+                    className="sm:col-span-2 flex items-center justify-center gap-2 py-2.5 rounded-xl border border-gray-700 text-sm font-semibold text-white hover:border-gray-600 hover:bg-gray-900 transition-colors">
                     <MapPin className="h-4 w-4 text-red-400" /> View on Google Maps
                   </a>
                 )}
@@ -391,7 +387,7 @@ export function OsintTab() {
         </div>
       )}
 
-      {/* ── DOMAIN LOOKUP ────────────────────────────────────────────── */}
+      {/* ── DOMAIN LOOKUP ────────────────────────────────────────────────────── */}
       {activeTool === 'domain' && (
         <div className="space-y-4">
           <div className="card-dark p-5">
@@ -406,45 +402,34 @@ export function OsintTab() {
             </div>
 
             <div className="flex gap-2 mb-4">
-              <input
-                className="input-field flex-1"
-                placeholder="Enter domain (e.g. example.com)"
-                value={domainInput}
-                onChange={e => setDomainInput(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && lookupDomain()}
-              />
+              <input className="input-field flex-1" placeholder="Enter domain (e.g. example.com)"
+                value={domainInput} onChange={e => setDomainInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && lookupDomain()} />
               <button onClick={lookupDomain} disabled={!domainInput.trim() || domainLoading} className="btn-red">
-                {domainLoading ? <Loader className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
-                Lookup
+                {domainLoading ? <Loader className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />} Lookup
               </button>
             </div>
 
             {domainResult && (
               <div className="space-y-2">
                 {domainResult.error ? (
-                  <div className="p-3 rounded-xl bg-red-950/20 border border-red-900/30">
-                    <p className="text-xs text-red-400">{domainResult.error}</p>
-                  </div>
+                  <div className="p-3 rounded-xl bg-red-950/20 border border-red-900/30"><p className="text-xs text-red-400">{domainResult.error}</p></div>
                 ) : (
                   <>
-                    {[
+                    {([
                       ['Domain', domainResult.domain],
                       ['Registrar', domainResult.registrar ?? '—'],
                       ['Registered', domainResult.created ?? '—'],
                       ['Expires', domainResult.expires ?? '—'],
-                    ].map(([label, value]) => (
+                    ] as [string, string][]).map(([label, value]) => (
                       <div key={label} className="flex items-center justify-between bg-gray-950 rounded-xl border border-gray-800 px-4 py-3">
                         <span className="text-xs text-gray-500 font-semibold">{label}</span>
                         <span className="text-sm text-white font-mono">{value}</span>
                       </div>
                     ))}
-
                     {(domainResult.nameservers?.length ?? 0) > 0 && (
                       <div>
-                        <button
-                          onClick={() => setDomainExpanded(!domainExpanded)}
-                          className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-300 transition-colors"
-                        >
+                        <button onClick={() => setDomainExpanded(!domainExpanded)}
+                          className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-300 transition-colors">
                           {domainExpanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
                           Nameservers ({domainResult.nameservers?.length})
                         </button>
@@ -468,19 +453,16 @@ export function OsintTab() {
               <p className="text-xs text-gray-600 mb-3">Additional lookup tools:</p>
               <div className="flex flex-wrap gap-2">
                 {[
-                  { label: 'Who.is',       url: (d: string) => `https://who.is/whois/${d}` },
+                  { label: 'Who.is',      url: (d: string) => `https://who.is/whois/${d}` },
                   { label: 'DNSDumpster', url: () => 'https://dnsdumpster.com/' },
-                  { label: 'Shodan',       url: (d: string) => `https://www.shodan.io/search?query=${d}` },
-                  { label: 'VirusTotal',   url: (d: string) => `https://www.virustotal.com/gui/domain/${d}` },
-                  { label: 'URLScan.io',   url: (d: string) => `https://urlscan.io/search/#domain%3A${d}` },
+                  { label: 'Shodan',      url: (d: string) => `https://www.shodan.io/search?query=${d}` },
+                  { label: 'VirusTotal',  url: (d: string) => `https://www.virustotal.com/gui/domain/${d}` },
+                  { label: 'URLScan.io',  url: (d: string) => `https://urlscan.io/search/#domain%3A${d}` },
                 ].map(tool => (
-                  <a
-                    key={tool.label}
+                  <a key={tool.label}
                     href={domainInput.trim() ? tool.url(domainInput.trim().replace(/^https?:\/\//, '').replace(/\/.*/, '')) : '#'}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-800 text-xs text-gray-500 hover:border-gray-700 hover:text-gray-300 transition-colors"
-                  >
+                    target="_blank" rel="noopener noreferrer"
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-800 text-xs text-gray-500 hover:border-gray-700 hover:text-gray-300 transition-colors">
                     <ExternalLink className="h-3 w-3" /> {tool.label}
                   </a>
                 ))}
@@ -490,7 +472,7 @@ export function OsintTab() {
         </div>
       )}
 
-      {/* ── EMAIL BREACH ─────────────────────────────────────────────── */}
+      {/* ── EMAIL BREACH (in-app scan) ────────────────────────────────────────── */}
       {activeTool === 'email' && (
         <div className="space-y-4">
           <div className="card-dark p-5">
@@ -500,46 +482,133 @@ export function OsintTab() {
               </div>
               <div>
                 <h2 className="font-bold text-white">Email Breach Lookup</h2>
-                <p className="text-xs text-gray-500">Check if an email address appeared in known data breaches</p>
+                <p className="text-xs text-gray-500">Real-time breach scan — results shown here, no external redirects</p>
               </div>
             </div>
 
-            <input
-              className="input-field mb-4"
-              placeholder="Enter email address to search"
-              value={emailInput}
-              onChange={e => setEmailInput(e.target.value)}
-              type="email"
-            />
-
-            <div className="space-y-2">
-              {BREACH_TOOLS.map(tool => (
-                <a
-                  key={tool.name}
-                  href={emailInput.trim() ? tool.url(emailInput.trim()) : '#'}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className={`flex items-center gap-3 p-3 rounded-xl border transition-colors group ${
-                    emailInput.trim() ? 'border-gray-800 bg-gray-900/30 hover:border-gray-700 cursor-pointer' : 'border-gray-900 bg-gray-900/10 opacity-50 cursor-not-allowed pointer-events-none'
-                  }`}
-                >
-                  <div className="flex-1">
-                    <div className="text-sm font-semibold text-white">{tool.name}</div>
-                    <div className="text-xs text-gray-500 mt-0.5">{tool.desc}</div>
-                  </div>
-                  <ExternalLink className="h-3.5 w-3.5 text-gray-600 group-hover:text-gray-400 flex-shrink-0" />
-                </a>
-              ))}
+            <div className="flex gap-2">
+              <input
+                className="input-field flex-1"
+                placeholder="Enter email address to scan"
+                value={emailInput}
+                onChange={e => { setEmailInput(e.target.value); setEmailError('') }}
+                onKeyDown={e => e.key === 'Enter' && !emailScanning && runEmailScan()}
+                disabled={emailScanning}
+                type="email"
+              />
+              <button
+                onClick={emailResult ? () => setEmailResult(null) : runEmailScan}
+                disabled={!emailInput.trim() && !emailResult}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white text-sm font-bold transition-colors disabled:opacity-40"
+              >
+                {emailScanning ? <Loader className="h-4 w-4 animate-spin" /> : emailResult ? <RotateCcw className="h-4 w-4" /> : <Search className="h-4 w-4" />}
+                {emailScanning ? 'Scanning…' : emailResult ? 'New Scan' : 'Scan Email'}
+              </button>
             </div>
 
-            <p className="text-[10px] text-gray-700 mt-4">
-              Type an email above to open pre-filled breach lookup URLs. HIBP requires you to verify you own the email you're checking.
-            </p>
+            {emailScanning && (
+              <div className="mt-4 space-y-2">
+                <div className="flex justify-between text-[10px] text-gray-600 font-mono">
+                  <span>{emailStage}</span>
+                  <span>{Math.round(emailProgress)}%</span>
+                </div>
+                <div className="h-1.5 rounded-full bg-gray-900 overflow-hidden">
+                  <div className="h-full rounded-full bg-red-600 transition-all duration-500" style={{ width: `${emailProgress}%` }} />
+                </div>
+              </div>
+            )}
+
+            {emailError && <div className="mt-3 p-3 rounded-xl bg-red-950/20 border border-red-900/30 text-xs text-red-400 font-mono">! {emailError}</div>}
           </div>
+
+          {emailResult && (
+            <div className="space-y-4">
+              {/* Summary */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="card-dark p-4 text-center">
+                  <div className="text-3xl font-black text-red-400">{emailResult.breaches.length}</div>
+                  <div className="text-[10px] text-gray-500 mt-1 uppercase tracking-wide">Breach records</div>
+                </div>
+                <div className="card-dark p-4 text-center">
+                  <div className="text-3xl font-black text-white">{emailResult.total_exposures}</div>
+                  <div className="text-[10px] text-gray-500 mt-1 uppercase tracking-wide">Total exposures</div>
+                </div>
+              </div>
+
+              {/* HIBP status */}
+              {emailResult.hibp_provider && (
+                <div className={`flex items-center gap-3 p-3 rounded-xl border text-xs ${
+                  emailResult.hibp_provider.status === 'completed' ? 'bg-red-950/20 border-red-900/30 text-red-300' :
+                  emailResult.hibp_provider.status === 'no_match'  ? 'bg-gray-900/40 border-gray-800 text-gray-400' :
+                  'bg-gray-900/40 border-gray-800 text-gray-500'
+                }`}>
+                  {emailResult.hibp_provider.status === 'completed'
+                    ? <AlertTriangle className="h-4 w-4 text-red-500 flex-shrink-0" />
+                    : <CheckCircle className="h-4 w-4 text-gray-600 flex-shrink-0" />}
+                  <span className="font-semibold">Have I Been Pwned:</span>
+                  {emailResult.hibp_provider.status === 'completed'
+                    ? `${emailResult.hibp_provider.breach_count} breach${emailResult.hibp_provider.breach_count !== 1 ? 'es' : ''}, ${emailResult.hibp_provider.paste_count} paste${emailResult.hibp_provider.paste_count !== 1 ? 's' : ''} found`
+                    : emailResult.hibp_provider.status === 'no_match' ? 'No breaches found — email appears clean'
+                    : emailResult.hibp_provider.status === 'failed'   ? 'HIBP check failed (rate limit or error)'
+                    : 'HIBP check skipped (no API key configured)'}
+                </div>
+              )}
+
+              {/* Breach list */}
+              <div className="card-dark p-5">
+                <div className="flex items-center gap-2 mb-4">
+                  <AlertTriangle className="h-4 w-4 text-red-500" />
+                  <span className="text-sm font-bold text-white">Data Breaches</span>
+                  <span className="text-[10px] bg-red-950/50 text-red-400 border border-red-900/40 px-2 py-0.5 rounded-full">{emailResult.breaches.length}</span>
+                </div>
+                {emailResult.breaches.length === 0 ? (
+                  <p className="text-center py-6 text-gray-600 text-sm">No breach records found for this email</p>
+                ) : (
+                  <div className="space-y-2">
+                    {emailResult.breaches.map((b, i) => {
+                      const ev = emailResult.hibp_provider?.evidence?.find(e => e.source_name === b.source)
+                      return (
+                        <div key={i} className="flex items-start gap-3 p-3 rounded-xl border border-gray-800/80 bg-gray-900/30">
+                          <div className={`px-2 py-0.5 rounded text-[9px] font-black uppercase border flex-shrink-0 mt-0.5 ${SEV[b.severity] ?? SEV.low}`}>
+                            {b.severity}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap mb-1">
+                              {ev?.source_url ? (
+                                <a href={ev.source_url} target="_blank" rel="noopener noreferrer"
+                                  className="font-bold text-white text-sm hover:text-red-400 transition-colors flex items-center gap-1">
+                                  {b.source} <ExternalLink className="h-2.5 w-2.5 opacity-40" />
+                                </a>
+                              ) : (
+                                <span className="font-bold text-white text-sm">{b.source}</span>
+                              )}
+                              {b.breach_date && <span className="text-[10px] text-gray-600 font-mono">{b.breach_date.slice(0, 4)}</span>}
+                              {b.record_count && <span className="text-[10px] text-gray-600">{(b.record_count / 1e6).toFixed(1)}M records</span>}
+                            </div>
+                            {b.description && <p className="text-[10px] text-gray-500 mb-1.5 leading-relaxed">{b.description}</p>}
+                            <div className="flex flex-wrap gap-1 mb-1">
+                              {b.exposed_fields.map(f => (
+                                <span key={f} className="text-[9px] bg-gray-800/80 text-gray-400 px-1.5 py-0.5 rounded border border-gray-700/50 font-mono">{f}</span>
+                              ))}
+                            </div>
+                            {ev?.action_label && (
+                              <div className="flex items-center gap-1 text-[10px] text-red-400 font-medium pt-1.5 border-t border-gray-800/40 mt-1">
+                                <span className="text-red-600">→</span> {ev.action_label}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
-      {/* ── PHONE LOOKUP ─────────────────────────────────────────────── */}
+      {/* ── PHONE LOOKUP ─────────────────────────────────────────────────────── */}
       {activeTool === 'phone' && (
         <div className="space-y-4">
           <div className="card-dark p-5">
@@ -553,21 +622,14 @@ export function OsintTab() {
               </div>
             </div>
 
-            <input
-              className="input-field mb-4"
-              placeholder="Enter phone number (e.g. +1 555 123 4567)"
-              value={phoneInput}
-              onChange={e => setPhoneInput(e.target.value)}
-              type="tel"
-            />
+            <input className="input-field mb-4" placeholder="Enter phone number (e.g. +1 555 123 4567)"
+              value={phoneInput} onChange={e => setPhoneInput(e.target.value)} type="tel" />
 
             <div className="space-y-2">
               {PHONE_TOOLS.map(tool => (
-                <a
-                  key={tool.name}
+                <a key={tool.name}
                   href={phoneInput.trim() ? tool.url(phoneInput.trim()) : '#'}
-                  target="_blank"
-                  rel="noopener noreferrer"
+                  target="_blank" rel="noopener noreferrer"
                   className={`flex items-center gap-3 p-3 rounded-xl border transition-colors group ${
                     phoneInput.trim() ? 'border-gray-800 bg-gray-900/30 hover:border-gray-700 cursor-pointer' : 'border-gray-900 bg-gray-900/10 opacity-50 cursor-not-allowed pointer-events-none'
                   }`}
