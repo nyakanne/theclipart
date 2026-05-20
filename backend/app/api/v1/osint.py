@@ -3,11 +3,15 @@ OSINT utility endpoints — username platform probe, IP, domain helpers.
 No auth required: all data is public-record lookups only.
 """
 import asyncio
+import json
 import logging
 from typing import Literal
 
 import httpx
-from fastapi import APIRouter, Query, HTTPException
+from fastapi import APIRouter, File, Form, Query, HTTPException, UploadFile
+from fastapi.responses import JSONResponse
+
+from app.core.config import get_settings
 
 log = logging.getLogger(__name__)
 router = APIRouter(prefix='/osint', tags=['osint'])
@@ -177,3 +181,117 @@ async def reverse_image_search(
 
     results.sort(key=lambda x: x['similarity'], reverse=True)
     return {'query_url': url, 'results': results, 'total': len(results)}
+
+
+# ---------------------------------------------------------------------------
+# Bing Visual Search — real-web reverse image search for people/photos
+# Free tier: 3,000 calls/month (Azure portal → Bing Search v7)
+# ---------------------------------------------------------------------------
+
+_BING_VS_URL = 'https://api.bing.microsoft.com/v7.0/images/visualsearch'
+_MAX_UPLOAD_BYTES = 4 * 1024 * 1024  # 4 MB
+
+
+def _parse_bing_response(data: dict) -> list[dict]:
+    """Extract visually similar image matches from Bing Visual Search response."""
+    matches: list[dict] = []
+    seen_urls: set[str] = set()
+
+    for tag in data.get('tags', []):
+        for action in tag.get('actions', []):
+            if action.get('actionType') != 'VisualSearch':
+                continue
+            for img in action.get('data', {}).get('value', []):
+                page_url = img.get('hostPageUrl') or img.get('contentUrl') or ''
+                if not page_url or page_url in seen_urls:
+                    continue
+                seen_urls.add(page_url)
+                try:
+                    hostname = page_url.split('/')[2]
+                except IndexError:
+                    hostname = page_url
+                matches.append({
+                    'thumbnail': img.get('thumbnailUrl'),
+                    'page_url': page_url,
+                    'hostname': hostname,
+                    'name': img.get('name', ''),
+                    'width': img.get('width'),
+                    'height': img.get('height'),
+                })
+    return matches[:20]
+
+
+@router.post('/visual-search')
+async def bing_visual_search(
+    image_url: str = Form('', description='Public image URL (leave blank if uploading a file)'),
+    file: UploadFile = File(None, description='Image file upload (JPEG/PNG, max 4 MB)'),
+):
+    """
+    Reverse image search via Bing Visual Search API (Azure free tier: 3,000/month).
+    Accepts either a public URL or a direct file upload.
+    Returns up to 20 visually similar matches with thumbnail + source page URL.
+
+    Setup: add AZURE_BING_KEY to your .env
+    Get key: portal.azure.com → Create resource → Bing Search v7 → Keys and Endpoint
+    """
+    settings = get_settings()
+    key = settings.AZURE_BING_KEY
+    if not key:
+        raise HTTPException(
+            status_code=503,
+            detail='Azure Bing key not configured. Add AZURE_BING_KEY to your .env — see /api/docs for setup instructions.',
+        )
+
+    bing_headers = {'Ocp-Apim-Subscription-Key': key}
+
+    try:
+        async with httpx.AsyncClient(timeout=20) as client:
+            if file is not None:
+                # File upload path
+                raw = await file.read()
+                if len(raw) > _MAX_UPLOAD_BYTES:
+                    raise HTTPException(status_code=413, detail='Image must be under 4 MB')
+                content_type = file.content_type or 'image/jpeg'
+                r = await client.post(
+                    _BING_VS_URL,
+                    headers=bing_headers,
+                    files={
+                        'knowledgeRequest': (None, json.dumps({'imageInfo': {}}), 'application/json'),
+                        'image': (file.filename or 'image.jpg', raw, content_type),
+                    },
+                )
+            elif image_url.strip():
+                url = image_url.strip()
+                r = await client.post(
+                    _BING_VS_URL,
+                    headers=bing_headers,
+                    files={
+                        'knowledgeRequest': (
+                            None,
+                            json.dumps({'imageInfo': {'url': url}}),
+                            'application/json',
+                        ),
+                    },
+                )
+            else:
+                raise HTTPException(status_code=400, detail='Provide either image_url or upload a file')
+    except HTTPException:
+        raise
+    except Exception as exc:
+        log.warning('Bing Visual Search request failed: %s', exc)
+        raise HTTPException(status_code=502, detail='Bing Visual Search unavailable — check your network and API key')
+
+    if r.status_code == 401:
+        raise HTTPException(status_code=401, detail='Invalid Bing API key — check AZURE_BING_KEY in your .env')
+    if r.status_code == 429:
+        raise HTTPException(status_code=429, detail='Bing monthly limit reached (3,000/month free). Upgrade tier or wait until next month.')
+    if r.status_code not in (200, 201):
+        raise HTTPException(status_code=502, detail=f'Bing returned {r.status_code}')
+
+    try:
+        data = r.json()
+    except Exception:
+        raise HTTPException(status_code=502, detail='Invalid JSON from Bing Visual Search')
+
+    matches = _parse_bing_response(data)
+    return JSONResponse({'results': matches, 'total': len(matches)})

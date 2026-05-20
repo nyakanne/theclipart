@@ -66,6 +66,10 @@ class Settings(BaseSettings):
 
     HIBP_API_KEY: str = ''
 
+    # Azure Bing Visual Search (free tier: 3,000 calls/month)
+    # Create at: portal.azure.com → Bing Search v7 → Keys and Endpoint
+    AZURE_BING_KEY: str = ''
+
     HONEY_DOMAIN: str = 'honey.dataguard.example.com'
     MAILGUN_API_KEY: str = ''
 
