@@ -70,6 +70,11 @@ class Settings(BaseSettings):
     # Create at: portal.azure.com → Bing Search v7 → Keys and Endpoint
     AZURE_BING_KEY: str = ''
 
+    # Azure Computer Vision v3.2 (free tier: 5,000 calls/month)
+    # Create at: portal.azure.com → Computer Vision → Keys and Endpoint
+    AZURE_CV_KEY: str = ''
+    AZURE_CV_ENDPOINT: str = ''  # e.g. https://your-resource.cognitiveservices.azure.com
+
     HONEY_DOMAIN: str = 'honey.dataguard.example.com'
     MAILGUN_API_KEY: str = ''
 

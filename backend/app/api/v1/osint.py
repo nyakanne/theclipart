@@ -295,3 +295,120 @@ async def bing_visual_search(
 
     matches = _parse_bing_response(data)
     return JSONResponse({'results': matches, 'total': len(matches)})
+
+
+# ---------------------------------------------------------------------------
+# Azure Computer Vision v3.2 — analyze image for faces, tags, celebrities
+# Free tier: 5,000 calls/month
+# Create at: portal.azure.com → Computer Vision → Keys and Endpoint
+# ---------------------------------------------------------------------------
+
+_CV_FEATURES = 'Faces,Tags,Description,Objects,Color'
+_CV_DETAILS  = 'Celebrities'
+
+
+@router.post('/analyze-image')
+async def analyze_image(
+    image_url: str = Form('', description='Public image URL (leave blank if uploading a file)'),
+    file: UploadFile = File(None, description='Image file upload (JPEG/PNG, max 4 MB)'),
+):
+    """
+    Analyze an image using Azure Computer Vision v3.2.
+    Returns: scene caption, detected faces, celebrity identification, top tags, objects.
+    Free tier: 5,000 calls/month.
+
+    Setup: add AZURE_CV_KEY and AZURE_CV_ENDPOINT to your .env
+    Get keys: portal.azure.com → Computer Vision → Keys and Endpoint
+    """
+    settings = get_settings()
+    key      = settings.AZURE_CV_KEY
+    endpoint = settings.AZURE_CV_ENDPOINT.rstrip('/')
+
+    if not key or not endpoint:
+        raise HTTPException(
+            status_code=503,
+            detail='Azure Computer Vision not configured. Add AZURE_CV_KEY and AZURE_CV_ENDPOINT to your .env',
+        )
+
+    analyze_url = f'{endpoint}/vision/v3.2/analyze?visualFeatures={_CV_FEATURES}&details={_CV_DETAILS}&language=en'
+    cv_headers  = {'Ocp-Apim-Subscription-Key': key}
+
+    try:
+        async with httpx.AsyncClient(timeout=20) as client:
+            if file is not None:
+                raw = await file.read()
+                if len(raw) > _MAX_UPLOAD_BYTES:
+                    raise HTTPException(status_code=413, detail='Image must be under 4 MB')
+                r = await client.post(
+                    analyze_url,
+                    headers={**cv_headers, 'Content-Type': 'application/octet-stream'},
+                    content=raw,
+                )
+            elif image_url.strip():
+                r = await client.post(
+                    analyze_url,
+                    headers={**cv_headers, 'Content-Type': 'application/json'},
+                    content=json.dumps({'url': image_url.strip()}).encode(),
+                )
+            else:
+                raise HTTPException(status_code=400, detail='Provide either image_url or upload a file')
+    except HTTPException:
+        raise
+    except Exception as exc:
+        log.warning('Azure CV request failed: %s', exc)
+        raise HTTPException(status_code=502, detail='Azure Computer Vision unavailable — check your network and API key')
+
+    if r.status_code == 401:
+        raise HTTPException(status_code=401, detail='Invalid Azure CV key — check AZURE_CV_KEY in your .env')
+    if r.status_code == 429:
+        raise HTTPException(status_code=429, detail='Azure CV monthly limit reached (5,000/month free). Upgrade tier or wait.')
+    if r.status_code not in (200, 201):
+        try:
+            detail = r.json().get('error', {}).get('message', f'Azure CV returned {r.status_code}')
+        except Exception:
+            detail = f'Azure CV returned {r.status_code}'
+        raise HTTPException(status_code=502, detail=detail)
+
+    try:
+        d = r.json()
+    except Exception:
+        raise HTTPException(status_code=502, detail='Invalid JSON from Azure Computer Vision')
+
+    # Extract celebrities from categories detail
+    celebrities: list[dict] = []
+    for cat in (d.get('categories') or []):
+        for celeb in (cat.get('detail') or {}).get('celebrities') or []:
+            celebrities.append({
+                'name': celeb.get('name', ''),
+                'confidence': round(float(celeb.get('confidence', 0)) * 100, 1),
+            })
+
+    # Top 12 tags above 50% confidence
+    tags = [
+        {'name': t['name'], 'confidence': round(t['confidence'] * 100, 1)}
+        for t in (d.get('tags') or [])
+        if t.get('confidence', 0) >= 0.5
+    ][:12]
+
+    # Objects
+    objects = [
+        {'name': o.get('object', ''), 'confidence': round(o.get('confidence', 0) * 100, 1)}
+        for o in (d.get('objects') or [])
+    ]
+
+    # Scene caption
+    captions = d.get('description', {}).get('captions') or []
+    caption  = captions[0].get('text', '') if captions else ''
+    caption_confidence = round(float(captions[0].get('confidence', 0)) * 100, 1) if captions else 0
+
+    return JSONResponse({
+        'caption': caption,
+        'caption_confidence': caption_confidence,
+        'face_count': len(d.get('faces') or []),
+        'celebrities': celebrities,
+        'tags': tags,
+        'objects': objects,
+        'dominant_colors': (d.get('color') or {}).get('dominantColors', []),
+        'adult_content': (d.get('adult') or {}).get('isAdultContent', False),
+        'metadata': d.get('metadata', {}),
+    })
