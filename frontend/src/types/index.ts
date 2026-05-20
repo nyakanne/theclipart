@@ -2,6 +2,25 @@ export type ScanStatus = 'idle' | 'queued' | 'scanning' | 'completed' | 'failed'
 
 export type SeverityLevel = 'critical' | 'high' | 'medium' | 'low' | 'info'
 
+export type HibpStatus = 'unavailable' | 'no_match' | 'failed' | 'completed'
+
+export interface HibpEvidenceRow {
+  source_name: string
+  source_url?: string
+  detail: string
+  risk_level: SeverityLevel
+  captured_at?: string
+  exposed_fields: string[]
+  action_label: string
+}
+
+export interface HibpProvider {
+  status: HibpStatus
+  breach_count: number
+  paste_count: number
+  evidence: HibpEvidenceRow[]
+}
+
 export interface ScanRequest {
   email?: string
   phone?: string
@@ -76,6 +95,7 @@ export interface ScanResult {
   report_url?: string
   total_exposures: number
   risk_score: number
+  hibp_provider?: HibpProvider | null
 }
 
 export interface ScanJob {

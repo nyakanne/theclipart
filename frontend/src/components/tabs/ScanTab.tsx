@@ -22,10 +22,19 @@ interface ComplianceResult {
   violations?: Array<{ description: string; regulation?: string; severity?: string }>
   recommendations: string[]
 }
+interface HibpEvidence {
+  source_name: string; source_url?: string; detail: string
+  risk_level: string; captured_at?: string; exposed_fields: string[]; action_label: string
+}
+interface HibpProvider {
+  status: 'unavailable' | 'no_match' | 'failed' | 'completed'
+  breach_count: number; paste_count: number; evidence: HibpEvidence[]
+}
 interface ScanResult {
   scan_id: string; status: string; progress: number
   risk_score: number; total_exposures: number
   breaches: BreachRecord[]; broker_listings: BrokerListing[]; compliance?: ComplianceResult
+  hibp_provider?: HibpProvider | null
 }
 
 const SEV: Record<string, string> = {
@@ -458,32 +467,65 @@ export function ScanTab({ onNavigate }: Props) {
                     <span className="text-sm font-bold text-white">Data Breaches Detected</span>
                     <span className="text-[10px] bg-red-950/50 text-red-400 border border-red-900/40 px-2 py-0.5 rounded-full">{result.breaches.length}</span>
                   </div>
+                  {/* HIBP provider status pill */}
+                  {result.hibp_provider && (
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[9px] font-bold text-gray-700 uppercase tracking-widest">HIBP</span>
+                      <span className={`text-[9px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wide border ${
+                        result.hibp_provider.status === 'completed'  ? 'bg-red-950/40 text-red-400 border-red-900/30' :
+                        result.hibp_provider.status === 'no_match'   ? 'bg-gray-900/60 text-gray-500 border-gray-800/60' :
+                        result.hibp_provider.status === 'failed'     ? 'bg-orange-950/40 text-orange-400 border-orange-900/30' :
+                        'bg-gray-900/40 text-gray-600 border-gray-800/40'
+                      }`}>
+                        {result.hibp_provider.status === 'completed'
+                          ? `${result.hibp_provider.breach_count + result.hibp_provider.paste_count} found`
+                          : result.hibp_provider.status === 'no_match' ? 'clean'
+                          : result.hibp_provider.status === 'failed'   ? 'check failed'
+                          : 'skipped'}
+                      </span>
+                    </div>
+                  )}
                 </div>
 
                 {result.breaches.length === 0 ? (
                   <div className="text-center py-8 text-gray-600 text-sm">No breach records found for this identity</div>
                 ) : (
                   <div className="space-y-2">
-                    {result.breaches.map((b, i) => (
-                      <div key={i} className="flex items-start gap-3 p-3 rounded-xl border border-gray-800/80 bg-gray-900/30 hover:border-red-900/40 transition-colors">
-                        <div className={`px-2 py-0.5 rounded text-[9px] font-black uppercase border flex-shrink-0 mt-0.5 tracking-wide ${SEV[b.severity] ?? SEV.low}`}>
-                          {b.severity}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 flex-wrap mb-1">
-                            <span className="font-bold text-white text-sm">{b.source}</span>
-                            {b.breach_date && <span className="text-[10px] text-gray-600 font-mono">{b.breach_date.slice(0, 4)}</span>}
-                            {b.record_count && <span className="text-[10px] text-gray-600">{(b.record_count / 1_000_000).toFixed(0)}M records</span>}
+                    {result.breaches.map((b, i) => {
+                      const ev = result.hibp_provider?.evidence.find(e => e.source_name === b.source)
+                      return (
+                        <div key={i} className="flex items-start gap-3 p-3 rounded-xl border border-gray-800/80 bg-gray-900/30 hover:border-red-900/40 transition-colors">
+                          <div className={`px-2 py-0.5 rounded text-[9px] font-black uppercase border flex-shrink-0 mt-0.5 tracking-wide ${SEV[b.severity] ?? SEV.low}`}>
+                            {b.severity}
                           </div>
-                          {b.description && <p className="text-[10px] text-gray-500 mb-1.5 leading-relaxed">{b.description}</p>}
-                          <div className="flex flex-wrap gap-1">
-                            {b.exposed_fields.map(f => (
-                              <span key={f} className="text-[9px] bg-gray-800/80 text-gray-400 px-1.5 py-0.5 rounded border border-gray-700/50 font-mono">{f}</span>
-                            ))}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap mb-1">
+                              {ev?.source_url ? (
+                                <a href={ev.source_url} target="_blank" rel="noopener noreferrer"
+                                  className="font-bold text-white text-sm hover:text-red-400 transition-colors flex items-center gap-1">
+                                  {b.source} <ExternalLink className="h-2.5 w-2.5 opacity-50" />
+                                </a>
+                              ) : (
+                                <span className="font-bold text-white text-sm">{b.source}</span>
+                              )}
+                              {b.breach_date && <span className="text-[10px] text-gray-600 font-mono">{b.breach_date.slice(0, 4)}</span>}
+                              {b.record_count && <span className="text-[10px] text-gray-600">{(b.record_count / 1_000_000).toFixed(0)}M records</span>}
+                            </div>
+                            {b.description && <p className="text-[10px] text-gray-500 mb-1.5 leading-relaxed">{b.description}</p>}
+                            <div className="flex flex-wrap gap-1 mb-1.5">
+                              {b.exposed_fields.map(f => (
+                                <span key={f} className="text-[9px] bg-gray-800/80 text-gray-400 px-1.5 py-0.5 rounded border border-gray-700/50 font-mono">{f}</span>
+                              ))}
+                            </div>
+                            {ev?.action_label && (
+                              <div className="flex items-center gap-1 text-[10px] text-red-400 font-medium mt-1 pt-1.5 border-t border-gray-800/60">
+                                <span className="text-red-600">→</span> {ev.action_label}
+                              </div>
+                            )}
                           </div>
                         </div>
-                      </div>
-                    ))}
+                      )
+                    })}
                   </div>
                 )}
               </div>
