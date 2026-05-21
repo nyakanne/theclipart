@@ -8,6 +8,8 @@ import logging
 from typing import Literal
 
 import httpx
+import phonenumbers
+from phonenumbers import geocoder, carrier, timezone as pn_timezone, number_type, PhoneNumberType
 from fastapi import APIRouter, File, Form, Query, HTTPException, UploadFile
 from fastapi.responses import JSONResponse
 
@@ -507,3 +509,68 @@ async def analyze_image(
             'or add AZURE_CV_KEY + AZURE_CV_ENDPOINT for Azure Computer Vision.'
         ),
     )
+
+
+# ---------------------------------------------------------------------------
+# Phone number analysis — free, no API key (uses libphonenumber)
+# ---------------------------------------------------------------------------
+
+_LINE_TYPE_LABELS: dict[PhoneNumberType, str] = {
+    PhoneNumberType.MOBILE:       'Mobile',
+    PhoneNumberType.FIXED_LINE:   'Fixed line',
+    PhoneNumberType.FIXED_LINE_OR_MOBILE: 'Fixed line or mobile',
+    PhoneNumberType.TOLL_FREE:    'Toll-free',
+    PhoneNumberType.PREMIUM_RATE: 'Premium rate',
+    PhoneNumberType.SHARED_COST:  'Shared cost',
+    PhoneNumberType.VOIP:         'VoIP',
+    PhoneNumberType.PERSONAL_NUMBER: 'Personal number',
+    PhoneNumberType.PAGER:        'Pager',
+    PhoneNumberType.UAN:          'Universal access number',
+    PhoneNumberType.UNKNOWN:      'Unknown',
+}
+
+
+@router.get('/phone/{number:path}')
+async def analyze_phone(number: str):
+    """
+    Parse and analyze a phone number using Google's libphonenumber (free, no API key).
+    Returns country, region, carrier hint, line type, validity, and formatted variants.
+    Does NOT do reverse lookup (name/address) — that requires paid services.
+    """
+    raw = number.strip().replace(' ', '+', 1) if number.strip().startswith(' ') else number.strip()
+    # Ensure + prefix for international parsing
+    if not raw.startswith('+'):
+        raw = '+' + raw.lstrip('+')
+
+    try:
+        parsed = phonenumbers.parse(raw, None)
+    except phonenumbers.NumberParseException:
+        # Try with US default region as fallback for bare numbers
+        try:
+            parsed = phonenumbers.parse(number.strip(), 'US')
+        except phonenumbers.NumberParseException:
+            raise HTTPException(status_code=400, detail='Could not parse phone number. Include country code (e.g. +1 555 000 0000).')
+
+    valid        = phonenumbers.is_valid_number(parsed)
+    possible     = phonenumbers.is_possible_number(parsed)
+    line_type    = number_type(parsed)
+    region_code  = phonenumbers.region_code_for_number(parsed)
+
+    country      = geocoder.description_for_number(parsed, 'en') or ''
+    carrier_name = carrier.name_for_number(parsed, 'en') or ''
+    timezones    = list(pn_timezone.time_zones_for_number(parsed))
+
+    return {
+        'input':            number.strip(),
+        'e164':             phonenumbers.format_number(parsed, phonenumbers.PhoneNumberFormat.E164),
+        'international':    phonenumbers.format_number(parsed, phonenumbers.PhoneNumberFormat.INTERNATIONAL),
+        'national':         phonenumbers.format_number(parsed, phonenumbers.PhoneNumberFormat.NATIONAL),
+        'country_code':     parsed.country_code,
+        'region_code':      region_code,
+        'country':          country,
+        'carrier':          carrier_name,
+        'line_type':        _LINE_TYPE_LABELS.get(line_type, 'Unknown'),
+        'timezones':        timezones,
+        'valid':            valid,
+        'possible':         possible,
+    }

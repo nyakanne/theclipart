@@ -36,6 +36,14 @@ interface IpResult {
   error?: boolean; reason?: string
 }
 
+// ── Phone Lookup ─────────────────────────────────────────────────────────────
+interface PhoneResult {
+  input: string; e164: string; international: string; national: string
+  country_code: number; region_code: string; country: string
+  carrier: string; line_type: string; timezones: string[]
+  valid: boolean; possible: boolean
+}
+
 // ── Domain Lookup ────────────────────────────────────────────────────────────
 interface DomainResult {
   domain: string; registrar?: string; created?: string; expires?: string
@@ -203,7 +211,28 @@ export function OsintTab() {
   }
 
   // ── Phone state ─────────────────────────────────────────────────────────────
-  const [phoneInput, setPhoneInput] = useState('')
+  const [phoneInput, setPhoneInput]       = useState('')
+  const [phoneResult, setPhoneResult]     = useState<PhoneResult | null>(null)
+  const [phoneLoading, setPhoneLoading]   = useState(false)
+  const [phoneError, setPhoneError]       = useState('')
+
+  async function analyzePhone() {
+    const p = phoneInput.trim()
+    if (!p) return
+    setPhoneLoading(true); setPhoneResult(null); setPhoneError('')
+    try {
+      const r = await fetch(`/api/v1/osint/phone/${encodeURIComponent(p)}`, { headers: authHeaders() })
+      if (!r.ok) {
+        const body = await r.json().catch(() => ({}))
+        throw new Error(body.detail ?? `Phone lookup failed (${r.status})`)
+      }
+      setPhoneResult(await r.json())
+    } catch (e) {
+      setPhoneError(e instanceof Error ? e.message : 'Lookup failed')
+    } finally {
+      setPhoneLoading(false)
+    }
+  }
 
   return (
     <div className="space-y-5">
@@ -617,14 +646,82 @@ export function OsintTab() {
                 <Hash className="h-4 w-4 text-red-500" />
               </div>
               <div>
-                <h2 className="font-bold text-white">Phone Number Lookup</h2>
-                <p className="text-xs text-gray-500">Reverse lookup via public records and caller-ID databases</p>
+                <h2 className="font-bold text-white">Phone Number Analysis</h2>
+                <p className="text-xs text-gray-500">Country, carrier, line type and validity — results in-app, no redirects</p>
               </div>
             </div>
 
-            <input className="input-field mb-4" placeholder="Enter phone number (e.g. +1 555 123 4567)"
-              value={phoneInput} onChange={e => setPhoneInput(e.target.value)} type="tel" />
+            <div className="flex gap-2 mb-3">
+              <input
+                className="input-field flex-1"
+                placeholder="Enter phone number (e.g. +1 555 123 4567 or +447911123456)"
+                value={phoneInput}
+                onChange={e => { setPhoneInput(e.target.value); setPhoneError('') }}
+                onKeyDown={e => e.key === 'Enter' && !phoneLoading && analyzePhone()}
+                disabled={phoneLoading}
+                type="tel"
+              />
+              <button
+                onClick={phoneResult ? () => { setPhoneResult(null) } : analyzePhone}
+                disabled={!phoneInput.trim() && !phoneResult}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white text-sm font-bold transition-colors disabled:opacity-40"
+              >
+                {phoneLoading ? <Loader className="h-4 w-4 animate-spin" /> : phoneResult ? <RotateCcw className="h-4 w-4" /> : <Search className="h-4 w-4" />}
+                {phoneLoading ? 'Analyzing…' : phoneResult ? 'New Lookup' : 'Analyze'}
+              </button>
+            </div>
 
+            {phoneError && <div className="mt-2 p-3 rounded-xl bg-red-950/20 border border-red-900/30 text-xs text-red-400 font-mono">! {phoneError}</div>}
+          </div>
+
+          {phoneResult && (
+            <div className="card-dark p-5 space-y-4">
+              {/* validity badge */}
+              <div className="flex items-center gap-3">
+                {phoneResult.valid
+                  ? <span className="flex items-center gap-1.5 text-xs font-bold text-red-400 bg-red-950/40 border border-red-900/50 px-3 py-1.5 rounded-full"><CheckCircle className="h-3.5 w-3.5" /> Valid number</span>
+                  : <span className="flex items-center gap-1.5 text-xs font-bold text-gray-500 bg-gray-900/40 border border-gray-800 px-3 py-1.5 rounded-full"><XCircle className="h-3.5 w-3.5" /> {phoneResult.possible ? 'Possibly valid' : 'Invalid number'}</span>
+                }
+                <code className="text-sm font-mono text-white">{phoneResult.e164}</code>
+              </div>
+
+              {/* formatted variants */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                {[
+                  ['E.164 (international)', phoneResult.e164],
+                  ['International', phoneResult.international],
+                  ['National', phoneResult.national],
+                ].map(([label, value]) => (
+                  <div key={label} className="bg-gray-950 rounded-xl border border-gray-800 p-3">
+                    <p className="text-[10px] text-gray-600 font-semibold uppercase mb-1">{label}</p>
+                    <p className="text-sm text-white font-mono">{value}</p>
+                  </div>
+                ))}
+              </div>
+
+              {/* intel grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {([
+                  ['Country', phoneResult.country || '—'],
+                  ['Region Code', phoneResult.region_code || '—'],
+                  ['Carrier / Network', phoneResult.carrier || 'Unknown'],
+                  ['Line Type', phoneResult.line_type || 'Unknown'],
+                  ['Country Dial Code', phoneResult.country_code ? `+${phoneResult.country_code}` : '—'],
+                  ['Timezones', phoneResult.timezones.length ? phoneResult.timezones.join(', ') : '—'],
+                ] as [string, string][]).map(([label, value]) => (
+                  <div key={label} className="flex items-center justify-between bg-gray-950 rounded-xl border border-gray-800 px-4 py-3">
+                    <span className="text-xs text-gray-500 font-semibold">{label}</span>
+                    <span className="text-sm text-white font-mono text-right">{value}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* External reverse-lookup tools (secondary) */}
+          <div className="card-dark p-5">
+            <h3 className="font-semibold text-white text-sm mb-1">Deep Reverse Lookup</h3>
+            <p className="text-xs text-gray-500 mb-3">For name/address from number, these third-party services may have additional data</p>
             <div className="space-y-2">
               {PHONE_TOOLS.map(tool => (
                 <a key={tool.name}
@@ -645,7 +742,7 @@ export function OsintTab() {
 
             <div className="mt-4 p-3 rounded-xl bg-gray-900/50 border border-gray-800">
               <p className="text-xs text-gray-500 leading-relaxed">
-                Most free services show carrier and general area only. Full reverse lookup (name + address) typically requires a paid service like Spokeo or BeenVerified. Include your state's public records in your evidence package.
+                Carrier and country data are free via Google's libphonenumber library. Full name/address reverse lookup requires a paid service. Include this intel in your evidence package for law enforcement.
               </p>
             </div>
           </div>
