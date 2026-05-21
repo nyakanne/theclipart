@@ -69,6 +69,14 @@ interface DomainIntel {
   available: { virustotal: boolean; shodan: boolean }
 }
 
+// ── Brave Search web evidence ────────────────────────────────────────────────
+interface BraveResult {
+  title: string; url: string; description: string; age: string; language: string; site: string
+}
+interface BraveResponse {
+  available: boolean; query: string; total?: number; results: BraveResult[]; error?: string
+}
+
 // ── Email scan result (subset we need) ───────────────────────────────────────
 interface BreachRecord {
   source: string; severity: string; exposed_fields: string[]
@@ -90,15 +98,66 @@ const SEV: Record<string, string> = {
   low:      'text-gray-400 bg-gray-900/40 border-gray-800',
 }
 
-type Tool = 'username' | 'ip' | 'domain' | 'email' | 'phone'
+type Tool = 'name' | 'username' | 'ip' | 'domain' | 'email' | 'phone'
 const TOOLS: { id: Tool; label: string; icon: typeof Search }[] = [
-  { id: 'username', label: 'Username Search', icon: User  },
+  { id: 'name',     label: 'Name Search',     icon: Search },
+  { id: 'username', label: 'Username Search', icon: User   },
   { id: 'ip',       label: 'IP Geolocation',  icon: MapPin },
   { id: 'domain',   label: 'Domain Lookup',   icon: Globe  },
   { id: 'email',    label: 'Email Breach',    icon: Mail   },
   { id: 'phone',    label: 'Phone Lookup',    icon: Hash   },
 ]
 
+
+function BravePanel({ data, label = 'Web Evidence' }: { data: BraveResponse; label?: string }) {
+  if (!data.available) {
+    return (
+      <div className="card-dark p-4 flex items-center gap-3">
+        <Search className="h-4 w-4 text-gray-700 flex-shrink-0" />
+        <p className="text-xs text-gray-600">Web evidence unavailable — add <code className="text-gray-500">BRAVE_SEARCH_API_KEY</code> to enable (free at brave.com/search/api)</p>
+      </div>
+    )
+  }
+  if (data.results.length === 0) {
+    return (
+      <div className="card-dark p-4 flex items-center gap-3">
+        <Search className="h-4 w-4 text-gray-700 flex-shrink-0" />
+        <p className="text-xs text-gray-600">No public web results found for this query</p>
+      </div>
+    )
+  }
+  return (
+    <div className="card-dark p-5">
+      <div className="flex items-center gap-3 mb-4">
+        <div className="h-9 w-9 rounded-xl bg-red-950/50 border border-red-900/40 flex items-center justify-center">
+          <Search className="h-4 w-4 text-red-500" />
+        </div>
+        <div>
+          <h3 className="font-bold text-white">{label}</h3>
+          <p className="text-xs text-gray-500">{data.results.length} public web result{data.results.length !== 1 ? 's' : ''} via Brave Search</p>
+        </div>
+      </div>
+      <div className="space-y-2">
+        {data.results.map((r, i) => (
+          <a key={i} href={r.url} target="_blank" rel="noopener noreferrer"
+            className="block p-3 rounded-xl border border-gray-800 bg-gray-900/30 hover:border-gray-700 transition-colors group">
+            <div className="flex items-start gap-2">
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-0.5 flex-wrap">
+                  <span className="text-sm font-semibold text-white group-hover:text-red-400 transition-colors truncate">{r.title}</span>
+                  {r.age && <span className="text-[10px] text-gray-700 flex-shrink-0">{r.age}</span>}
+                </div>
+                <p className="text-[10px] text-red-400/70 font-mono truncate mb-1">{r.site || new URL(r.url).hostname}</p>
+                {r.description && <p className="text-xs text-gray-500 leading-relaxed line-clamp-2">{r.description}</p>}
+              </div>
+              <ExternalLink className="h-3.5 w-3.5 text-gray-700 group-hover:text-gray-400 flex-shrink-0 mt-0.5" />
+            </div>
+          </a>
+        ))}
+      </div>
+    </div>
+  )
+}
 
 export function OsintTab() {
   const [activeTool, setActiveTool] = useState<Tool>('username')
@@ -108,6 +167,38 @@ export function OsintTab() {
     const h: Record<string, string> = { 'Content-Type': 'application/json' }
     if (token && token !== 'demo-token-vindica') h['Authorization'] = `Bearer ${token}`
     return h
+  }
+
+  // ── Name search state ───────────────────────────────────────────────────────
+  const [nameInput, setNameInput]       = useState('')
+  const [nameResults, setNameResults]   = useState<BraveResponse | null>(null)
+  const [nameLoading, setNameLoading]   = useState(false)
+  const [nameError, setNameError]       = useState('')
+
+  async function searchName() {
+    const q = nameInput.trim()
+    if (!q) return
+    setNameLoading(true); setNameResults(null); setNameError('')
+    try {
+      const r = await fetch(`/api/v1/osint/brave-search?q=${encodeURIComponent(q)}&count=10`, { headers: authHeaders() })
+      if (!r.ok) throw new Error(`Search failed (${r.status})`)
+      setNameResults(await r.json())
+    } catch (e) {
+      setNameError(e instanceof Error ? e.message : 'Search failed')
+    } finally {
+      setNameLoading(false)
+    }
+  }
+
+  // ── Brave evidence helper ────────────────────────────────────────────────────
+  const [braveUsername, setBraveUsername]   = useState<BraveResponse | null>(null)
+  const [bravePhone, setBravePhone]         = useState<BraveResponse | null>(null)
+  const [braveEmail, setBraveEmail]         = useState<BraveResponse | null>(null)
+
+  async function fetchBrave(q: string): Promise<BraveResponse> {
+    const r = await fetch(`/api/v1/osint/brave-search?q=${encodeURIComponent(q)}&count=8`, { headers: authHeaders() })
+    if (!r.ok) return { available: true, query: q, results: [] }
+    return r.json()
   }
 
   // ── Username state ──────────────────────────────────────────────────────────
@@ -120,11 +211,15 @@ export function OsintTab() {
   async function probeUsername() {
     const u = username.trim().replace(/^@+/, '')
     if (!u) return
-    setULoading(true); setUResults(null); setUError('')
+    setULoading(true); setUResults(null); setUError(''); setBraveUsername(null)
     try {
-      const r = await fetch(`/api/v1/osint/username/${encodeURIComponent(u)}`, { headers: authHeaders() })
-      if (!r.ok) throw new Error(`Probe failed (${r.status})`)
-      setUResults(await r.json())
+      const [probeRes, braveRes] = await Promise.allSettled([
+        fetch(`/api/v1/osint/username/${encodeURIComponent(u)}`, { headers: authHeaders() }),
+        fetchBrave(`"${u}" site:twitter.com OR site:instagram.com OR site:linkedin.com OR site:reddit.com OR site:github.com`),
+      ])
+      if (probeRes.status === 'fulfilled' && probeRes.value.ok) setUResults(await probeRes.value.json())
+      else throw new Error('Platform probe failed')
+      if (braveRes.status === 'fulfilled') setBraveUsername(braveRes.value)
     } catch (e) {
       setUError(e instanceof Error ? e.message : 'Probe failed')
     } finally {
@@ -213,7 +308,7 @@ export function OsintTab() {
   async function runEmailScan() {
     const e = emailInput.trim()
     if (!e || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)) { setEmailError('Enter a valid email address'); return }
-    setEmailScanning(true); setEmailResult(null); setEmailError(''); setEmailProgress(0); setEmailStage('Starting scan…')
+    setEmailScanning(true); setEmailResult(null); setEmailError(''); setEmailProgress(0); setEmailStage('Starting scan…'); setBraveEmail(null)
     try {
       const res = await fetch('/api/v1/scans', { method: 'POST', headers: authHeaders(), body: JSON.stringify({ email: e }) })
       if (!res.ok) throw new Error(`Scan failed (${res.status})`)
@@ -226,8 +321,12 @@ export function OsintTab() {
         if (job.current_stage) setEmailStage(job.current_stage)
         if (job.status === 'completed' || job.status === 'failed') break
       }
-      const full = await fetch(`/api/v1/scans/${scan_id}`, { headers: authHeaders() })
-      setEmailResult(await full.json())
+      const [full, brave] = await Promise.allSettled([
+        fetch(`/api/v1/scans/${scan_id}`, { headers: authHeaders() }),
+        fetchBrave(`"${e}"`),
+      ])
+      if (full.status === 'fulfilled' && full.value.ok) setEmailResult(await full.value.json())
+      if (brave.status === 'fulfilled') setBraveEmail(brave.value)
     } catch (err) {
       setEmailError(err instanceof Error ? err.message : 'Scan failed')
     } finally {
@@ -244,14 +343,18 @@ export function OsintTab() {
   async function analyzePhone() {
     const p = phoneInput.trim()
     if (!p) return
-    setPhoneLoading(true); setPhoneResult(null); setPhoneError('')
+    setPhoneLoading(true); setPhoneResult(null); setPhoneError(''); setBravePhone(null)
     try {
-      const r = await fetch(`/api/v1/osint/phone/${encodeURIComponent(p)}`, { headers: authHeaders() })
-      if (!r.ok) {
-        const body = await r.json().catch(() => ({}))
-        throw new Error(body.detail ?? `Phone lookup failed (${r.status})`)
+      const [phoneRes, braveRes] = await Promise.allSettled([
+        fetch(`/api/v1/osint/phone/${encodeURIComponent(p)}`, { headers: authHeaders() }),
+        fetchBrave(`"${p}"`),
+      ])
+      if (phoneRes.status === 'fulfilled' && phoneRes.value.ok) setPhoneResult(await phoneRes.value.json())
+      else {
+        const body = phoneRes.status === 'fulfilled' ? await phoneRes.value.json().catch(() => ({})) : {}
+        throw new Error(body.detail ?? 'Phone lookup failed')
       }
-      setPhoneResult(await r.json())
+      if (braveRes.status === 'fulfilled') setBravePhone(braveRes.value)
     } catch (e) {
       setPhoneError(e instanceof Error ? e.message : 'Lookup failed')
     } finally {
@@ -298,6 +401,52 @@ export function OsintTab() {
           </button>
         ))}
       </div>
+
+      {/* ── NAME SEARCH ──────────────────────────────────────────────────────── */}
+      {activeTool === 'name' && (
+        <div className="space-y-4">
+          <div className="card-dark p-5">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="h-9 w-9 rounded-xl bg-red-950/50 border border-red-900/40 flex items-center justify-center">
+                <Search className="h-4 w-4 text-red-500" />
+              </div>
+              <div>
+                <h2 className="font-bold text-white">Name / Person Search</h2>
+                <p className="text-xs text-gray-500">Web-wide search for public mentions — powered by Brave Search</p>
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <input
+                className="input-field flex-1"
+                placeholder='Enter full name or alias (e.g. "John Smith" or "johndoe123")'
+                value={nameInput}
+                onChange={e => { setNameInput(e.target.value); setNameError('') }}
+                onKeyDown={e => e.key === 'Enter' && !nameLoading && searchName()}
+                disabled={nameLoading}
+              />
+              <button
+                onClick={nameResults ? () => setNameResults(null) : searchName}
+                disabled={!nameInput.trim() && !nameResults}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white text-sm font-bold transition-colors disabled:opacity-40"
+              >
+                {nameLoading ? <Loader className="h-4 w-4 animate-spin" /> : nameResults ? <RotateCcw className="h-4 w-4" /> : <Search className="h-4 w-4" />}
+                {nameLoading ? 'Searching…' : nameResults ? 'New Search' : 'Search'}
+              </button>
+            </div>
+            {nameError && <div className="mt-2 p-3 rounded-xl bg-red-950/20 border border-red-900/30 text-xs text-red-400 font-mono">! {nameError}</div>}
+          </div>
+
+          {nameResults && <BravePanel data={nameResults} label="Web Evidence" />}
+
+          {!nameResults && !nameLoading && (
+            <div className="card-dark p-8 text-center">
+              <Search className="h-8 w-8 text-gray-700 mx-auto mb-3" />
+              <p className="text-sm text-gray-600">Enter a name above to search public web sources</p>
+              {!nameResults && <p className="text-xs text-gray-700 mt-1">Requires <code className="text-gray-600">BRAVE_SEARCH_API_KEY</code></p>}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* ── USERNAME SEARCH ───────────────────────────────────────────────────── */}
       {activeTool === 'username' && (
@@ -374,6 +523,8 @@ export function OsintTab() {
               })}
             </div>
           )}
+
+          {braveUsername && <BravePanel data={braveUsername} label="Web Evidence for Username" />}
 
           {!uResults && !uLoading && (
             <div className="card-dark p-8 text-center">
@@ -823,6 +974,8 @@ export function OsintTab() {
               </div>
             </div>
           )}
+
+          {braveEmail && <BravePanel data={braveEmail} label="Public Source Evidence" />}
         </div>
       )}
 
@@ -907,12 +1060,14 @@ export function OsintTab() {
             </div>
           )}
 
+          {bravePhone && <BravePanel data={bravePhone} label="Public Web Mentions" />}
+
           <div className="card-dark p-4 flex items-start gap-3">
             <AlertTriangle className="h-4 w-4 text-gray-600 flex-shrink-0 mt-0.5" />
             <p className="text-xs text-gray-500 leading-relaxed">
               Carrier, country, and line type come free from Google's libphonenumber library.
-              Full name/address reverse lookup (Spokeo, TrueCaller, etc.) has no free API — those services require a paid subscription.
-              Include the above data in your evidence package for law enforcement.
+              Web mentions above show any indexed public pages referencing this number.
+              Full name/address reverse lookup requires a paid service.
             </p>
           </div>
         </div>

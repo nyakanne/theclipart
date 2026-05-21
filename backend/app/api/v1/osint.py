@@ -512,6 +512,58 @@ async def analyze_image(
 
 
 # ---------------------------------------------------------------------------
+# Brave Search — web evidence for name / username / phone / email
+# ---------------------------------------------------------------------------
+
+@router.get('/brave-search')
+async def brave_search(q: str = Query(..., min_length=1), count: int = Query(default=10, le=20)):
+    """
+    Query Brave Search API for public web evidence.
+    Requires BRAVE_SEARCH_API_KEY (free: 2,000/month at brave.com/search/api).
+    """
+    settings = get_settings()
+    if not settings.BRAVE_SEARCH_API_KEY:
+        return {'available': False, 'results': [], 'query': q}
+
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        try:
+            r = await client.get(
+                'https://api.search.brave.com/res/v1/web/search',
+                params={'q': q, 'count': count, 'safesearch': 'moderate', 'text_decorations': False},
+                headers={
+                    'X-Subscription-Token': settings.BRAVE_SEARCH_API_KEY,
+                    'Accept': 'application/json',
+                    'Accept-Encoding': 'gzip',
+                },
+            )
+            if r.status_code != 200:
+                log.warning('Brave Search returned %s for query %r', r.status_code, q)
+                return {'available': True, 'results': [], 'query': q, 'error': f'Search returned {r.status_code}'}
+
+            data = r.json()
+            web_results = data.get('web', {}).get('results', [])
+            return {
+                'available': True,
+                'query': q,
+                'total': data.get('web', {}).get('totalResults', len(web_results)),
+                'results': [
+                    {
+                        'title':       item.get('title', ''),
+                        'url':         item.get('url', ''),
+                        'description': item.get('description', ''),
+                        'age':         item.get('age', ''),
+                        'language':    item.get('language', ''),
+                        'site':        item.get('meta_url', {}).get('hostname', ''),
+                    }
+                    for item in web_results
+                ],
+            }
+        except Exception as exc:
+            log.error('Brave Search error: %s', exc)
+            return {'available': True, 'results': [], 'query': q, 'error': str(exc)}
+
+
+# ---------------------------------------------------------------------------
 # Domain deep intelligence — VirusTotal + URLScan.io + Shodan
 # ---------------------------------------------------------------------------
 

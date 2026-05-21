@@ -66,6 +66,11 @@ class Settings(BaseSettings):
 
     HIBP_API_KEY: str = ''
 
+    # Brave Search API — free tier: 2,000 queries/month
+    # Create at: brave.com/search/api → sign up → API Keys
+    # Unlocks: name/username/phone/email web evidence across all OSINT tabs
+    BRAVE_SEARCH_API_KEY: str = ''
+
     # VirusTotal — free tier: 4 requests/min, 500/day
     # Create at: virustotal.com → Sign up → API key
     VIRUSTOTAL_API_KEY: str = ''
