@@ -75,6 +75,10 @@ class Settings(BaseSettings):
     AZURE_CV_KEY: str = ''
     AZURE_CV_ENDPOINT: str = ''  # e.g. https://your-resource.cognitiveservices.azure.com
 
+    # Hugging Face Inference API — FREE, no card needed
+    # Sign up at huggingface.co → Settings → Access Tokens → New token (read)
+    HF_TOKEN: str = ''
+
     HONEY_DOMAIN: str = 'honey.dataguard.example.com'
     MAILGUN_API_KEY: str = ''
 

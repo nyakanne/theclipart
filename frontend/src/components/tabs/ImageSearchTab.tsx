@@ -11,6 +11,7 @@ interface CvResult {
   dominant_colors: string[]
   adult_content: boolean
   metadata: { width?: number; height?: number; format?: string }
+  provider?: 'huggingface' | 'azure'
 }
 
 const SEARCH_TOOLS = [
@@ -127,7 +128,7 @@ export function ImageSearchTab() {
         <h1 className="text-2xl font-black text-white leading-tight mb-1">Your Face.</h1>
         <h2 className="text-2xl font-black text-red-500 leading-tight mb-3">Everywhere It Shouldn't Be.</h2>
         <p className="text-sm text-gray-400 max-w-md leading-relaxed">
-          Azure Computer Vision analyzes images in-app — face count, celebrity identification, scene description, content tags.
+          AI-powered image analysis in-app — scene description, face count, object detection, content tags. Free via Hugging Face, or upgrade to Azure for celebrity identification.
         </p>
       </div>
 
@@ -139,7 +140,7 @@ export function ImageSearchTab() {
           </div>
           <div>
             <h2 className="font-bold text-white">Analyze Image In-App</h2>
-            <p className="text-xs text-gray-500">Azure Computer Vision · free tier 5,000 calls/month</p>
+            <p className="text-xs text-gray-500">Hugging Face (free) · Azure CV fallback if configured</p>
           </div>
         </div>
 
@@ -208,7 +209,14 @@ export function ImageSearchTab() {
           <div className="card-dark p-5">
             <div className="flex items-center gap-2 mb-4">
               <Eye className="h-4 w-4 text-red-500" />
-              <span className="text-sm font-bold text-white">Azure Computer Vision</span>
+              <span className="text-sm font-bold text-white">Image Analysis</span>
+              <span className={`text-[10px] px-2 py-0.5 rounded-full border font-semibold ${
+                result.provider === 'huggingface'
+                  ? 'bg-yellow-950/30 text-yellow-500 border-yellow-900/40'
+                  : 'bg-blue-950/30 text-blue-400 border-blue-900/40'
+              }`}>
+                {result.provider === 'huggingface' ? 'Hugging Face · Free' : 'Azure CV · Free tier'}
+              </span>
               <span className="text-[10px] text-gray-600 ml-auto">
                 {result.metadata.width && result.metadata.height ? `${result.metadata.width}×${result.metadata.height}` : ''} {result.metadata.format ?? ''}
               </span>
@@ -244,6 +252,14 @@ export function ImageSearchTab() {
               </div>
             )}
           </div>
+
+          {/* Celebrity note for HF */}
+          {result.provider === 'huggingface' && (
+            <div className="card-dark p-4 flex items-center gap-3">
+              <User className="h-4 w-4 text-gray-600 flex-shrink-0" />
+              <p className="text-xs text-gray-500">Celebrity identification requires Azure Computer Vision. Add <code className="text-gray-400 bg-gray-900 px-1 py-0.5 rounded">AZURE_CV_KEY</code> + <code className="text-gray-400 bg-gray-900 px-1 py-0.5 rounded">AZURE_CV_ENDPOINT</code> to your .env to enable it.</p>
+            </div>
+          )}
 
           {/* Celebrities */}
           {result.celebrities.length > 0 && (

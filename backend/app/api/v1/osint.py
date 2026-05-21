@@ -298,70 +298,106 @@ async def bing_visual_search(
 
 
 # ---------------------------------------------------------------------------
-# Azure Computer Vision v3.2 — analyze image for faces, tags, celebrities
-# Free tier: 5,000 calls/month
-# Create at: portal.azure.com → Computer Vision → Keys and Endpoint
+# Image analysis — Hugging Face (free) with Azure CV fallback
+#
+# Priority:
+#   1. Hugging Face Inference API — completely free, just needs HF_TOKEN
+#      Sign up: huggingface.co → Settings → Access Tokens → New token (read)
+#   2. Azure Computer Vision v3.2 — if AZURE_CV_KEY + AZURE_CV_ENDPOINT set
+#      Free tier: 5,000 calls/month (portal.azure.com → Computer Vision)
+#   3. 503 with setup instructions
 # ---------------------------------------------------------------------------
 
 _CV_FEATURES = 'Faces,Tags,Description,Objects,Color'
 _CV_DETAILS  = 'Celebrities'
 
+_HF_BASE     = 'https://api-inference.huggingface.co/models'
+_HF_CAPTION  = f'{_HF_BASE}/Salesforce/blip-image-captioning-large'
+_HF_OBJECTS  = f'{_HF_BASE}/facebook/detr-resnet-50'
+_HF_NSFW     = f'{_HF_BASE}/Falconsai/nsfw_image_detection'
 
-@router.post('/analyze-image')
-async def analyze_image(
-    image_url: str = Form('', description='Public image URL (leave blank if uploading a file)'),
-    file: UploadFile = File(None, description='Image file upload (JPEG/PNG, max 4 MB)'),
-):
-    """
-    Analyze an image using Azure Computer Vision v3.2.
-    Returns: scene caption, detected faces, celebrity identification, top tags, objects.
-    Free tier: 5,000 calls/month.
 
-    Setup: add AZURE_CV_KEY and AZURE_CV_ENDPOINT to your .env
-    Get keys: portal.azure.com → Computer Vision → Keys and Endpoint
-    """
-    settings = get_settings()
-    key      = settings.AZURE_CV_KEY
-    endpoint = settings.AZURE_CV_ENDPOINT.rstrip('/')
+async def _hf_call(client: httpx.AsyncClient, url: str, token: str, raw: bytes) -> dict | list | None:
+    """Call one HF model, auto-retry once if it's still loading (503)."""
+    headers = {'Authorization': f'Bearer {token}', 'Content-Type': 'image/jpeg'}
+    try:
+        r = await client.post(url, headers=headers, content=raw, timeout=40)
+        if r.status_code == 503:
+            # Model cold-starting — wait and retry once
+            await asyncio.sleep(15)
+            r = await client.post(url, headers=headers, content=raw, timeout=40)
+        if r.status_code == 200:
+            return r.json()
+        log.warning('HF model %s returned %s', url, r.status_code)
+        return None
+    except Exception as exc:
+        log.warning('HF call failed %s: %s', url, exc)
+        return None
 
-    if not key or not endpoint:
-        raise HTTPException(
-            status_code=503,
-            detail='Azure Computer Vision not configured. Add AZURE_CV_KEY and AZURE_CV_ENDPOINT to your .env',
+
+async def _analyze_with_hf(raw: bytes, token: str) -> dict:
+    """Run caption, object detection, and NSFW check concurrently via HF."""
+    async with httpx.AsyncClient() as client:
+        caption_r, objects_r, nsfw_r = await asyncio.gather(
+            _hf_call(client, _HF_CAPTION, token, raw),
+            _hf_call(client, _HF_OBJECTS, token, raw),
+            _hf_call(client, _HF_NSFW,    token, raw),
         )
 
-    analyze_url = f'{endpoint}/vision/v3.2/analyze?visualFeatures={_CV_FEATURES}&details={_CV_DETAILS}&language=en'
-    cv_headers  = {'Ocp-Apim-Subscription-Key': key}
+    caption = ''
+    if isinstance(caption_r, list) and caption_r:
+        caption = caption_r[0].get('generated_text', '')
 
-    try:
-        async with httpx.AsyncClient(timeout=20) as client:
-            if file is not None:
-                raw = await file.read()
-                if len(raw) > _MAX_UPLOAD_BYTES:
-                    raise HTTPException(status_code=413, detail='Image must be under 4 MB')
-                r = await client.post(
-                    analyze_url,
-                    headers={**cv_headers, 'Content-Type': 'application/octet-stream'},
-                    content=raw,
-                )
-            elif image_url.strip():
-                r = await client.post(
-                    analyze_url,
-                    headers={**cv_headers, 'Content-Type': 'application/json'},
-                    content=json.dumps({'url': image_url.strip()}).encode(),
-                )
-            else:
-                raise HTTPException(status_code=400, detail='Provide either image_url or upload a file')
-    except HTTPException:
-        raise
-    except Exception as exc:
-        log.warning('Azure CV request failed: %s', exc)
-        raise HTTPException(status_code=502, detail='Azure Computer Vision unavailable — check your network and API key')
+    objects: list[dict] = []
+    if isinstance(objects_r, list):
+        for o in objects_r:
+            score = round(float(o.get('score', 0)) * 100, 1)
+            if score >= 40:
+                objects.append({'name': o.get('label', ''), 'confidence': score})
+
+    adult_content = False
+    if isinstance(nsfw_r, list):
+        for item in nsfw_r:
+            if item.get('label', '').lower() in ('nsfw', 'explicit') and item.get('score', 0) > 0.5:
+                adult_content = True
+
+    # Derive tags from detected object labels (deduplicated)
+    seen: set[str] = set()
+    tags: list[dict] = []
+    for o in objects:
+        if o['name'] not in seen:
+            seen.add(o['name'])
+            tags.append({'name': o['name'], 'confidence': o['confidence']})
+
+    return {
+        'caption': caption,
+        'caption_confidence': 0,
+        'face_count': sum(1 for o in objects if o['name'].lower() == 'person'),
+        'celebrities': [],
+        'tags': tags[:12],
+        'objects': objects,
+        'dominant_colors': [],
+        'adult_content': adult_content,
+        'metadata': {},
+        'provider': 'huggingface',
+    }
+
+
+async def _analyze_with_azure(raw: bytes, key: str, endpoint: str) -> dict:
+    """Run analysis via Azure Computer Vision v3.2."""
+    analyze_url = (
+        f'{endpoint.rstrip("/")}/vision/v3.2/analyze'
+        f'?visualFeatures={_CV_FEATURES}&details={_CV_DETAILS}&language=en'
+    )
+    cv_headers = {'Ocp-Apim-Subscription-Key': key, 'Content-Type': 'application/octet-stream'}
+
+    async with httpx.AsyncClient(timeout=20) as client:
+        r = await client.post(analyze_url, headers=cv_headers, content=raw)
 
     if r.status_code == 401:
         raise HTTPException(status_code=401, detail='Invalid Azure CV key — check AZURE_CV_KEY in your .env')
     if r.status_code == 429:
-        raise HTTPException(status_code=429, detail='Azure CV monthly limit reached (5,000/month free). Upgrade tier or wait.')
+        raise HTTPException(status_code=429, detail='Azure CV monthly limit reached. Use HF_TOKEN for free analysis.')
     if r.status_code not in (200, 201):
         try:
             detail = r.json().get('error', {}).get('message', f'Azure CV returned {r.status_code}')
@@ -369,12 +405,8 @@ async def analyze_image(
             detail = f'Azure CV returned {r.status_code}'
         raise HTTPException(status_code=502, detail=detail)
 
-    try:
-        d = r.json()
-    except Exception:
-        raise HTTPException(status_code=502, detail='Invalid JSON from Azure Computer Vision')
+    d = r.json()
 
-    # Extract celebrities from categories detail
     celebrities: list[dict] = []
     for cat in (d.get('categories') or []):
         for celeb in (cat.get('detail') or {}).get('celebrities') or []:
@@ -383,27 +415,23 @@ async def analyze_image(
                 'confidence': round(float(celeb.get('confidence', 0)) * 100, 1),
             })
 
-    # Top 12 tags above 50% confidence
     tags = [
         {'name': t['name'], 'confidence': round(t['confidence'] * 100, 1)}
         for t in (d.get('tags') or [])
         if t.get('confidence', 0) >= 0.5
     ][:12]
 
-    # Objects
     objects = [
         {'name': o.get('object', ''), 'confidence': round(o.get('confidence', 0) * 100, 1)}
         for o in (d.get('objects') or [])
     ]
 
-    # Scene caption
     captions = d.get('description', {}).get('captions') or []
     caption  = captions[0].get('text', '') if captions else ''
-    caption_confidence = round(float(captions[0].get('confidence', 0)) * 100, 1) if captions else 0
 
-    return JSONResponse({
+    return {
         'caption': caption,
-        'caption_confidence': caption_confidence,
+        'caption_confidence': round(float(captions[0].get('confidence', 0)) * 100, 1) if captions else 0,
         'face_count': len(d.get('faces') or []),
         'celebrities': celebrities,
         'tags': tags,
@@ -411,4 +439,71 @@ async def analyze_image(
         'dominant_colors': (d.get('color') or {}).get('dominantColors', []),
         'adult_content': (d.get('adult') or {}).get('isAdultContent', False),
         'metadata': d.get('metadata', {}),
-    })
+        'provider': 'azure',
+    }
+
+
+@router.post('/analyze-image')
+async def analyze_image(
+    image_url: str = Form('', description='Public image URL (leave blank if uploading a file)'),
+    file: UploadFile = File(None, description='Image file upload (JPEG/PNG, max 4 MB)'),
+):
+    """
+    Analyze an image for faces, objects, content tags, and NSFW detection.
+
+    Provider priority (first configured wins):
+      1. Hugging Face (free) — add HF_TOKEN to .env
+         Get token: huggingface.co → Settings → Access Tokens → New token (read)
+      2. Azure Computer Vision — add AZURE_CV_KEY + AZURE_CV_ENDPOINT to .env
+         Get keys: portal.azure.com → Computer Vision → Keys and Endpoint
+    """
+    settings = get_settings()
+
+    # Resolve image bytes — fetch URL server-side or use upload
+    raw: bytes
+    if file is not None:
+        raw = await file.read()
+        if len(raw) > _MAX_UPLOAD_BYTES:
+            raise HTTPException(status_code=413, detail='Image must be under 4 MB')
+    elif image_url.strip():
+        try:
+            async with httpx.AsyncClient(timeout=15) as client:
+                resp = await client.get(image_url.strip(), follow_redirects=True)
+            if resp.status_code != 200:
+                raise HTTPException(status_code=400, detail=f'Could not fetch image URL (HTTP {resp.status_code})')
+            raw = resp.content
+            if len(raw) > _MAX_UPLOAD_BYTES:
+                raise HTTPException(status_code=413, detail='Remote image is over 4 MB')
+        except HTTPException:
+            raise
+        except Exception as exc:
+            raise HTTPException(status_code=400, detail=f'Failed to fetch image: {exc}')
+    else:
+        raise HTTPException(status_code=400, detail='Provide either image_url or upload a file')
+
+    # Provider selection
+    if settings.HF_TOKEN:
+        try:
+            result = await _analyze_with_hf(raw, settings.HF_TOKEN)
+            return JSONResponse(result)
+        except Exception as exc:
+            log.warning('HF analysis failed, falling back to Azure: %s', exc)
+
+    if settings.AZURE_CV_KEY and settings.AZURE_CV_ENDPOINT:
+        try:
+            result = await _analyze_with_azure(raw, settings.AZURE_CV_KEY, settings.AZURE_CV_ENDPOINT)
+            return JSONResponse(result)
+        except HTTPException:
+            raise
+        except Exception as exc:
+            log.warning('Azure CV analysis failed: %s', exc)
+            raise HTTPException(status_code=502, detail='Azure Computer Vision unavailable')
+
+    raise HTTPException(
+        status_code=503,
+        detail=(
+            'No image analysis provider configured. '
+            'Add HF_TOKEN to .env for free analysis (huggingface.co → Settings → Access Tokens), '
+            'or add AZURE_CV_KEY + AZURE_CV_ENDPOINT for Azure Computer Vision.'
+        ),
+    )
