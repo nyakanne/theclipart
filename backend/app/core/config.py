@@ -66,7 +66,15 @@ class Settings(BaseSettings):
 
     HIBP_API_KEY: str = ''
 
+    # VirusTotal — free tier: 4 requests/min, 500/day
+    # Create at: virustotal.com → Sign up → API key
+    VIRUSTOTAL_API_KEY: str = ''
+
+    # Shodan — free API key available at account.shodan.io (1 query credit/sec)
+    SHODAN_API_KEY: str = ''
+
     # Azure Bing Visual Search (free tier: 3,000 calls/month)
+
     # Create at: portal.azure.com → Bing Search v7 → Keys and Endpoint
     AZURE_BING_KEY: str = ''
 

@@ -512,6 +512,131 @@ async def analyze_image(
 
 
 # ---------------------------------------------------------------------------
+# Domain deep intelligence — VirusTotal + URLScan.io + Shodan
+# ---------------------------------------------------------------------------
+
+@router.get('/domain-intel/{domain:path}')
+async def domain_intel(domain: str):
+    settings = get_settings()
+    clean = domain.strip().lstrip('https://').lstrip('http://').split('/')[0].split('?')[0]
+
+    async with httpx.AsyncClient(timeout=12.0, follow_redirects=True) as client:
+
+        async def _virustotal() -> dict | None:
+            if not settings.VIRUSTOTAL_API_KEY:
+                return None
+            try:
+                r = await client.get(
+                    f'https://www.virustotal.com/api/v3/domains/{clean}',
+                    headers={'x-apikey': settings.VIRUSTOTAL_API_KEY},
+                )
+                if r.status_code != 200:
+                    return None
+                attrs = r.json().get('data', {}).get('attributes', {})
+                stats = attrs.get('last_analysis_stats', {})
+                return {
+                    'malicious':   stats.get('malicious', 0),
+                    'suspicious':  stats.get('suspicious', 0),
+                    'harmless':    stats.get('harmless', 0),
+                    'undetected':  stats.get('undetected', 0),
+                    'reputation':  attrs.get('reputation', 0),
+                    'categories':  attrs.get('categories', {}),
+                    'total_votes': attrs.get('total_votes', {}),
+                    'registrar':   attrs.get('registrar', ''),
+                    'creation_date': attrs.get('creation_date'),
+                    'last_analysis_date': attrs.get('last_analysis_date'),
+                    'tags':        attrs.get('tags', []),
+                }
+            except Exception:
+                return None
+
+        async def _urlscan() -> list:
+            try:
+                r = await client.get(
+                    f'https://urlscan.io/api/v1/search/?q=domain:{clean}&size=5',
+                    headers={'Accept': 'application/json'},
+                )
+                if r.status_code != 200:
+                    return []
+                items = r.json().get('results', [])
+                return [
+                    {
+                        'url':        s.get('page', {}).get('url', ''),
+                        'title':      s.get('page', {}).get('title', ''),
+                        'ip':         s.get('page', {}).get('ip', ''),
+                        'country':    s.get('page', {}).get('country', ''),
+                        'screenshot': s.get('screenshot', ''),
+                        'scan_date':  s.get('task', {}).get('time', ''),
+                        'malicious':  s.get('verdicts', {}).get('overall', {}).get('malicious', False),
+                        'score':      s.get('verdicts', {}).get('overall', {}).get('score', 0),
+                        'tags':       s.get('verdicts', {}).get('overall', {}).get('tags', []),
+                    }
+                    for s in items[:5]
+                ]
+            except Exception:
+                return []
+
+        async def _shodan() -> dict | None:
+            if not settings.SHODAN_API_KEY:
+                return None
+            try:
+                # resolve domain → IP
+                r = await client.get(
+                    'https://api.shodan.io/dns/resolve',
+                    params={'hostnames': clean, 'key': settings.SHODAN_API_KEY},
+                )
+                if r.status_code != 200:
+                    return None
+                ip = r.json().get(clean)
+                if not ip:
+                    return None
+                # host details
+                hr = await client.get(
+                    f'https://api.shodan.io/shodan/host/{ip}',
+                    params={'key': settings.SHODAN_API_KEY},
+                )
+                if hr.status_code != 200:
+                    return None
+                hd = hr.json()
+                return {
+                    'ip':        ip,
+                    'org':       hd.get('org', ''),
+                    'isp':       hd.get('isp', ''),
+                    'country':   hd.get('country_name', ''),
+                    'os':        hd.get('os'),
+                    'ports':     hd.get('ports', []),
+                    'hostnames': hd.get('hostnames', []),
+                    'vulns':     list(hd.get('vulns', {}).keys())[:10],
+                    'services': [
+                        {
+                            'port':    item.get('port'),
+                            'product': item.get('product', ''),
+                            'version': item.get('version', ''),
+                            'banner':  (item.get('data', '') or '')[:120],
+                        }
+                        for item in hd.get('data', [])[:8]
+                    ],
+                }
+            except Exception:
+                return None
+
+        vt, urlscan, shodan = await asyncio.gather(
+            _virustotal(), _urlscan(), _shodan()
+        )
+
+    return {
+        'domain':    clean,
+        'virustotal': vt,
+        'urlscan':    urlscan,
+        'shodan':     shodan,
+        'available': {
+            'virustotal': bool(settings.VIRUSTOTAL_API_KEY),
+            'shodan':     bool(settings.SHODAN_API_KEY),
+        },
+    }
+
+
+# ---------------------------------------------------------------------------
 # Phone number analysis — free, no API key (uses libphonenumber)
 # ---------------------------------------------------------------------------
 

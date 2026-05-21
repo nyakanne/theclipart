@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Search, ExternalLink, AlertTriangle, Globe, MapPin, User, Mail, Hash, ChevronDown, ChevronUp, Loader, CheckCircle, XCircle, ShieldOff, HelpCircle, RotateCcw } from 'lucide-react'
+import { Search, ExternalLink, AlertTriangle, Globe, MapPin, User, Mail, Hash, ChevronDown, ChevronUp, Loader, CheckCircle, XCircle, ShieldOff, HelpCircle, RotateCcw, Shield, Wifi } from 'lucide-react'
 import { useAuthStore } from '@/store/authStore'
 
 // ── Username platform probe result ────────────────────────────────────────────
@@ -49,6 +49,25 @@ interface DomainResult {
   domain: string; registrar?: string; created?: string; expires?: string
   nameservers?: string[]; status?: string[]; error?: string
 }
+interface UrlScanResult {
+  url: string; title: string; ip: string; country: string
+  screenshot: string; scan_date: string; malicious: boolean; score: number; tags: string[]
+}
+interface DomainIntel {
+  domain: string
+  virustotal: {
+    malicious: number; suspicious: number; harmless: number; undetected: number
+    reputation: number; categories: Record<string, string>; tags: string[]
+    registrar: string; creation_date?: number; last_analysis_date?: number
+  } | null
+  urlscan: UrlScanResult[]
+  shodan: {
+    ip: string; org: string; isp: string; country: string; os?: string
+    ports: number[]; hostnames: string[]; vulns: string[]
+    services: { port: number; product: string; version: string; banner: string }[]
+  } | null
+  available: { virustotal: boolean; shodan: boolean }
+}
 
 // ── Email scan result (subset we need) ───────────────────────────────────────
 interface BreachRecord {
@@ -80,13 +99,6 @@ const TOOLS: { id: Tool; label: string; icon: typeof Search }[] = [
   { id: 'phone',    label: 'Phone Lookup',    icon: Hash   },
 ]
 
-const PHONE_TOOLS = [
-  { name: 'Spokeo',       url: (p: string) => `https://spokeo.com/search?q=${encodeURIComponent(p)}`,       desc: 'Name, address, relatives from phone number' },
-  { name: 'TrueCaller',   url: () => 'https://truecaller.com/',                                             desc: 'Caller ID and spam detection globally' },
-  { name: 'NumLookup',    url: (p: string) => `https://www.numlookup.com/?number=${encodeURIComponent(p)}`, desc: 'Free reverse phone lookup' },
-  { name: 'WhoCalledMe',  url: (p: string) => `https://whocalledme.com/PhoneNumber/${p.replace(/\D/g, '')}`, desc: 'Spam reports and caller identification' },
-  { name: 'BeenVerified', url: () => 'https://beenverified.com/',                                           desc: 'Comprehensive public records search' },
-]
 
 export function OsintTab() {
   const [activeTool, setActiveTool] = useState<Tool>('username')
@@ -153,25 +165,38 @@ export function OsintTab() {
   // ── Domain state ────────────────────────────────────────────────────────────
   const [domainInput, setDomainInput]       = useState('')
   const [domainResult, setDomainResult]     = useState<DomainResult | null>(null)
+  const [domainIntel, setDomainIntel]       = useState<DomainIntel | null>(null)
   const [domainLoading, setDomainLoading]   = useState(false)
   const [domainExpanded, setDomainExpanded] = useState(false)
 
   async function lookupDomain() {
     const q = domainInput.trim().replace(/^https?:\/\//, '').replace(/\/.*/, '')
     if (!q) return
-    setDomainLoading(true); setDomainResult(null)
+    setDomainLoading(true); setDomainResult(null); setDomainIntel(null)
     try {
-      const r = await fetch(`https://rdap.org/domain/${encodeURIComponent(q)}`)
-      const d = await r.json()
-      const ns = d.nameservers?.map((n: { ldhName: string }) => n.ldhName).filter(Boolean) ?? []
-      const events = d.events ?? []
-      const getDate = (type: string) => events.find((e: { eventAction: string; eventDate: string }) => e.eventAction === type)?.eventDate?.slice(0, 10)
-      const registrar = d.entities?.find((e: { roles: string[] }) => e.roles?.includes('registrar'))?.vcardArray?.[1]?.find(
-        (v: string[]) => v[0] === 'fn'
-      )?.[3]
-      setDomainResult({ domain: q, registrar: registrar ?? 'Unknown', created: getDate('registration'), expires: getDate('expiration'), nameservers: ns, status: d.status ?? [] })
+      const [rdapRes, intelRes] = await Promise.allSettled([
+        fetch(`https://rdap.org/domain/${encodeURIComponent(q)}`),
+        fetch(`/api/v1/osint/domain-intel/${encodeURIComponent(q)}`, { headers: authHeaders() }),
+      ])
+
+      if (rdapRes.status === 'fulfilled' && rdapRes.value.ok) {
+        const d = await rdapRes.value.json()
+        const ns = d.nameservers?.map((n: { ldhName: string }) => n.ldhName).filter(Boolean) ?? []
+        const events = d.events ?? []
+        const getDate = (type: string) => events.find((e: { eventAction: string; eventDate: string }) => e.eventAction === type)?.eventDate?.slice(0, 10)
+        const registrar = d.entities?.find((e: { roles: string[] }) => e.roles?.includes('registrar'))?.vcardArray?.[1]?.find(
+          (v: string[]) => v[0] === 'fn'
+        )?.[3]
+        setDomainResult({ domain: q, registrar: registrar ?? 'Unknown', created: getDate('registration'), expires: getDate('expiration'), nameservers: ns, status: d.status ?? [] })
+      } else {
+        setDomainResult({ domain: q, error: 'RDAP lookup failed — domain may not exist' })
+      }
+
+      if (intelRes.status === 'fulfilled' && intelRes.value.ok) {
+        setDomainIntel(await intelRes.value.json())
+      }
     } catch {
-      setDomainResult({ domain: domainInput.trim(), error: 'Lookup failed — domain may not exist or RDAP is unavailable' })
+      setDomainResult({ domain: domainInput.trim(), error: 'Lookup failed — check your connection' })
     } finally {
       setDomainLoading(false)
     }
@@ -478,26 +503,190 @@ export function OsintTab() {
               </div>
             )}
 
-            <div className="mt-4 pt-4 border-t border-gray-900">
-              <p className="text-xs text-gray-600 mb-3">Additional lookup tools:</p>
-              <div className="flex flex-wrap gap-2">
-                {[
-                  { label: 'Who.is',      url: (d: string) => `https://who.is/whois/${d}` },
-                  { label: 'DNSDumpster', url: () => 'https://dnsdumpster.com/' },
-                  { label: 'Shodan',      url: (d: string) => `https://www.shodan.io/search?query=${d}` },
-                  { label: 'VirusTotal',  url: (d: string) => `https://www.virustotal.com/gui/domain/${d}` },
-                  { label: 'URLScan.io',  url: (d: string) => `https://urlscan.io/search/#domain%3A${d}` },
-                ].map(tool => (
-                  <a key={tool.label}
-                    href={domainInput.trim() ? tool.url(domainInput.trim().replace(/^https?:\/\//, '').replace(/\/.*/, '')) : '#'}
-                    target="_blank" rel="noopener noreferrer"
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-800 text-xs text-gray-500 hover:border-gray-700 hover:text-gray-300 transition-colors">
-                    <ExternalLink className="h-3 w-3" /> {tool.label}
-                  </a>
-                ))}
-              </div>
-            </div>
           </div>
+
+          {/* ── Domain Intel ── */}
+          {domainIntel && (
+            <div className="space-y-4">
+
+              {/* VirusTotal */}
+              {domainIntel.virustotal ? (
+                <div className="card-dark p-5">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="h-9 w-9 rounded-xl bg-red-950/50 border border-red-900/40 flex items-center justify-center">
+                      <Shield className="h-4 w-4 text-red-500" />
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-white">VirusTotal Analysis</h3>
+                      <p className="text-xs text-gray-500">Community threat intelligence</p>
+                    </div>
+                    <div className={`ml-auto px-3 py-1 rounded-full text-xs font-bold border ${
+                      domainIntel.virustotal.malicious > 0
+                        ? 'bg-red-950/50 text-red-400 border-red-900/50'
+                        : 'bg-gray-900 text-gray-400 border-gray-800'
+                    }`}>
+                      {domainIntel.virustotal.malicious > 0
+                        ? `${domainIntel.virustotal.malicious} malicious`
+                        : 'Clean'}
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4">
+                    {[
+                      ['Malicious',  domainIntel.virustotal.malicious,  'text-red-400'],
+                      ['Suspicious', domainIntel.virustotal.suspicious, 'text-yellow-500'],
+                      ['Harmless',   domainIntel.virustotal.harmless,   'text-green-500'],
+                      ['Undetected', domainIntel.virustotal.undetected, 'text-gray-500'],
+                    ].map(([label, val, color]) => (
+                      <div key={label as string} className="bg-gray-950 rounded-xl border border-gray-800 p-3 text-center">
+                        <div className={`text-2xl font-black ${color}`}>{val as number}</div>
+                        <div className="text-[10px] text-gray-600 mt-1 uppercase tracking-wide">{label as string}</div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {[
+                      ['Reputation Score', String(domainIntel.virustotal.reputation)],
+                      ['Registrar', domainIntel.virustotal.registrar || '—'],
+                    ].map(([k, v]) => (
+                      <div key={k} className="flex items-center justify-between bg-gray-950 rounded-xl border border-gray-800 px-4 py-3">
+                        <span className="text-xs text-gray-500 font-semibold">{k}</span>
+                        <span className="text-sm text-white font-mono">{v}</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  {Object.keys(domainIntel.virustotal.categories).length > 0 && (
+                    <div className="mt-3">
+                      <p className="text-[10px] text-gray-600 uppercase font-semibold mb-2">Categories</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {Object.values(domainIntel.virustotal.categories).map((cat, i) => (
+                          <span key={i} className="text-[10px] bg-gray-800 text-gray-400 px-2 py-0.5 rounded border border-gray-700">{cat as string}</span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : !domainIntel.available.virustotal ? (
+                <div className="card-dark p-4 flex items-center gap-3">
+                  <Shield className="h-4 w-4 text-gray-700 flex-shrink-0" />
+                  <p className="text-xs text-gray-600">VirusTotal analysis unavailable — add <code className="text-gray-500">VIRUSTOTAL_API_KEY</code> to enable (free at virustotal.com)</p>
+                </div>
+              ) : null}
+
+              {/* URLScan.io */}
+              {domainIntel.urlscan.length > 0 && (
+                <div className="card-dark p-5">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="h-9 w-9 rounded-xl bg-red-950/50 border border-red-900/40 flex items-center justify-center">
+                      <Globe className="h-4 w-4 text-red-500" />
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-white">URLScan.io — Recent Scans</h3>
+                      <p className="text-xs text-gray-500">{domainIntel.urlscan.length} recent scan{domainIntel.urlscan.length !== 1 ? 's' : ''} on record</p>
+                    </div>
+                  </div>
+                  <div className="space-y-3">
+                    {domainIntel.urlscan.map((scan, i) => (
+                      <div key={i} className={`p-3 rounded-xl border ${scan.malicious ? 'border-red-900/50 bg-red-950/20' : 'border-gray-800 bg-gray-900/30'}`}>
+                        <div className="flex items-start gap-3">
+                          {scan.screenshot && (
+                            <img src={scan.screenshot} alt="" className="w-16 h-12 object-cover rounded border border-gray-800 flex-shrink-0" />
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-1 flex-wrap">
+                              {scan.malicious && <span className="text-[10px] font-bold text-red-400 bg-red-950/40 border border-red-900/40 px-1.5 py-0.5 rounded">MALICIOUS</span>}
+                              {scan.tags.map(t => <span key={t} className="text-[9px] bg-gray-800 text-gray-400 px-1.5 py-0.5 rounded border border-gray-700">{t}</span>)}
+                            </div>
+                            {scan.title && <p className="text-sm font-semibold text-white truncate mb-1">{scan.title}</p>}
+                            <p className="text-[10px] text-gray-500 font-mono truncate">{scan.url}</p>
+                            <div className="flex items-center gap-3 mt-1">
+                              {scan.ip && <span className="text-[10px] text-gray-600">IP: {scan.ip}</span>}
+                              {scan.country && <span className="text-[10px] text-gray-600">{scan.country}</span>}
+                              {scan.scan_date && <span className="text-[10px] text-gray-700">{scan.scan_date.slice(0, 10)}</span>}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Shodan */}
+              {domainIntel.shodan ? (
+                <div className="card-dark p-5">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="h-9 w-9 rounded-xl bg-red-950/50 border border-red-900/40 flex items-center justify-center">
+                      <Wifi className="h-4 w-4 text-red-500" />
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-white">Shodan — Host Intelligence</h3>
+                      <p className="text-xs text-gray-500">{domainIntel.shodan.ip} · {domainIntel.shodan.country}</p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-4">
+                    {[
+                      ['IP',  domainIntel.shodan.ip],
+                      ['Org', domainIntel.shodan.org || '—'],
+                      ['ISP', domainIntel.shodan.isp || '—'],
+                      ['OS',  domainIntel.shodan.os  || 'Unknown'],
+                    ].map(([k, v]) => (
+                      <div key={k} className="flex items-center justify-between bg-gray-950 rounded-xl border border-gray-800 px-4 py-3">
+                        <span className="text-xs text-gray-500 font-semibold">{k}</span>
+                        <span className="text-sm text-white font-mono">{v}</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  {domainIntel.shodan.ports.length > 0 && (
+                    <div className="mb-3">
+                      <p className="text-[10px] text-gray-600 uppercase font-semibold mb-2">Open Ports</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {domainIntel.shodan.ports.map(p => (
+                          <span key={p} className="text-[10px] font-mono bg-red-950/30 text-red-400 border border-red-900/40 px-2 py-0.5 rounded">{p}</span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {domainIntel.shodan.vulns.length > 0 && (
+                    <div className="mb-3">
+                      <p className="text-[10px] text-gray-600 uppercase font-semibold mb-2">Known CVEs</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {domainIntel.shodan.vulns.map(v => (
+                          <span key={v} className="text-[10px] font-mono bg-red-950/50 text-red-400 border border-red-900/50 px-2 py-0.5 rounded">{v}</span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {domainIntel.shodan.services.length > 0 && (
+                    <div>
+                      <p className="text-[10px] text-gray-600 uppercase font-semibold mb-2">Services</p>
+                      <div className="space-y-1.5">
+                        {domainIntel.shodan.services.map((svc, i) => (
+                          <div key={i} className="flex items-center gap-3 bg-gray-950 rounded-lg border border-gray-800 px-3 py-2">
+                            <span className="text-xs font-mono text-red-400 font-bold w-10 flex-shrink-0">{svc.port}</span>
+                            <span className="text-xs text-white">{svc.product || 'Unknown'}{svc.version ? ` ${svc.version}` : ''}</span>
+                            {svc.banner && <span className="text-[10px] text-gray-600 truncate ml-auto">{svc.banner}</span>}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : !domainIntel.available.shodan ? (
+                <div className="card-dark p-4 flex items-center gap-3">
+                  <Wifi className="h-4 w-4 text-gray-700 flex-shrink-0" />
+                  <p className="text-xs text-gray-600">Shodan host intel unavailable — add <code className="text-gray-500">SHODAN_API_KEY</code> to enable (free at account.shodan.io)</p>
+                </div>
+              ) : null}
+
+            </div>
+          )}
         </div>
       )}
 
@@ -718,33 +907,13 @@ export function OsintTab() {
             </div>
           )}
 
-          {/* External reverse-lookup tools (secondary) */}
-          <div className="card-dark p-5">
-            <h3 className="font-semibold text-white text-sm mb-1">Deep Reverse Lookup</h3>
-            <p className="text-xs text-gray-500 mb-3">For name/address from number, these third-party services may have additional data</p>
-            <div className="space-y-2">
-              {PHONE_TOOLS.map(tool => (
-                <a key={tool.name}
-                  href={phoneInput.trim() ? tool.url(phoneInput.trim()) : '#'}
-                  target="_blank" rel="noopener noreferrer"
-                  className={`flex items-center gap-3 p-3 rounded-xl border transition-colors group ${
-                    phoneInput.trim() ? 'border-gray-800 bg-gray-900/30 hover:border-gray-700 cursor-pointer' : 'border-gray-900 bg-gray-900/10 opacity-50 cursor-not-allowed pointer-events-none'
-                  }`}
-                >
-                  <div className="flex-1">
-                    <div className="text-sm font-semibold text-white">{tool.name}</div>
-                    <div className="text-xs text-gray-500 mt-0.5">{tool.desc}</div>
-                  </div>
-                  <ExternalLink className="h-3.5 w-3.5 text-gray-600 group-hover:text-gray-400 flex-shrink-0" />
-                </a>
-              ))}
-            </div>
-
-            <div className="mt-4 p-3 rounded-xl bg-gray-900/50 border border-gray-800">
-              <p className="text-xs text-gray-500 leading-relaxed">
-                Carrier and country data are free via Google's libphonenumber library. Full name/address reverse lookup requires a paid service. Include this intel in your evidence package for law enforcement.
-              </p>
-            </div>
+          <div className="card-dark p-4 flex items-start gap-3">
+            <AlertTriangle className="h-4 w-4 text-gray-600 flex-shrink-0 mt-0.5" />
+            <p className="text-xs text-gray-500 leading-relaxed">
+              Carrier, country, and line type come free from Google's libphonenumber library.
+              Full name/address reverse lookup (Spokeo, TrueCaller, etc.) has no free API — those services require a paid subscription.
+              Include the above data in your evidence package for law enforcement.
+            </p>
           </div>
         </div>
       )}
