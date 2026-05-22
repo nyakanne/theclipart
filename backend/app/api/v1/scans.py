@@ -1,3 +1,4 @@
+import asyncio
 import json
 import logging
 from datetime import datetime, timezone
@@ -11,6 +12,7 @@ from app.core.database import get_db
 from app.core.security import encrypt_pii, generate_scan_id
 from app.models.scan import Scan, BreachRecord, BrokerListing, HoneyToken, HoneyTokenHit, DsarRequest, ComplianceResult
 from app.schemas.scan import ScanRequest, ScanJobOut, ScanResultOut, DsarRequestOut, ReportPackageOut
+from app.services.breach_checker import to_evidence_row
 from app.workers.tasks import run_scan, send_dsar, generate_report
 
 log = logging.getLogger(__name__)
@@ -30,9 +32,10 @@ async def create_scan(body: ScanRequest, db: AsyncSession = Depends(get_db)):
         notify_email_enc=encrypt_pii(body.notify_email) if body.notify_email else None,
     )
     db.add(scan)
-    await db.flush()
+    await db.commit()
 
-    run_scan.apply_async(args=[scan_id], task_id=f'scan-{scan_id}')
+    # Delay 1s so the committed row is visible before the worker queries it
+    run_scan.apply_async(args=[scan_id], task_id=f'scan-{scan_id}', countdown=1)
     log.info('Scan %s queued', scan_id)
 
     return ScanJobOut(
@@ -107,6 +110,24 @@ async def get_scan_result(scan_id: str, db: AsyncSession = Depends(get_db)):
             'recommendations': cr.recommendations,
         }
 
+    hibp_provider = None
+    if scan.hibp_status:
+        hibp_records = [b for b in scan.breaches if b.source_type in ('breach_db', 'paste_site')]
+        evidence = [to_evidence_row({
+            'source': b.source,
+            'source_type': b.source_type,
+            'breach_date': b.breach_date,
+            'severity': b.severity,
+            'exposed_fields': b.exposed_fields,
+            'description': b.description,
+        }) for b in hibp_records]
+        hibp_provider = {
+            'status': scan.hibp_status,
+            'breach_count': sum(1 for b in hibp_records if b.source_type == 'breach_db'),
+            'paste_count': sum(1 for b in hibp_records if b.source_type == 'paste_site'),
+            'evidence': evidence,
+        }
+
     return {
         'scan_id': scan.id,
         'status': scan.status,
@@ -118,6 +139,7 @@ async def get_scan_result(scan_id: str, db: AsyncSession = Depends(get_db)):
         'compliance': compliance,
         'total_exposures': scan.total_exposures,
         'risk_score': scan.risk_score,
+        'hibp_provider': hibp_provider,
     }
 
 
@@ -140,8 +162,8 @@ async def send_single_dsar(scan_id: str, broker_id: str, db: AsyncSession = Depe
 
     dsar = DsarRequest(scan_id=scan_id, broker_listing_id=broker_id, broker_name=listing.broker_name)
     db.add(dsar)
-    await db.flush()
-    send_dsar.delay(scan_id, broker_id)
+    await db.commit()
+    send_dsar.apply_async(args=[scan_id, broker_id], countdown=1)
     return dsar
 
 
@@ -157,9 +179,10 @@ async def send_all_dsar(scan_id: str, db: AsyncSession = Depends(get_db)):
     for listing in listings:
         dsar = DsarRequest(scan_id=scan_id, broker_listing_id=listing.id, broker_name=listing.broker_name)
         db.add(dsar)
-        await db.flush()
-        send_dsar.delay(scan_id, listing.id)
         created.append(dsar)
+    await db.commit()
+    for listing in listings:
+        send_dsar.apply_async(args=[scan_id, listing.id], countdown=1)
     return created
 
 
@@ -190,7 +213,10 @@ async def opt_out_all(scan_id: str, db: AsyncSession = Depends(get_db)):
 async def create_report(scan_id: str, body: dict, db: AsyncSession = Depends(get_db)):
     await _get_scan(scan_id, db)
     fmt = body.get('format', 'pdf')
-    result = generate_report.delay(scan_id, fmt).get(timeout=120)
+    loop = asyncio.get_event_loop()
+    result = await loop.run_in_executor(
+        None, lambda: generate_report.delay(scan_id, fmt).get(timeout=120)
+    )
     return result
 
 

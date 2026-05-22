@@ -2,7 +2,7 @@
  * Runtime config pulled from Vite env vars.
  * Set these in Netlify UI → Site settings → Environment variables.
  *
- * VITE_API_URL   — full URL of the deployed backend, e.g. https://api.dataguard.app
+ * VITE_API_URL   — full URL of the deployed backend, e.g. https://api.phantom.me
  *                  Leave blank for local dev (Vite proxies /api → localhost:8000)
  */
 export const config = {

@@ -6,11 +6,11 @@ import { api } from '@/services/api'
 import type { BrokerListing } from '@/types'
 
 const optOutStatusConfig = {
-  not_started: { icon: <AlertTriangle className="h-4 w-4" />, color: 'text-yellow-400', label: 'Action needed' },
-  in_progress:  { icon: <Clock className="h-4 w-4" />, color: 'text-blue-400', label: 'In progress' },
-  submitted:    { icon: <Send className="h-4 w-4" />, color: 'text-brand-400', label: 'Submitted' },
-  confirmed:    { icon: <CheckCircle className="h-4 w-4" />, color: 'text-green-400', label: 'Confirmed' },
-  failed:       { icon: <XCircle className="h-4 w-4" />, color: 'text-red-400', label: 'Failed' },
+  not_started: { icon: <AlertTriangle className="h-4 w-4" />, color: 'text-red-400', label: 'Action needed' },
+  in_progress:  { icon: <Clock className="h-4 w-4" />, color: 'text-red-300', label: 'In progress' },
+  submitted:    { icon: <Send className="h-4 w-4" />, color: 'text-red-400', label: 'Submitted' },
+  confirmed:    { icon: <CheckCircle className="h-4 w-4" />, color: 'text-red-300', label: 'Confirmed' },
+  failed:       { icon: <XCircle className="h-4 w-4" />, color: 'text-red-600', label: 'Failed' },
 }
 
 export function BrokerList({ listings, scanId, onUpdate }: {
@@ -55,8 +55,8 @@ export function BrokerList({ listings, scanId, onUpdate }: {
   return (
     <div className="space-y-4">
       {pendingCount > 0 && (
-        <div className="flex items-center justify-between rounded-lg border border-yellow-800/50 bg-yellow-900/20 px-4 py-3">
-          <span className="text-sm text-yellow-300">
+        <div className="flex items-center justify-between rounded-lg border border-red-900/40 bg-red-950/20 px-4 py-3">
+          <span className="text-sm text-red-300">
             {pendingCount} brokers haven't received a deletion request yet
           </span>
           <Button

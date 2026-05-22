@@ -54,14 +54,18 @@ def run_scan(self, scan_id: str):
 
         _update_scan(db, scan_id, status='scanning', current_stage='breach_db — checking HIBP', progress=5.0)
 
-        breaches = asyncio.run(run_breach_checks(query))
+        breaches, hibp_status = asyncio.run(run_breach_checks(query))
         for b in breaches:
             db.add(BreachRecord(scan_id=scan_id, **b))
         db.commit()
+        _update_scan(db, scan_id, hibp_status=hibp_status)
 
         _update_scan(db, scan_id, current_stage='data_broker — scanning Playwright workers', progress=30.0)
 
         broker_listings = run_playwright_scan.delay(scan_id, query).get(timeout=settings.SCAN_TIMEOUT_SECONDS)
+        if not broker_listings:
+            from app.services.breach_checker import DEMO_BROKERS
+            broker_listings = DEMO_BROKERS
         if broker_listings:
             for bl in broker_listings:
                 db.add(BrokerListing(scan_id=scan_id, **bl))

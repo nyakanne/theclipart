@@ -6,14 +6,16 @@ RUN npm config set strict-ssl false && npm ci
 
 COPY . .
 
-# Datadog RUM — pass at build time:
-# docker build --build-arg VITE_DD_APPLICATION_ID=xxx --build-arg VITE_DD_CLIENT_TOKEN=yyy
+# API URL — empty string = use relative /api paths (nginx proxy, Docker deployment)
+# Set to full URL only for Netlify/standalone deployments
+ARG VITE_API_URL=""
 ARG VITE_DD_APPLICATION_ID=""
 ARG VITE_DD_CLIENT_TOKEN=""
 ARG VITE_DD_SITE="us3.datadoghq.com"
 ARG VITE_DD_ENV="staging"
 
-ENV VITE_DD_APPLICATION_ID=$VITE_DD_APPLICATION_ID \
+ENV VITE_API_URL=$VITE_API_URL \
+    VITE_DD_APPLICATION_ID=$VITE_DD_APPLICATION_ID \
     VITE_DD_CLIENT_TOKEN=$VITE_DD_CLIENT_TOKEN \
     VITE_DD_SITE=$VITE_DD_SITE \
     VITE_DD_ENV=$VITE_DD_ENV

@@ -10,12 +10,14 @@ const http = axios.create({
   headers: { 'Content-Type': 'application/json' },
 })
 
-// Attach JWT from localStorage on every request
+const DEMO_TOKEN = 'demo-token-vindica'
+
+// Attach JWT from localStorage on every request (skip demo token — backend ignores auth on scan routes)
 http.interceptors.request.use(config => {
   try {
-    const raw = localStorage.getItem('dataguard-auth')
+    const raw = localStorage.getItem('vindica-auth')
     const token = raw ? JSON.parse(raw)?.state?.token : null
-    if (token) config.headers.Authorization = `Bearer ${token}`
+    if (token && token !== DEMO_TOKEN) config.headers.Authorization = `Bearer ${token}`
   } catch {}
   return config
 })
@@ -25,8 +27,17 @@ http.interceptors.response.use(
   err => {
     const msg = err.response?.data?.detail ?? err.message ?? 'Unknown error'
     if (err.response?.status === 401) {
-      localStorage.removeItem('dataguard-auth')
-      window.location.href = '/login'
+      try {
+        const raw = localStorage.getItem('vindica-auth')
+        const token = raw ? JSON.parse(raw)?.state?.token : null
+        if (token !== DEMO_TOKEN) {
+          localStorage.removeItem('vindica-auth')
+          window.location.href = '/login'
+        }
+      } catch {
+        localStorage.removeItem('vindica-auth')
+        window.location.href = '/login'
+      }
     }
     return Promise.reject(new Error(msg))
   }

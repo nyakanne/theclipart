@@ -1,9 +1,10 @@
-# Node
+# ── Node ──────────────────────────────────────────────────────────────────────
 node_modules/
+netlify/functions/node_modules/
 dist/
 .vite/
 
-# Python
+# ── Python ────────────────────────────────────────────────────────────────────
 __pycache__/
 *.pyc
 *.pyo
@@ -11,35 +12,37 @@ __pycache__/
 venv/
 *.egg-info/
 
-# Env / secrets — NEVER commit these
+# ── Environment / secrets — NEVER commit these ────────────────────────────────
 .env
 .env.local
 .env.*.local
 backend/.env
+.env.netlify
 *.tfvars
 !*.tfvars.example
 secrets.json
 *_secrets.json
 *.secret
 
-# Terraform
+# ── Terraform ─────────────────────────────────────────────────────────────────
 .terraform/
 *.tfstate
 *.tfstate.backup
 *.tfplan
 
-# Secrets
+# ── SSL / TLS certs (generated locally or via certbot) ────────────────────────
 nginx/ssl/
 *.pem
 *.key
 *.crt
 
-# IDE
+# ── Build artefacts ───────────────────────────────────────────────────────────
+frontend/dist/
+
+# ── IDE / OS ──────────────────────────────────────────────────────────────────
 .idea/
 .vscode/
 *.swp
-
-# OS
 .DS_Store
 Thumbs.db
 ddagent-install.log

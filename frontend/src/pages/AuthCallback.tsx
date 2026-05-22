@@ -28,7 +28,7 @@ export function AuthCallback() {
     api.auth.me()
       .then(user => {
         setUser(user)
-        navigate('/', { replace: true })
+        navigate('/app', { replace: true })
       })
       .catch(() => navigate('/login', { replace: true }))
   }, [navigate, setToken, setUser])

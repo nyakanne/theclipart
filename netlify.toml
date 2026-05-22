@@ -2,7 +2,8 @@
 # Netlify — DataGuard
 # Frontend: React/Vite static site
 # Backend:  Netlify Functions (TypeScript, Node 20)
-# Database: Supabase (set env vars in Netlify UI)
+# Database: Supabase (set env vars in Netlify UI → Site settings → Env vars)
+# Auth:     GitHub OAuth (set GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET, FRONTEND_URL)
 # ─────────────────────────────────────────────────────────────────────────────
 
 [build]
@@ -20,6 +21,7 @@
   included_files    = ["netlify/functions/_shared/**"]
 
 # ── API routing → Netlify Functions ──────────────────────────────────────────
+# Exact callback first — must precede the wildcard auth route
 [[redirects]]
   from   = "/api/v1/auth/github/callback"
   to     = "/.netlify/functions/auth/github/callback"
@@ -50,7 +52,8 @@
     Referrer-Policy           = "strict-origin-when-cross-origin"
     Permissions-Policy        = "geolocation=(), microphone=(), camera=()"
     Strict-Transport-Security = "max-age=63072000; includeSubDomains; preload"
-    Content-Security-Policy   = "default-src 'self'; script-src 'self' 'unsafe-inline' accounts.google.com; style-src 'self' 'unsafe-inline' fonts.googleapis.com; font-src 'self' fonts.gstatic.com; img-src 'self' data: https://lh3.googleusercontent.com; connect-src 'self' https:;"
+    # script-src: 'unsafe-inline' can be removed once RUM is configured with a nonce
+    Content-Security-Policy   = "default-src 'self'; script-src 'self' 'unsafe-inline' https://www.datadoghq-browser-agent.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https://avatars.githubusercontent.com https://lh3.googleusercontent.com; connect-src 'self' https:; frame-ancestors 'none';"
 
 [[headers]]
   for = "/assets/*"

@@ -1,5 +1,13 @@
-export const CORS_HEADERS = {
-  'Access-Control-Allow-Origin':  process.env.FRONTEND_URL ?? '*',
+// CORS headers for Netlify Functions.
+// On Netlify the functions ARE at the same origin as the frontend,
+// so these headers only matter if the API is called from a different origin
+// (e.g. mobile apps, Postman). If FRONTEND_URL is not set, no
+// Access-Control-Allow-Origin header is emitted, which means browsers enforce
+// same-origin policy — the safe default.
+const origin = process.env.FRONTEND_URL?.replace(/\/$/, '') ?? ''
+
+export const CORS_HEADERS: Record<string, string> = {
+  ...(origin ? { 'Access-Control-Allow-Origin': origin } : {}),
   'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type, Authorization',
   'Access-Control-Max-Age':       '86400',

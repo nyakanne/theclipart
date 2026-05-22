@@ -1,11 +1,10 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { Navbar } from '@/components/Layout/Navbar'
 import { Home } from '@/pages/Home'
-import { ScanPage } from '@/pages/ScanPage'
-import { Dashboard } from '@/pages/Dashboard'
 import { Login } from '@/pages/Login'
 import { AuthCallback } from '@/pages/AuthCallback'
+import { Account } from '@/pages/Account'
+import { CommandCenter } from '@/pages/CommandCenter'
 import { useAuthStore } from '@/store/authStore'
 
 const qc = new QueryClient({
@@ -24,27 +23,32 @@ export default function App() {
       <BrowserRouter>
         <Routes>
           {/* Public */}
+          <Route path="/" element={<Home />} />
           <Route path="/login" element={<Login />} />
           <Route path="/auth/callback" element={<AuthCallback />} />
+          <Route path="/account" element={<Account />} />
 
-          {/* Protected — wrap all app routes in a layout with Navbar */}
+          {/* Command center — all feature tabs live here */}
           <Route
-            path="/*"
+            path="/app/*"
             element={
               <ProtectedRoute>
-                <div className="min-h-screen bg-gray-950">
-                  <Navbar />
-                  <main>
-                    <Routes>
-                      <Route path="/" element={<Home />} />
-                      <Route path="/scan/:scanId" element={<ScanPage />} />
-                      <Route path="/dashboard" element={<Dashboard />} />
-                    </Routes>
-                  </main>
-                </div>
+                <CommandCenter />
               </ProtectedRoute>
             }
           />
+
+          {/* Legacy redirects */}
+          <Route path="/exposure"   element={<Navigate to="/app" replace />} />
+          <Route path="/removals"   element={<Navigate to="/app" replace />} />
+          <Route path="/dashboard"  element={<Navigate to="/app" replace />} />
+          <Route path="/lookup"     element={<Navigate to="/app" replace />} />
+          <Route path="/track"      element={<Navigate to="/app" replace />} />
+          <Route path="/opt-out"    element={<Navigate to="/app" replace />} />
+          <Route path="/reports"    element={<Navigate to="/app" replace />} />
+          <Route path="/image-search" element={<Navigate to="/app" replace />} />
+
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>
     </QueryClientProvider>

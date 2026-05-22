@@ -1,10 +1,49 @@
+import { useState } from 'react'
 import { motion } from 'framer-motion'
-import { ShieldCheck } from 'lucide-react'
+import { ShieldCheck, Mail, ArrowRight, Loader2 } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { supabase } from '@/lib/supabase'
 import { api } from '@/services/api'
+import { useAuthStore } from '@/store/authStore'
+
+const PROD_URL = 'https://vindica.me'
+
+function getRedirectTo() {
+  // Always redirect to production in prod, localhost only in dev
+  if (import.meta.env.DEV) return `${window.location.origin}/account`
+  return `${PROD_URL}/account`
+}
 
 export function Login() {
+  const { setToken, setUser } = useAuthStore()
+  const navigate = useNavigate()
+  const [email, setEmail] = useState('')
+  const [sent, setSent] = useState(false)
+  const [sending, setSending] = useState(false)
+  const [error, setError] = useState('')
+
+  function enterDemo() {
+    setToken('demo-token-vindica')
+    setUser({ id: 'demo', email: 'demo@vindica.me', name: 'Demo User', picture: null })
+    navigate('/app', { replace: true })
+  }
+
+  async function sendMagicLink(e: React.FormEvent) {
+    e.preventDefault()
+    if (!email.trim()) return
+    setSending(true)
+    setError('')
+    const { error: err } = await supabase.auth.signInWithOtp({
+      email: email.trim(),
+      options: { emailRedirectTo: getRedirectTo() },
+    })
+    setSending(false)
+    if (err) { setError(err.message); return }
+    setSent(true)
+  }
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-950 px-4">
+    <div className="flex min-h-screen items-center justify-center bg-[#030305] px-4">
       <motion.div
         initial={{ opacity: 0, y: 24 }}
         animate={{ opacity: 1, y: 0 }}
@@ -13,17 +52,16 @@ export function Login() {
       >
         {/* Logo */}
         <div className="mb-8 text-center">
-          <div className="inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-brand-900/50 border border-brand-800 mb-4">
-            <ShieldCheck className="h-8 w-8 text-brand-400" />
+          <div className="inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-red-950/50 border border-red-900/50 mb-4"
+            style={{ boxShadow: '0 0 24px rgba(220,38,38,0.25)' }}>
+            <ShieldCheck className="h-8 w-8 text-red-500" />
           </div>
-          <h1 className="text-2xl font-bold text-white">DataGuard</h1>
-          <p className="mt-1.5 text-sm text-gray-400">
-            Find your data. Erase it. Arm yourself.
-          </p>
+          <h1 className="text-2xl font-black text-white tracking-tight">vindica</h1>
+          <p className="mt-1.5 text-sm text-gray-500">Reclaim your name. Guard your data. Disappear.</p>
         </div>
 
         {/* Card */}
-        <div className="rounded-2xl border border-gray-800 bg-gray-900/60 backdrop-blur-sm p-8 space-y-6">
+        <div className="card-dark p-8 space-y-4">
           <div className="text-center">
             <h2 className="text-lg font-semibold text-white">Sign in to continue</h2>
             <p className="mt-1 text-xs text-gray-500">
@@ -31,34 +69,86 @@ export function Login() {
             </p>
           </div>
 
-          {/* GitHub Sign-In button */}
+          {/* GitHub login */}
           <a
             href={api.auth.loginUrl()}
-            className="flex w-full items-center justify-center gap-3 rounded-lg bg-gray-100 hover:bg-white px-4 py-3 text-sm font-semibold text-gray-900 shadow-sm transition-colors"
+            className="flex w-full items-center justify-center gap-3 rounded-lg border border-gray-700 bg-gray-900 hover:bg-gray-800 hover:border-gray-600 px-4 py-3 text-sm font-semibold text-white transition-colors"
           >
             <GitHubIcon />
             Continue with GitHub
           </a>
 
-          <p className="text-center text-[11px] text-gray-600 leading-relaxed">
+          <div className="flex items-center gap-3">
+            <div className="flex-1 h-px bg-gray-800" />
+            <span className="text-[11px] text-gray-600">or sign in with email</span>
+            <div className="flex-1 h-px bg-gray-800" />
+          </div>
+
+          {/* Magic link */}
+          {sent ? (
+            <div className="rounded-xl border border-red-900/40 bg-red-950/20 p-4 text-center space-y-1">
+              <Mail className="h-6 w-6 text-red-400 mx-auto mb-2" />
+              <p className="text-sm font-semibold text-white">Check your inbox</p>
+              <p className="text-xs text-gray-500">We sent a sign-in link to <span className="text-gray-300">{email}</span></p>
+              <button onClick={() => setSent(false)} className="text-xs text-red-500 hover:text-red-400 mt-2 transition-colors">
+                Use a different email
+              </button>
+            </div>
+          ) : (
+            <form onSubmit={sendMagicLink} className="space-y-2">
+              <div className="relative">
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-600" />
+                <input
+                  type="email"
+                  className="input-field pl-9 text-sm"
+                  placeholder="your@email.com"
+                  value={email}
+                  onChange={e => setEmail(e.target.value)}
+                  required
+                />
+              </div>
+              {error && <p className="text-xs text-red-400">{error}</p>}
+              <button
+                type="submit"
+                disabled={sending || !email.trim()}
+                className="flex w-full items-center justify-center gap-2 rounded-lg bg-red-600 hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed px-4 py-2.5 text-sm font-semibold text-white transition-colors"
+                style={{ boxShadow: email.trim() ? '0 0 16px rgba(220,38,38,0.35)' : undefined }}
+              >
+                {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowRight className="h-4 w-4" />}
+                {sending ? 'Sending…' : 'Send Magic Link'}
+              </button>
+            </form>
+          )}
+
+          <div className="flex items-center gap-3">
+            <div className="flex-1 h-px bg-gray-800" />
+            <span className="text-[11px] text-gray-600">or</span>
+            <div className="flex-1 h-px bg-gray-800" />
+          </div>
+
+          {/* Demo mode */}
+          <button
+            onClick={enterDemo}
+            className="flex w-full items-center justify-center gap-2 rounded-lg border border-red-900/40 bg-red-950/20 hover:bg-red-950/40 hover:border-red-900/60 px-4 py-2.5 text-xs font-semibold text-red-400 hover:text-red-300 transition-colors"
+          >
+            Try Demo — no account needed
+          </button>
+
+          <p className="text-center text-[11px] text-gray-600 leading-relaxed pt-1">
             By signing in you agree to our{' '}
             <span className="text-gray-400 underline cursor-pointer">Terms</span>{' '}
             and{' '}
             <span className="text-gray-400 underline cursor-pointer">Privacy Policy</span>.
-            We encrypt all PII at rest with AES-256&nbsp;/&nbsp;KMS.
+            We encrypt all PII at rest with AES-256 / KMS.
           </p>
         </div>
 
         {/* Trust strip */}
         <div className="mt-6 grid grid-cols-3 gap-3 text-center">
-          {[
-            ['250+', 'brokers scanned'],
-            ['GDPR', 'compliant'],
-            ['KMS', 'encrypted'],
-          ].map(([stat, label]) => (
-            <div key={stat} className="rounded-lg border border-gray-800 bg-gray-900/40 py-3 px-2">
-              <p className="text-sm font-bold text-brand-400">{stat}</p>
-              <p className="text-[10px] text-gray-500 mt-0.5">{label}</p>
+          {[['GDPR', 'compliant'], ['CCPA', 'compliant'], ['KMS', 'encrypted']].map(([stat, label]) => (
+            <div key={stat} className="card-dark py-3 px-2">
+              <p className="text-sm font-bold text-red-500">{stat}</p>
+              <p className="text-[10px] text-gray-600 mt-0.5">{label}</p>
             </div>
           ))}
         </div>

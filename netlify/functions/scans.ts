@@ -32,7 +32,7 @@ async function runHibp(email: string): Promise<unknown[]> {
   const key = process.env.HIBP_API_KEY
   if (!key) return []
   const res = await fetch(`${HIBP_BASE}/breachedaccount/${encodeURIComponent(email)}?truncateResponse=false`, {
-    headers: { 'hibp-api-key': key, 'user-agent': 'DataGuard/1.0' },
+    headers: { 'hibp-api-key': key, 'user-agent': 'Phantom/1.0' },
   })
   if (res.status === 404) return []
   if (!res.ok) return []
@@ -106,8 +106,8 @@ export const handler: Handler = async (event) => {
       ? Math.min(100, breaches.length * 15 + (breaches as Array<{ severity: string }>).filter(b => b.severity === 'critical').length * 20)
       : 0
 
-    const violations = []
-    const recommendations = []
+    const violations: string[] = []
+    const recommendations: string[] = []
 
     if (breaches.length > 0) {
       recommendations.push('Change passwords on all accounts — rotate any reused credentials.')
@@ -123,6 +123,16 @@ export const handler: Handler = async (event) => {
       recommendations,
     }
 
+    const privacyScore = Math.max(10, 100 - riskScore)
+    const stats = {
+      people_search:   0,
+      broker_sites:    0,
+      public_records:  0,
+      social_profiles: 0,
+      ad_networks:     0,
+      breach_data:     breaches.length,
+    }
+
     // Update scan with results
     await supabase.from('scans').update({
       status: 'completed', progress: 100,
@@ -130,7 +140,7 @@ export const handler: Handler = async (event) => {
       risk_score: riskScore,
       total_exposures: breaches.length,
       completed_at: new Date().toISOString(),
-      result_json: JSON.stringify({ breaches, broker_listings: brokerListings, compliance }),
+      result_json: JSON.stringify({ breaches, broker_listings: brokerListings, compliance, privacy_score: privacyScore, stats }),
     }).eq('id', scanId)
 
     return json({ scan_id: scanId, status: 'scanning', progress: 5, current_stage: 'breach_db — checking HIBP', created_at: new Date().toISOString() }, 201)
@@ -179,17 +189,21 @@ export const handler: Handler = async (event) => {
 
   // GET /scans/:id — full result
   if (event.httpMethod === 'GET' && subPath === '/') {
-    let result = { breaches: [], broker_listings: [], compliance: null }
+    let result: Record<string, unknown> = { breaches: [], broker_listings: [], compliance: null }
     try { result = JSON.parse(scan.result_json ?? '{}') } catch {}
+    const riskScore    = (scan.risk_score as number) ?? 0
+    const privacyScore = (result.privacy_score as number) ?? Math.max(10, 100 - riskScore)
     return json({
       scan_id: scan.id, status: scan.status,
       created_at: scan.created_at, completed_at: scan.completed_at,
-      breaches: result.breaches ?? [],
-      broker_listings: result.broker_listings ?? [],
+      breaches:         result.breaches         ?? [],
+      broker_listings:  result.broker_listings  ?? [],
       honey_token_hits: [],
-      compliance: result.compliance ?? null,
-      total_exposures: scan.total_exposures,
-      risk_score: scan.risk_score,
+      compliance:       result.compliance       ?? null,
+      privacy_score:    privacyScore,
+      risk_score:       riskScore,
+      total_exposures:  scan.total_exposures,
+      stats:            result.stats            ?? { people_search: 0, broker_sites: 0, public_records: 0, social_profiles: 0, ad_networks: 0, breach_data: 0 },
     })
   }
 

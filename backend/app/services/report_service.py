@@ -19,6 +19,7 @@ from reportlab.lib import colors
 from reportlab.lib.units import mm
 
 from app.core.config import get_settings
+from app.services.breach_checker import to_evidence_row
 from app.services.model_fingerprint import fingerprint_audit
 
 settings = get_settings()
@@ -66,24 +67,29 @@ def _build_pdf(scan_id: str, data: dict) -> bytes:
 
     if data.get('breaches'):
         story.append(Paragraph('Breach Records', styles['Heading2']))
-        table_data = [['Source', 'Severity', 'Date', 'Exposed Fields']]
+        table_data = [['Source', 'Severity', 'Date', 'Exposed Fields', 'Action Required']]
         for b in data['breaches']:
+            ev = to_evidence_row(b)
             table_data.append([
                 b['source'],
-                b['severity'].upper(),
+                b.get('severity', '—').upper(),
                 b.get('breach_date', '—'),
                 ', '.join(b.get('exposed_fields', [])),
+                ev['action_label'],
             ])
-        t = Table(table_data, repeatRows=1)
+        t = Table(table_data, repeatRows=1, colWidths=[40*mm, 20*mm, 22*mm, 50*mm, 55*mm])
         t.setStyle(TableStyle([
             ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#001880')),
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
-            ('FONTSIZE', (0, 0), (-1, -1), 8),
+            ('FONTSIZE', (0, 0), (-1, -1), 7),
             ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#374151')),
             ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.HexColor('#111827'), colors.HexColor('#1f2937')]),
             ('TEXTCOLOR', (0, 1), (-1, -1), colors.HexColor('#d1d5db')),
         ]))
         story += [t, Spacer(1, 6 * mm)]
+
+    if data.get('hibp_status'):
+        story.append(Paragraph(f'HIBP Provider Status: {data["hibp_status"].upper()}', styles['Normal']))
 
     if data.get('fingerprint'):
         story.append(Paragraph('Model-Fingerprint Audit', styles['Heading2']))
@@ -106,6 +112,11 @@ def _build_pdf(scan_id: str, data: dict) -> bytes:
 
 def generate_report(scan_id: str, scan_data: dict, fmt: Format = 'pdf') -> dict:
     now = datetime.now(timezone.utc)
+
+    # Attach normalized HIBP evidence rows so all formats carry the same data
+    breaches = scan_data.get('breaches', [])
+    scan_data['hibp_evidence'] = [to_evidence_row(b) for b in breaches]
+
     payload = json.dumps(scan_data, default=str).encode()
     payload_hash = _sha256(payload)
     scan_data['payload_hash'] = payload_hash
@@ -121,10 +132,15 @@ def generate_report(scan_id: str, scan_data: dict, fmt: Format = 'pdf') -> dict:
         key = f'reports/{scan_id}/{now.timestamp():.0f}.json'
     else:
         buf = io.StringIO()
-        writer = csv.DictWriter(buf, fieldnames=['scan_id', 'source', 'severity', 'exposed_fields', 'breach_date'])
+        fieldnames = ['scan_id', 'source_name', 'risk_level', 'captured_at', 'exposed_fields', 'source_url', 'action_label', 'detail']
+        writer = csv.DictWriter(buf, fieldnames=fieldnames, extrasaction='ignore')
         writer.writeheader()
-        for b in scan_data.get('breaches', []):
-            writer.writerow({**b, 'scan_id': scan_id, 'exposed_fields': '|'.join(b.get('exposed_fields', []))})
+        for ev in scan_data.get('hibp_evidence', []):
+            writer.writerow({
+                'scan_id': scan_id,
+                **ev,
+                'exposed_fields': '|'.join(ev.get('exposed_fields', [])),
+            })
         data = buf.getvalue().encode()
         ct = 'text/csv'
         key = f'reports/{scan_id}/{now.timestamp():.0f}.csv'

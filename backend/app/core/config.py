@@ -66,6 +66,32 @@ class Settings(BaseSettings):
 
     HIBP_API_KEY: str = ''
 
+    # Brave Search API — free tier: 2,000 queries/month
+    # Create at: brave.com/search/api → sign up → API Keys
+    # Unlocks: name/username/phone/email web evidence across all OSINT tabs
+    BRAVE_SEARCH_API_KEY: str = ''
+
+    # VirusTotal — free tier: 4 requests/min, 500/day
+    # Create at: virustotal.com → Sign up → API key
+    VIRUSTOTAL_API_KEY: str = ''
+
+    # Shodan — free API key available at account.shodan.io (1 query credit/sec)
+    SHODAN_API_KEY: str = ''
+
+    # Azure Bing Visual Search (free tier: 3,000 calls/month)
+
+    # Create at: portal.azure.com → Bing Search v7 → Keys and Endpoint
+    AZURE_BING_KEY: str = ''
+
+    # Azure Computer Vision v3.2 (free tier: 5,000 calls/month)
+    # Create at: portal.azure.com → Computer Vision → Keys and Endpoint
+    AZURE_CV_KEY: str = ''
+    AZURE_CV_ENDPOINT: str = ''  # e.g. https://your-resource.cognitiveservices.azure.com
+
+    # Hugging Face Inference API — FREE, no card needed
+    # Sign up at huggingface.co → Settings → Access Tokens → New token (read)
+    HF_TOKEN: str = ''
+
     HONEY_DOMAIN: str = 'honey.dataguard.example.com'
     MAILGUN_API_KEY: str = ''
 
@@ -74,11 +100,20 @@ class Settings(BaseSettings):
     GOOGLE_CLIENT_SECRET: str = ''
     GOOGLE_REDIRECT_URI: str = ''   # override in prod; auto-detected in dev
 
+    # GitHub OAuth (used by Netlify functions and CLI tools)
+    GITHUB_CLIENT_ID: str = ''
+    GITHUB_CLIENT_SECRET: str = ''
+    GITHUB_REDIRECT_URI: str = ''
+
     FRONTEND_URL: str = 'http://localhost:3000'
 
     MAX_CONCURRENT_PLAYWRIGHT: int = 5
     SCAN_TIMEOUT_SECONDS: int = 300
     BROKER_LIST_PATH: str = '/app/data/brokers.json'
+
+    # Opt-out automation — keep False until SES domain is verified and
+    # removal email delivery has been tested end-to-end in production.
+    ALLOW_REAL_OPT_OUTS: bool = False
 
     @property
     def is_production(self) -> bool:
@@ -113,6 +148,13 @@ class Settings(BaseSettings):
                 errors.append('DATABASE_URL contains a placeholder password.')
             if not self.HIBP_API_KEY:
                 errors.append('HIBP_API_KEY is missing — breach checks will be skipped.')
+            if self.ALLOW_REAL_OPT_OUTS and not self.SES_FROM_EMAIL.endswith(('.com', '.net', '.org', '.io')):
+                errors.append(
+                    'ALLOW_REAL_OPT_OUTS=true but SES_FROM_EMAIL looks like a placeholder. '
+                    'Verify SES domain before enabling opt-out automation.'
+                )
+            if self.FRONTEND_URL == 'http://localhost:3000':
+                errors.append('FRONTEND_URL is still set to localhost in production.')
 
         if errors:
             msg = '\n'.join(f'  ✗ {e}' for e in errors)

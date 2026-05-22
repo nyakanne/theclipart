@@ -180,6 +180,8 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
       args:
+        # Empty string → frontend uses relative /api paths routed through nginx
+        VITE_API_URL:           ""
         VITE_DD_APPLICATION_ID: ${VITE_DD_APPLICATION_ID:-}
         VITE_DD_CLIENT_TOKEN:   ${VITE_DD_CLIENT_TOKEN:-}
         VITE_DD_SITE:           ${VITE_DD_SITE:-us3.datadoghq.com}
@@ -190,7 +192,7 @@ services:
     labels:
       com.datadoghq.ad.logs: '[{"source":"nginx","service":"dataguard-frontend"}]'
 
-  # Dev-friendly HTTP-only reverse proxy (no SSL cert required)
+  # Dev: HTTP-only (no SSL cert required) — default profile
   nginx-dev:
     image: nginx:1.25-alpine
     restart: unless-stopped
@@ -203,7 +205,11 @@ services:
       - ./nginx/nginx.dev.conf:/etc/nginx/nginx.conf:ro
     labels:
       com.datadoghq.ad.logs: '[{"source":"nginx","service":"dataguard-nginx"}]'
+    profiles:
+      - dev
 
+  # Production: HTTPS with SSL cert — activated with --profile production
+  # Requires: nginx/ssl/cert.pem + nginx/ssl/key.pem (or use certbot volume)
   nginx:
     image: nginx:1.25-alpine
     restart: unless-stopped
