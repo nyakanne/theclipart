@@ -66,8 +66,9 @@ export function FindYourselfTab() {
       if (!res.ok) throw new Error(`Scan failed (${res.status})`)
       const { scan_id } = await res.json()
 
-      // Poll for completion
-      while (true) {
+      const MAX_POLLS = 300 // 5 minutes at ~1s intervals
+      let polls = 0
+      while (polls++ < MAX_POLLS) {
         await new Promise(r => setTimeout(r, 1000))
         const s = await fetch(`/api/v1/scans/${scan_id}/status`, { headers: headers() })
         const job = await s.json()
@@ -75,6 +76,7 @@ export function FindYourselfTab() {
         if (job.current_stage) setStage(job.current_stage)
         if (job.status === 'completed' || job.status === 'failed') break
       }
+      if (polls >= MAX_POLLS) throw new Error('Scan timed out after 5 minutes')
 
       const full = await fetch(`/api/v1/scans/${scan_id}`, { headers: headers() })
       setResult(await full.json())

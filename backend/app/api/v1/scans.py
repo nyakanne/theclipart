@@ -1,3 +1,4 @@
+import asyncio
 import json
 import logging
 from datetime import datetime, timezone
@@ -31,9 +32,10 @@ async def create_scan(body: ScanRequest, db: AsyncSession = Depends(get_db)):
         notify_email_enc=encrypt_pii(body.notify_email) if body.notify_email else None,
     )
     db.add(scan)
-    await db.flush()
+    await db.commit()
 
-    run_scan.apply_async(args=[scan_id], task_id=f'scan-{scan_id}')
+    # Delay 1s so the committed row is visible before the worker queries it
+    run_scan.apply_async(args=[scan_id], task_id=f'scan-{scan_id}', countdown=1)
     log.info('Scan %s queued', scan_id)
 
     return ScanJobOut(
@@ -160,8 +162,8 @@ async def send_single_dsar(scan_id: str, broker_id: str, db: AsyncSession = Depe
 
     dsar = DsarRequest(scan_id=scan_id, broker_listing_id=broker_id, broker_name=listing.broker_name)
     db.add(dsar)
-    await db.flush()
-    send_dsar.delay(scan_id, broker_id)
+    await db.commit()
+    send_dsar.apply_async(args=[scan_id, broker_id], countdown=1)
     return dsar
 
 
@@ -177,9 +179,10 @@ async def send_all_dsar(scan_id: str, db: AsyncSession = Depends(get_db)):
     for listing in listings:
         dsar = DsarRequest(scan_id=scan_id, broker_listing_id=listing.id, broker_name=listing.broker_name)
         db.add(dsar)
-        await db.flush()
-        send_dsar.delay(scan_id, listing.id)
         created.append(dsar)
+    await db.commit()
+    for listing in listings:
+        send_dsar.apply_async(args=[scan_id, listing.id], countdown=1)
     return created
 
 
@@ -210,7 +213,10 @@ async def opt_out_all(scan_id: str, db: AsyncSession = Depends(get_db)):
 async def create_report(scan_id: str, body: dict, db: AsyncSession = Depends(get_db)):
     await _get_scan(scan_id, db)
     fmt = body.get('format', 'pdf')
-    result = generate_report.delay(scan_id, fmt).get(timeout=120)
+    loop = asyncio.get_event_loop()
+    result = await loop.run_in_executor(
+        None, lambda: generate_report.delay(scan_id, fmt).get(timeout=120)
+    )
     return result
 
 

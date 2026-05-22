@@ -80,7 +80,10 @@ async def security_headers(request: Request, call_next) -> Response:
 # ── Request size guard ────────────────────────────────────────────────────────
 @app.middleware('http')
 async def limit_request_size(request: Request, call_next) -> Response:
-    max_bytes = 64 * 1024  # 64 KB — API payloads are tiny
+    upload_paths = ('/osint/visual-search', '/osint/analyze-image')
+    if any(request.url.path.endswith(p) for p in upload_paths):
+        return await call_next(request)
+    max_bytes = 64 * 1024
     content_length = request.headers.get('content-length')
     if content_length and int(content_length) > max_bytes:
         from fastapi.responses import JSONResponse

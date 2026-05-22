@@ -16,6 +16,7 @@ export default defineConfig({
         // Docker/nginx handles proxying in production — this is local dev only
         target: process.env.VITE_API_PROXY_TARGET || 'http://localhost:8000',
         changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api/, ''),
       },
     },
   },

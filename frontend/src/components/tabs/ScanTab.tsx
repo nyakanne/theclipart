@@ -222,14 +222,16 @@ export function ScanTab({ onNavigate }: Props) {
       const { scan_id } = await res.json()
       addLog(`✓ Scan created: ${scan_id.slice(0, 8)}…`)
 
-      while (true) {
+      const MAX_POLLS = 360 // 5 minutes at ~900ms intervals
+      let polls = 0
+      while (polls++ < MAX_POLLS) {
         await new Promise(r => setTimeout(r, 900))
         const s = await (await fetch(`/api/v1/scans/${scan_id}/status`, { headers: authHeaders() })).json()
         setProgress(s.progress)
-        // stage in log
         if (s.current_stage) addLog(`> ${s.current_stage}`)
         if (s.status === 'completed' || s.status === 'failed') break
       }
+      if (polls >= MAX_POLLS) throw new Error('Scan timed out after 5 minutes')
 
       addLog('✓ Scan complete — loading results…')
       const full = await (await fetch(`/api/v1/scans/${scan_id}`, { headers: authHeaders() })).json()

@@ -313,7 +313,9 @@ export function OsintTab() {
       const res = await fetch('/api/v1/scans', { method: 'POST', headers: authHeaders(), body: JSON.stringify({ email: e }) })
       if (!res.ok) throw new Error(`Scan failed (${res.status})`)
       const { scan_id } = await res.json()
-      while (true) {
+      const MAX_POLLS = 300
+      let polls = 0
+      while (polls++ < MAX_POLLS) {
         await new Promise(r => setTimeout(r, 1000))
         const s = await fetch(`/api/v1/scans/${scan_id}/status`, { headers: authHeaders() })
         const job = await s.json()
@@ -321,6 +323,7 @@ export function OsintTab() {
         if (job.current_stage) setEmailStage(job.current_stage)
         if (job.status === 'completed' || job.status === 'failed') break
       }
+      if (polls >= MAX_POLLS) throw new Error('Scan timed out')
       const [full, brave] = await Promise.allSettled([
         fetch(`/api/v1/scans/${scan_id}`, { headers: authHeaders() }),
         fetchBrave(`"${e}"`),
