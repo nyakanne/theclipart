@@ -1,8 +1,9 @@
 import json
 import logging
-from datetime import datetime, timezone
+from pathlib import Path
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
+from fastapi.responses import FileResponse, RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
@@ -10,24 +11,46 @@ from sqlalchemy.orm import selectinload
 from app.core.auth import get_current_user_id
 from app.core.database import get_db
 from app.core.security import encrypt_pii, generate_scan_id
-from app.models.scan import Scan, BreachRecord, BrokerListing, HoneyToken, HoneyTokenHit, DsarRequest, ComplianceResult
-from app.schemas.scan import ScanRequest, ScanJobOut, ScanResultOut, DsarRequestOut, ReportPackageOut, OptOutConfirmIn, OptOutQueueOut
-from app.workers.tasks import run_scan, send_dsar, generate_report
+from app.models.scan import Scan, BreachRecord, BrokerListing, HoneyToken, HoneyTokenHit, DsarRequest, ComplianceResult, CommandAction
+from app.schemas.scan import ScanRequest, ScanJobOut, ScanResultOut, DsarRequestOut, ReportJobOut, OptOutConfirmIn, OptOutQueueOut, ManualEvidenceIn, EvidenceItemOut
+from app.workers.tasks import execute_scan, run_scan, send_dsar, generate_report, generate_report_for_action
 from app.core.config import get_settings
+from app.core.security import decrypt_pii
+from app.services.evidence_service import build_scan_evidence
+from app.services.provider_evidence_service import build_provider_evidence
+from app.services.manual_evidence_service import MANUAL_EVIDENCE_FEATURE, list_manual_evidence_for_scan, manual_evidence_action_to_item
 
 log = logging.getLogger(__name__)
 router = APIRouter(prefix='/scans', tags=['scans'])
 settings = get_settings()
 
 
+def _append_config_provider_status(query: dict, statuses: list[dict]) -> list[dict]:
+    augmented = list(statuses)
+    providers = {status.get('provider') for status in augmented}
+
+    if query.get('email') and not settings.HIBP_API_KEY and 'hibp' not in providers:
+        augmented.append({
+            'provider': 'hibp',
+            'label': 'Have I Been Pwned',
+            'status': 'unavailable',
+            'message': 'HIBP is not configured for this runtime. Email breach and paste checks need HIBP_API_KEY.',
+            'fallback_available': True,
+            'item_count': 0,
+        })
+
+    return augmented
+
+
 @router.post('', response_model=ScanJobOut, status_code=201)
 async def create_scan(
     body: ScanRequest,
+    background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
     user_id: str | None = Depends(get_current_user_id),
 ):
     if not body.has_any_identifier():
-        raise HTTPException(400, 'Provide at least one identifier (email, phone, username, or full_name)')
+        raise HTTPException(400, 'Provide at least one identifier (email, phone, ip_address, username, or full_name)')
 
     query = body.model_dump(exclude_none=True, exclude={'notify_email'})
     scan_id = generate_scan_id()
@@ -41,7 +64,10 @@ async def create_scan(
     await db.flush()
     await db.commit()
 
-    run_scan.apply_async(args=[scan_id], task_id=f'scan-{scan_id}')
+    if settings.RUN_SCANS_INLINE:
+        background_tasks.add_task(execute_scan, scan_id)
+    else:
+        run_scan.apply_async(args=[scan_id], task_id=f'scan-{scan_id}')
     log.info('Scan %s queued', scan_id)
 
     return ScanJobOut(
@@ -61,6 +87,8 @@ async def list_scans(
     stmt = select(Scan).order_by(Scan.created_at.desc()).limit(50)
     if user_id is not None:
         stmt = stmt.where(Scan.user_id == user_id)
+    else:
+        stmt = stmt.where(Scan.user_id.is_(None))
     result = await db.execute(stmt)
     scans = result.scalars().all()
     return [ScanJobOut(
@@ -129,6 +157,15 @@ async def get_scan_result(
             'recommendations': cr.recommendations,
         }
 
+    query = json.loads(decrypt_pii(scan.query_enc))
+
+    provider_bundle = await build_provider_evidence(query)
+    manual_evidence = await list_manual_evidence_for_scan(db, scan.id, user_id)
+    evidence_items = build_scan_evidence(scan, query)
+    evidence_items = [*provider_bundle.items, *manual_evidence, *evidence_items]
+
+    provider_status = _append_config_provider_status(query, provider_bundle.statuses)
+
     return {
         'scan_id': scan.id,
         'status': scan.status,
@@ -138,9 +175,48 @@ async def get_scan_result(
         'broker_listings': scan.broker_listings,
         'honey_token_hits': honey_hits,
         'compliance': compliance,
+        'evidence_items': evidence_items,
+        'provider_status': provider_status,
         'total_exposures': scan.total_exposures,
         'risk_score': scan.risk_score,
     }
+
+
+@router.post('/{scan_id}/manual-evidence', response_model=EvidenceItemOut, status_code=201)
+async def capture_manual_evidence(
+    scan_id: str,
+    body: ManualEvidenceIn,
+    db: AsyncSession = Depends(get_db),
+    user_id: str | None = Depends(get_current_user_id),
+):
+    await _get_scan(scan_id, db, user_id)
+    evidence = {
+        'title': body.title,
+        'source_name': body.source_name,
+        'source_url': body.source_url,
+        'detail': body.detail,
+        'risk_level': body.risk_level,
+        'source_category': body.source_category,
+        'confidence': body.confidence,
+        'captured_at': body.captured_at,
+        'exposed_fields': body.exposed_fields,
+        'action_label': body.action_label,
+    }
+    action = CommandAction(
+        user_id=user_id,
+        feature=MANUAL_EVIDENCE_FEATURE,
+        title=body.title,
+        status='captured',
+        payload={
+            'scan_id': scan_id,
+            'evidence': evidence,
+        },
+    )
+    db.add(action)
+    await db.flush()
+    await db.commit()
+    await db.refresh(action)
+    return manual_evidence_action_to_item(action)
 
 
 @router.get('/{scan_id}/dsar', response_model=list[DsarRequestOut])
@@ -262,17 +338,73 @@ async def opt_out_all(
     )
 
 
-@router.post('/{scan_id}/report', response_model=ReportPackageOut)
+@router.post('/{scan_id}/report', response_model=ReportJobOut, status_code=202)
 async def create_report(
     scan_id: str,
     body: dict,
+    background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
     user_id: str | None = Depends(get_current_user_id),
 ):
-    await _get_scan(scan_id, db, user_id)
+    scan = await _get_scan(scan_id, db, user_id)
+    if scan.status != 'completed':
+        raise HTTPException(409, 'Scan must complete before generating a report.')
     fmt = body.get('format', 'pdf')
-    result = generate_report.delay(scan_id, fmt).get(timeout=120)
-    return result
+    action = CommandAction(
+        user_id=user_id,
+        feature='report-package',
+        title=f'Report package: {scan_id}',
+        status='queued',
+        payload={'scan_id': scan_id, 'format': fmt},
+    )
+    db.add(action)
+    await db.flush()
+    await db.commit()
+    await db.refresh(action)
+
+    if settings.RUN_SCANS_INLINE:
+        background_tasks.add_task(generate_report_for_action, action.id, scan_id, fmt)
+    else:
+        generate_report.delay(action.id, scan_id, fmt)
+
+    return _report_job_from_action(action)
+
+
+@router.get('/{scan_id}/report/{action_id}', response_model=ReportJobOut)
+async def get_report_job(
+    scan_id: str,
+    action_id: str,
+    db: AsyncSession = Depends(get_db),
+    user_id: str | None = Depends(get_current_user_id),
+):
+    action = await _get_report_action(scan_id, action_id, db, user_id)
+    return _report_job_from_action(action)
+
+
+@router.get('/{scan_id}/report/{action_id}/download')
+async def download_report_job(
+    scan_id: str,
+    action_id: str,
+    db: AsyncSession = Depends(get_db),
+    user_id: str | None = Depends(get_current_user_id),
+):
+    action = await _get_report_action(scan_id, action_id, db, user_id)
+    payload = action.payload or {}
+    storage_kind = str(payload.get('storage_kind') or '')
+    download_url = payload.get('download_url')
+    if storage_kind == 's3' and download_url:
+        return RedirectResponse(url=download_url, status_code=307)
+    if storage_kind != 'local':
+        raise HTTPException(404, 'Report artifact not available')
+
+    storage_key = str(payload.get('storage_key') or '')
+    report_path = _local_report_path(storage_key)
+    if not report_path.exists():
+        raise HTTPException(404, 'Report artifact not found')
+
+    filename = str(payload.get('filename') or report_path.name)
+    media_type = str(payload.get('content_type') or 'application/octet-stream')
+    return FileResponse(report_path, media_type=media_type, filename=filename)
 
 
 async def _get_scan(scan_id: str, db: AsyncSession, user_id: str | None = None) -> Scan:
@@ -285,10 +417,68 @@ async def _get_scan(scan_id: str, db: AsyncSession, user_id: str | None = None) 
 
 
 def _assert_scan_owner(scan: Scan, user_id: str | None) -> None:
-    if user_id is None:
+    if scan.user_id is None:
         return
+    if user_id is None:
+        raise HTTPException(404, 'Scan not found')
     if scan.user_id != user_id:
         raise HTTPException(404, 'Scan not found')
+
+
+async def _get_report_action(
+    scan_id: str,
+    action_id: str,
+    db: AsyncSession,
+    user_id: str | None,
+) -> CommandAction:
+    await _get_scan(scan_id, db, user_id)
+    result = await db.execute(
+        select(CommandAction).where(
+            CommandAction.id == action_id,
+            CommandAction.feature == 'report-package',
+        )
+    )
+    action = result.scalar_one_or_none()
+    if not action:
+        raise HTTPException(404, 'Report job not found')
+    if action.user_id is not None and user_id is None:
+        raise HTTPException(404, 'Report job not found')
+    if user_id is not None and action.user_id != user_id:
+        raise HTTPException(404, 'Report job not found')
+    payload_scan_id = str((action.payload or {}).get('scan_id') or '')
+    if payload_scan_id != scan_id:
+        raise HTTPException(404, 'Report job not found')
+    return action
+
+
+def _local_report_path(storage_key: str) -> Path:
+    base = Path(settings.REPORT_STORAGE_DIR).resolve()
+    path = (base / storage_key).resolve()
+    if base not in path.parents and path != base:
+        raise HTTPException(404, 'Report artifact not found')
+    return path
+
+
+def _report_job_from_action(action: CommandAction) -> ReportJobOut:
+    payload = action.payload or {}
+    download_url = payload.get('download_url')
+    if not download_url and payload.get('storage_kind') == 'local':
+        download_url = (
+            f'{settings.PUBLIC_APP_URL.rstrip("/")}/api/v1/scans/'
+            f'{payload.get("scan_id")}/report/{action.id}/download'
+        )
+    return ReportJobOut(
+        action_id=action.id,
+        scan_id=str(payload.get('scan_id') or ''),
+        status=action.status,
+        format=str(payload.get('format') or 'pdf'),
+        generated_at=payload.get('generated_at'),
+        download_url=download_url,
+        includes_dsar=payload.get('includes_dsar'),
+        includes_compliance=payload.get('includes_compliance'),
+        expires_at=payload.get('expires_at'),
+        error=payload.get('error'),
+    )
 
 
 def _assert_real_opt_out_confirmed(body: OptOutConfirmIn) -> None:

@@ -22,15 +22,52 @@ class Settings(BaseSettings):
     AWS_SECRET_ACCESS_KEY: str = ''
     S3_BUCKET: str = 'dataguard-artefacts'
     KMS_KEY_ID: str = ''
+    REPORT_STORAGE_DIR: str = '/tmp/vindica-reports'
     SES_FROM_EMAIL: str = 'noreply@vindica.me'
     PUBLIC_APP_URL: str = 'http://localhost:3000'
     ALLOW_REAL_OPT_OUTS: bool = False
     REQUIRE_AUTH: bool = False
+    RUN_SCANS_INLINE: bool = False
     SUPABASE_JWT_SECRET: str = ''
     SUPABASE_JWKS_URL: str = ''
     SUPABASE_JWT_AUDIENCE: str = 'authenticated'
 
     HIBP_API_KEY: str = ''
+    IPINFO_TOKEN: str = ''
+    IPINFO_BASE_URL: str = 'https://api.ipinfo.io/lite'
+    AZURE_COMPUTER_VISION_ENDPOINT: str = ''
+    AZURE_COMPUTER_VISION_KEY: str = ''
+    AZURE_CV_ENDPOINT: str = ''
+    AZURE_CV_KEY: str = ''
+    AZURE_COMPUTER_VISION_API_VERSION: str = 'v3.2'
+    AZURE_COMPUTER_VISION_VISUAL_FEATURES: str = 'Description,Tags,Categories,Objects'
+    AZURE_COMPUTER_VISION_TIMEOUT_SECONDS: float = 20.0
+    AZURE_COMPUTER_VISION_MAX_UPLOAD_BYTES: int = 5242880
+    GOOGLE_CLOUD_VISION_API_KEY: str = ''
+    GOOGLE_CLOUD_VISION_BASE_URL: str = 'https://vision.googleapis.com/v1/images:annotate'
+    GOOGLE_CLOUD_VISION_FEATURES: str = 'LABEL_DETECTION,OBJECT_LOCALIZATION,SAFE_SEARCH_DETECTION,WEB_DETECTION'
+    GOOGLE_CLOUD_VISION_MAX_RESULTS: int = 10
+    GOOGLE_CLOUD_VISION_TIMEOUT_SECONDS: float = 20.0
+    HUGGINGFACE_API_KEY: str = ''
+    HF_TOKEN: str = ''
+    HUGGINGFACE_BASE_URL: str = 'https://api-inference.huggingface.co/models'
+    HUGGINGFACE_IMAGE_CAPTION_MODEL: str = 'Salesforce/blip-image-captioning-large'
+    HUGGINGFACE_OBJECT_DETECTION_MODEL: str = 'facebook/detr-resnet-50'
+    HUGGINGFACE_IMAGE_CLASSIFICATION_MODEL: str = 'google/vit-base-patch16-224'
+    HUGGINGFACE_NSFW_MODEL: str = 'Falconsai/nsfw_image_detection'
+    HUGGINGFACE_TIMEOUT_SECONDS: float = 25.0
+    HUGGINGFACE_MAX_LABELS: int = 10
+    BRAVE_SEARCH_API_KEY: str = ''
+    BRAVE_API_KEY: str = ''
+    BRAVE_SEARCH_BASE_URL: str = 'https://api.search.brave.com/res/v1/web/search'
+    BRAVE_SEARCH_COUNTRY: str = 'US'
+    BRAVE_SEARCH_SEARCH_LANG: str = 'en'
+    BRAVE_SEARCH_SAFESEARCH: str = 'moderate'
+    BRAVE_SEARCH_TIMEOUT_SECONDS: float = 12.0
+    BRAVE_SEARCH_MAX_RESULTS: int = 5
+    BRAVE_SEARCH_MAX_BROKER_QUERIES: int = 3
+    VIRUSTOTAL_API_KEY: str = ''
+    SHODAN_API_KEY: str = ''
 
     HONEY_DOMAIN: str = 'honey.vindica.me'
     MAILGUN_API_KEY: str = ''
@@ -60,10 +97,28 @@ class Settings(BaseSettings):
             raise RuntimeError('DEMO_MODE cannot be enabled in production.')
         if self.is_production and self.SECRET_KEY in {'dev-secret-change-me', 'change-me-32-chars-minimum-please'}:
             raise RuntimeError('Set a strong SECRET_KEY before running in production.')
+        if self.is_production and not self.REQUIRE_AUTH:
+            raise RuntimeError('REQUIRE_AUTH must be enabled in production.')
         if self.is_production and self.REQUIRE_AUTH and not (self.SUPABASE_JWT_SECRET or self.SUPABASE_JWKS_URL):
             raise RuntimeError('Set SUPABASE_JWT_SECRET or SUPABASE_JWKS_URL when REQUIRE_AUTH=true.')
         if self.ALLOW_REAL_OPT_OUTS and not self.SES_FROM_EMAIL:
             raise RuntimeError('SES_FROM_EMAIL is required when ALLOW_REAL_OPT_OUTS=true.')
+
+    @property
+    def azure_cv_endpoint(self) -> str:
+        return self.AZURE_COMPUTER_VISION_ENDPOINT or self.AZURE_CV_ENDPOINT
+
+    @property
+    def azure_cv_key(self) -> str:
+        return self.AZURE_COMPUTER_VISION_KEY or self.AZURE_CV_KEY
+
+    @property
+    def huggingface_token(self) -> str:
+        return self.HUGGINGFACE_API_KEY or self.HF_TOKEN
+
+    @property
+    def brave_search_key(self) -> str:
+        return self.BRAVE_SEARCH_API_KEY or self.BRAVE_API_KEY
 
 
 @lru_cache

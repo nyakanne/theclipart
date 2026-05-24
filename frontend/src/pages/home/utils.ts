@@ -20,9 +20,15 @@ import { DEFAULT_EXPOSURE_COUNTS } from './types'
 
 export function parseScanInput(value: string): { body: ScanRequest; kind: ScanInputKind } {
   if (value.includes('@')) return { body: { email: value }, kind: 'email' }
+  if (isIpAddress(value)) return { body: { ip_address: value }, kind: 'ip' }
   if (/^[+\d\s().-]{7,}$/.test(value)) return { body: { phone: value }, kind: 'phone' }
   if (value.includes(' ')) return { body: { full_name: value }, kind: 'name' }
   return { body: { username: value }, kind: 'username' }
+}
+
+function isIpAddress(value: string) {
+  const trimmed = value.trim()
+  return /^(?:\d{1,3}\.){3}\d{1,3}$/.test(trimmed) || (trimmed.includes(':') && /^[a-f0-9:]+$/i.test(trimmed))
 }
 
 export function cleanScanFields(fields: ScanFields): ScanRequest {
@@ -30,53 +36,39 @@ export function cleanScanFields(fields: ScanFields): ScanRequest {
     full_name: fields.full_name.trim() || undefined,
     email: fields.email.trim() || undefined,
     phone: fields.phone.trim() || undefined,
+    ip_address: fields.ip_address.trim() || undefined,
     username: fields.username.trim() || undefined,
     notify_email: fields.notify_email.trim() || undefined,
   }
 }
 
 export function scanRequestHasIdentifier(body: ScanRequest) {
-  return Boolean(body.full_name || body.email || body.phone || body.username)
+  return Boolean(body.full_name || body.email || body.phone || body.ip_address || body.username)
 }
 
 export function subjectFromScanRequest(body: ScanRequest) {
-  return body.full_name || body.email || body.username || body.phone || 'Structured scan'
+  return body.full_name || body.email || body.username || body.phone || body.ip_address || 'Structured scan'
 }
 
 export function kindFromScanRequest(body: ScanRequest): ScanInputKind {
   if (body.email) return 'email'
   if (body.phone) return 'phone'
+  if (body.ip_address) return 'ip'
   if (body.full_name) return 'name'
   return 'username'
-}
-
-export function seedFromScanRequest(body: ScanRequest) {
-  return [body.full_name, body.email, body.phone, body.username].filter(Boolean).join(' ')
-}
-
-export function stableSeed(value: string) {
-  return Array.from(value.toLowerCase()).reduce((sum, char, index) => sum + char.charCodeAt(0) * (index + 11), 0)
-}
-
-export function deriveExposureCounts(value: string, kind: ScanInputKind): ExposureCounts {
-  const seed = stableSeed(value)
-  return {
-    people: (kind === 'name' ? 21 : 13) + (seed % 12),
-    brokers: 38 + (seed % 24),
-    records: (kind === 'phone' ? 13 : 8) + (seed % 10),
-    ads: 64 + (seed % 32),
-    breach: (kind === 'email' ? 7 : 3) + (seed % 8),
-    social: (kind === 'username' ? 18 : 9) + (seed % 13),
-  }
 }
 
 export function countExposureSources(counts: ExposureSignalCounts = DEFAULT_EXPOSURE_COUNTS) {
   return LIVE_SOURCE_ROWS.reduce((sum, row) => sum + (counts[row.id] ?? 0), 0)
 }
 
-export function operatorConfidence(subject: string, totalSources: number) {
-  const base = subject ? 74 + (stableSeed(subject) % 18) : 42
-  return Math.min(98, base + Math.min(6, Math.round(totalSources / 60)))
+export function operatorConfidence(_subject: string, totalSources: number) {
+  if (totalSources <= 0) return 0
+  if (totalSources <= 5) return 34
+  if (totalSources <= 15) return 52
+  if (totalSources <= 40) return 68
+  if (totalSources <= 80) return 82
+  return 92
 }
 
 export function operatorSeverity(totalSources: number, breachSignals: number) {
@@ -95,8 +87,8 @@ export function buildCaseFile(liveScan: LiveScanPreview | null, counts: Exposure
     `Started: ${liveScan?.startedAt ?? 'not started'}`,
     `Scan ID: ${liveScan?.scanId ?? 'not saved'}`,
     `Total linked sources: ${totalSources}`,
-    `Operator severity: ${operatorSeverity(totalSources, counts.breach)}`,
-    `Identity confidence: ${operatorConfidence(liveScan?.subject ?? '', totalSources)}%`,
+    `Operator severity: ${totalSources > 0 ? operatorSeverity(totalSources, counts.breach) : 'Awaiting result'}`,
+    `Identity confidence: ${totalSources > 0 ? `${operatorConfidence(liveScan?.subject ?? '', totalSources)}%` : 'Awaiting result'}`,
     '',
     'Signal groups:',
     ...LIVE_SOURCE_ROWS.map(row => `- ${row.label}: ${counts[row.id]} (${row.detail})`),
@@ -117,6 +109,24 @@ export function buildCaseFile(liveScan: LiveScanPreview | null, counts: Exposure
       `- Honey-token hits: ${result.honey_token_hits.length}`,
       `- Risk score: ${result.risk_score}`,
     )
+    if (result.provider_status.length) {
+      lines.push(
+        '',
+        'Provider status:',
+        ...result.provider_status.map(status =>
+          `- ${status.label}: ${status.status.toUpperCase()} | ${status.message}`
+        ),
+      )
+    }
+    if (result.evidence_items.length) {
+      lines.push(
+        '',
+        'Explicit evidence rows:',
+        ...result.evidence_items.slice(0, 12).map(item =>
+          `- [${item.risk_level.toUpperCase()}] ${item.title} | ${item.source_name} | ${item.detail} | ${item.source_url}`
+        ),
+      )
+    }
   }
 
   return lines.join('\n')
@@ -126,12 +136,32 @@ export function authRequired(error?: string | null) {
   return Boolean(error && /auth|login|sign in|token|401|403|not authenticated|unauthorized/i.test(error))
 }
 
-export function buildBrowserOutputRows(liveScan: LiveScanPreview, counts: ExposureCounts, result?: ScanResult) {
+export type BrowserOutputRow = {
+  source: string
+  finding: string
+  severity: string
+  action: string
+  sourceUrl?: string
+  capturedAt?: string
+}
+
+export function buildBrowserOutputRows(_liveScan: LiveScanPreview, _counts: ExposureCounts, result?: ScanResult): BrowserOutputRow[] {
   if (result) {
+    const evidenceRows = result.evidence_items.slice(0, 12).map(item => ({
+      source: item.source_name,
+      finding: item.detail,
+      severity: item.risk_level.toUpperCase(),
+      action: item.action_label,
+      sourceUrl: item.source_url,
+      capturedAt: item.captured_at,
+    }))
+
+    if (evidenceRows.length) return evidenceRows
+
     return [
       ...result.breaches.slice(0, 5).map(item => ({
         source: item.source,
-        finding: item.exposed_fields.join(', ') || 'Breach exposure',
+        finding: item.description || item.exposed_fields.join(', ') || 'Breach exposure',
         severity: item.severity.toUpperCase(),
         action: 'Review breach evidence',
       })),
@@ -139,23 +169,14 @@ export function buildBrowserOutputRows(liveScan: LiveScanPreview, counts: Exposu
         source: item.broker_name,
         finding: item.fields_exposed.join(', ') || 'Broker profile match',
         severity: item.opt_out_status.replace(/_/g, ' ').toUpperCase(),
-        action: 'Queue opt-out',
-      })),
-      ...(result.compliance?.violations ?? []).slice(0, 4).map(item => ({
-        source: item.regulation,
-        finding: item.description,
-        severity: item.severity.toUpperCase(),
-        action: 'Add to report',
+        action: 'Open listing',
+        sourceUrl: item.listing_url || item.broker_url,
+        capturedAt: item.last_seen,
       })),
     ]
   }
 
-  return LIVE_SOURCE_ROWS.map(row => ({
-    source: row.label,
-    finding: `${counts[row.id]} browser-visible links correlated for ${liveScan.subject}`,
-    severity: row.id === 'breach' || row.id === 'brokers' ? 'HIGH' : row.id === 'ads' ? 'ELEVATED' : 'REVIEW',
-    action: row.id === 'brokers' ? 'Open opt-out queue' : row.id === 'breach' ? 'Save evidence' : 'Inspect source group',
-  }))
+  return []
 }
 
 export function buildOsintToolHref(tool: typeof OSINT_TOOLS[number], term: string) {
@@ -169,23 +190,106 @@ export function buildOsintToolHref(tool: typeof OSINT_TOOLS[number], term: strin
   return tool.url
 }
 
-export function countsFromScanResult(result: ScanResult): ExposureCounts {
-  const brokers = Math.max(result.broker_listings.length, 1)
-  const breach = Math.max(result.breaches.length, 0)
-  const honey = Math.max(result.honey_token_hits.length, 0)
-  const total = Math.max(result.total_exposures, brokers + breach + honey, 1)
-  return {
-    people: Math.max(4, Math.round(total * 0.12)),
-    brokers,
-    records: Math.max(3, Math.round(total * 0.08)),
-    ads: Math.max(8, Math.round(total * 0.22)),
-    breach,
-    social: Math.max(honey, Math.round(total * 0.1)),
+function hostnameFromUrl(url?: string) {
+  if (!url) return ''
+  try {
+    return new URL(url).hostname.toLowerCase().replace(/^www\./, '')
+  } catch {
+    return ''
   }
 }
 
+function normalizedBrokerKeys() {
+  return DATA_BROKERS.map(broker => broker.name.toLowerCase().replace(/[^a-z0-9]/g, ''))
+}
+
+function looksLikeBroker(item: ScanResult['evidence_items'][number]) {
+  const normalizedName = item.source_name.toLowerCase().replace(/[^a-z0-9]/g, '')
+  const host = hostnameFromUrl(item.source_url).replace(/[^a-z0-9]/g, '')
+  return normalizedBrokerKeys().some(key => normalizedName.includes(key) || host.includes(key))
+}
+
+function hasAnyField(fields: string[], matches: string[]) {
+  return matches.some(match => fields.includes(match))
+}
+
+export function totalSourcesFromScanResult(result: ScanResult) {
+  return Math.max(
+    result.total_exposures,
+    result.evidence_items.length,
+    result.breaches.length + result.broker_listings.length + result.honey_token_hits.length,
+  )
+}
+
+export function countsFromScanResult(result: ScanResult): ExposureCounts {
+  const counts: ExposureCounts = { ...DEFAULT_EXPOSURE_COUNTS }
+  const evidenceItems = result.evidence_items
+
+  if (evidenceItems.length > 0) {
+    for (const item of evidenceItems) {
+      const fields = item.exposed_fields.map(field => field.toLowerCase())
+      const category = item.source_category.toLowerCase()
+      const hostname = hostnameFromUrl(item.source_url)
+
+      if (item.kind === 'breach' || category.includes('breach') || hasAnyField(fields, ['password', 'credential'])) {
+        counts.breach += 1
+      }
+
+      if (item.kind === 'broker_listing' || category === 'data_broker' || looksLikeBroker(item)) {
+        counts.brokers += 1
+      }
+
+      if (
+        item.kind === 'ip_enrichment'
+        || category === 'ip_enrichment'
+        || hasAnyField(fields, ['ip', 'asn', 'country', 'continent'])
+      ) {
+        counts.records += 1
+      }
+
+      if (
+        category === 'public_web'
+        || category === 'manual_capture'
+        || hasAnyField(fields, ['name', 'email', 'phone', 'address', 'username'])
+      ) {
+        counts.people += 1
+      }
+
+      if (
+        item.kind === 'honey_token'
+        || category === 'honey_token'
+        || hasAnyField(fields, ['username', 'profile', 'avatar'])
+        || /(instagram|facebook|tiktok|discord|x|twitter|linkedin|reddit|youtube|github)/.test(hostname)
+      ) {
+        counts.social += 1
+      }
+
+      if (
+        category.includes('ad')
+        || hasAnyField(fields, ['advertising_id', 'device_id', 'cookie', 'audience'])
+      ) {
+        counts.ads += 1
+      }
+
+      if (
+        category.includes('record')
+        || hasAnyField(fields, ['address', 'property', 'court', 'voter'])
+      ) {
+        counts.records += 1
+      }
+    }
+
+    return counts
+  }
+
+  counts.brokers = result.broker_listings.length
+  counts.breach = result.breaches.length
+  counts.social = result.honey_token_hits.length
+  return counts
+}
+
 export function formatScanKind(kind: ScanInputKind) {
-  return kind === 'name' ? 'name scan' : `${kind} scan`
+  return kind === 'name' ? 'name scan' : kind === 'ip' ? 'ip scan' : `${kind} scan`
 }
 
 export async function copyText(text: string) {

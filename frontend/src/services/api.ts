@@ -1,6 +1,6 @@
 import axios from 'axios'
 import type {
-  ScanRequest, ScanJob, ScanResult, DsarRequest, ReportPackage, CommandAction, CommandActionRequest
+  ScanRequest, ScanJob, ScanResult, DsarRequest, ReportJob, CommandAction, CommandActionRequest, IpLookupResult, EvidenceItem, ManualEvidenceRequest, ImageAnalysisResult, UsernamePlatformResult, PhoneLookupResult, DomainLookupResult, DomainIntelResult
 } from '@/types'
 import { getSupabaseAccessToken } from '@/services/supabase'
 
@@ -37,6 +37,9 @@ export const api = {
     result: (id: string) =>
       http.get<ScanResult>(`/scans/${id}`).then(r => r.data),
 
+    captureManualEvidence: (id: string, body: ManualEvidenceRequest) =>
+      http.post<EvidenceItem>(`/scans/${id}/manual-evidence`, body).then(r => r.data),
+
     list: () =>
       http.get<ScanJob[]>('/scans').then(r => r.data),
   },
@@ -54,7 +57,10 @@ export const api = {
 
   report: {
     generate: (scanId: string, format: 'pdf' | 'json' | 'csv' = 'pdf') =>
-      http.post<ReportPackage>(`/scans/${scanId}/report`, { format }).then(r => r.data),
+      http.post<ReportJob>(`/scans/${scanId}/report`, { format }).then(r => r.data),
+
+    status: (scanId: string, actionId: string) =>
+      http.get<ReportJob>(`/scans/${scanId}/report/${actionId}`).then(r => r.data),
   },
 
   optOut: {
@@ -63,6 +69,34 @@ export const api = {
 
     initiateAll: (scanId: string) =>
       http.post<{ queued: number; skipped: number; status: string; message: string }>(`/scans/${scanId}/opt-out/all`, { confirmed: true }).then(r => r.data),
+  },
+
+  lookup: {
+    username: (value: string) =>
+      http.get<UsernamePlatformResult[]>(`/lookups/username/${encodeURIComponent(value)}`).then(r => r.data),
+
+    ip: (value: string) =>
+      http.get<IpLookupResult>(`/lookups/ip/${encodeURIComponent(value)}`).then(r => r.data),
+
+    phone: (value: string) =>
+      http.get<PhoneLookupResult>(`/lookups/phone/${encodeURIComponent(value)}`).then(r => r.data),
+
+    domain: (value: string) =>
+      http.get<DomainLookupResult>(`/lookups/domain/${encodeURIComponent(value)}`).then(r => r.data),
+
+    domainIntel: (value: string) =>
+      http.get<DomainIntelResult>(`/lookups/domain-intel/${encodeURIComponent(value)}`).then(r => r.data),
+
+    imageUrl: (imageUrl: string) =>
+      http.post<ImageAnalysisResult>('/lookups/image/url', { image_url: imageUrl }).then(r => r.data),
+
+    imageUpload: (file: File) => {
+      const form = new FormData()
+      form.append('file', file)
+      return http.post<ImageAnalysisResult>('/lookups/image/upload', form, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      }).then(r => r.data)
+    },
   },
 
   command: {

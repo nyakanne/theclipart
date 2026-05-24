@@ -36,8 +36,38 @@ def _update_scan(db: Session, scan_id: str, **kwargs):
         db.commit()
 
 
+def _json_safe(value):
+    if isinstance(value, datetime):
+        return value.isoformat()
+    if isinstance(value, dict):
+        return {k: _json_safe(v) for k, v in value.items()}
+    if isinstance(value, list):
+        return [_json_safe(v) for v in value]
+    return value
+
+
+def _serialize_compliance_result(compliance):
+    if compliance is None:
+        return None
+    return {
+        'overall': compliance.overall,
+        'gdpr_score': compliance.gdpr_score,
+        'ccpa_score': compliance.ccpa_score,
+        'risk_level': compliance.risk_level,
+        'violations': compliance.violations,
+        'recommendations': compliance.recommendations,
+    }
+
+
 @celery_app.task(bind=True, max_retries=3, default_retry_delay=10, queue='scans')
 def run_scan(self, scan_id: str):
+    try:
+        execute_scan(scan_id)
+    except Exception as exc:
+        raise self.retry(exc=exc)
+
+
+def execute_scan(scan_id: str):
     from app.models.scan import Scan, BreachRecord, BrokerListing, HoneyToken, ComplianceResult
     from app.services.breach_checker import run_breach_checks
     from app.services.compliance_service import score_compliance
@@ -63,7 +93,22 @@ def run_scan(self, scan_id: str):
 
         from app.workers.playwright_worker import scan_all_brokers
 
-        broker_listings = scan_all_brokers(query, settings.BROKER_LIST_PATH)
+        def _report_broker_progress(current_index: int, total_brokers: int, broker: dict) -> None:
+            total = max(total_brokers, 1)
+            broker_progress = 30.0 + ((current_index - 1) / total) * 35.0
+            broker_name = broker.get('name', 'broker')
+            _update_scan(
+                db,
+                scan_id,
+                current_stage=f'data_broker — scanning {broker_name} ({current_index}/{total})',
+                progress=broker_progress,
+            )
+
+        broker_listings = scan_all_brokers(
+            query,
+            settings.BROKER_LIST_PATH,
+            on_progress=_report_broker_progress,
+        )
         if broker_listings:
             for bl in broker_listings:
                 db.add(BrokerListing(scan_id=scan_id, **bl))
@@ -107,7 +152,7 @@ def run_scan(self, scan_id: str):
     except Exception as exc:
         log.exception('Scan %s failed', scan_id)
         _update_scan(db, scan_id, status='failed', current_stage=f'failed: {exc}')
-        raise self.retry(exc=exc)
+        raise
     finally:
         db.close()
 
@@ -152,28 +197,67 @@ def send_dsar(self, scan_id: str, broker_listing_id: str):
         db.close()
 
 
-@celery_app.task(queue='reports')
-def generate_report(scan_id: str, fmt: str = 'pdf'):
+def generate_report_for_action(action_id: str, scan_id: str, fmt: str = 'pdf'):
     from app.models.scan import Scan, BreachRecord, BrokerListing, ComplianceResult
+    from app.models.scan import CommandAction
     from app.services.report_service import generate_report as _gen
     from app.core.security import decrypt_pii
+    from app.services.evidence_service import build_scan_evidence
+    from app.services.provider_evidence_service import build_provider_evidence
+    from app.services.manual_evidence_service import list_manual_evidence_for_scan_sync
 
     db = _sync_db()
     try:
+        action = db.query(CommandAction).filter(CommandAction.id == action_id).first()
+        if action:
+            action.status = 'running'
+            db.commit()
+
         scan = db.query(Scan).filter(Scan.id == scan_id).first()
         breaches = db.query(BreachRecord).filter(BreachRecord.scan_id == scan_id).all()
         listings = db.query(BrokerListing).filter(BrokerListing.scan_id == scan_id).all()
         compliance = db.query(ComplianceResult).filter(ComplianceResult.scan_id == scan_id).first()
+        query = json.loads(decrypt_pii(scan.query_enc)) if scan else {}
 
         scan_data = {
             'scan_id': scan_id,
             'breaches': [{'source': b.source, 'severity': b.severity, 'exposed_fields': b.exposed_fields, 'breach_date': b.breach_date} for b in breaches],
             'broker_listings': [{'broker_name': bl.broker_name, 'fields_exposed': bl.fields_exposed} for bl in listings],
-            'compliance': vars(compliance) if compliance else None,
+            'compliance': _serialize_compliance_result(compliance),
         }
-        return _gen(scan_id, scan_data, fmt)
+        scan.breaches = breaches
+        scan.broker_listings = listings
+        evidence_items = build_scan_evidence(scan, query) if scan else []
+        provider_bundle = asyncio.run(build_provider_evidence(query)) if query else None
+        provider_evidence = provider_bundle.items if provider_bundle else []
+        manual_evidence = list_manual_evidence_for_scan_sync(db, scan_id, scan.user_id if scan else None)
+        scan_data['evidence_items'] = [*provider_evidence, *manual_evidence, *evidence_items]
+        pkg = _gen(scan_id, scan_data, fmt)
+        if action:
+            action.status = 'completed'
+            action.payload = {
+                **(action.payload or {}),
+                **_json_safe(pkg),
+            }
+            db.commit()
+        return pkg
+    except Exception as exc:
+        action = db.query(CommandAction).filter(CommandAction.id == action_id).first()
+        if action:
+            action.status = 'failed'
+            action.payload = {
+                **(action.payload or {}),
+                'error': str(exc),
+            }
+            db.commit()
+        raise
     finally:
         db.close()
+
+
+@celery_app.task(queue='reports')
+def generate_report(action_id: str, scan_id: str, fmt: str = 'pdf'):
+    return generate_report_for_action(action_id, scan_id, fmt)
 
 
 @celery_app.task(queue='honey')

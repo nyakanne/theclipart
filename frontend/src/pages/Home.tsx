@@ -1,6 +1,6 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { motion, useReducedMotion } from 'framer-motion'
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import {
   AlertTriangle,
   Bell,
@@ -32,14 +32,16 @@ import {
   UserSearch,
 } from 'lucide-react'
 import { clsx } from 'clsx'
+import { AuthVaultPrompt } from '@/components/auth/AuthVaultPrompt'
 import { ExposureLookupPanel } from '@/components/Investigation/ExposureLookupPanel'
+import { getProviderSetup } from '@/components/Investigation/providerSetup'
 import { ReverseImageSearchPanel } from '@/components/Investigation/ReverseImageSearchPanel'
 import { ExposureGraph, type ExposureGraphMode } from '@/components/visuals/ExposureGraph'
+import { useAuthSession } from '@/hooks/useAuthSession'
 import { useCreateScan, useScanResult, useScanStatus } from '@/hooks/useScan'
 import { api } from '@/services/api'
-import type { CommandAction, ScanJob, ScanRequest, ScanResult } from '@/types'
+import type { CommandAction, DomainIntelResult, DomainLookupResult, IpLookupResult, PhoneLookupResult, ScanJob, ScanRequest, ScanResult, UsernamePlatformResult } from '@/types'
 import {
-  COMMAND_MODULES,
   DATA_BROKERS,
   EMAIL_BLAST_RECIPIENTS,
   LEGAL_SIGNALS,
@@ -50,7 +52,6 @@ import {
   SECOND_BRAIN_LINKS,
   SECOND_BRAIN_NODES,
   SUPPORT_RESOURCES,
-  THREAT_FEED,
   TRACK_RESOURCES,
 } from './home/data'
 import {
@@ -80,16 +81,14 @@ import {
   copyText,
   countExposureSources,
   countsFromScanResult,
-  deriveExposureCounts,
   formatScanKind,
   kindFromScanRequest,
   operatorConfidence,
   operatorSeverity,
   parseScanInput,
   scanRequestHasIdentifier,
-  seedFromScanRequest,
-  stableSeed,
   subjectFromScanRequest,
+  totalSourcesFromScanResult,
 } from './home/utils'
 
 function ActionReceipt({ id, error }: { id?: string | null; error?: string | null }) {
@@ -111,9 +110,68 @@ function ActionReceipt({ id, error }: { id?: string | null; error?: string | nul
   )
 }
 
+function LaunchIntroGate({
+  reduceMotion,
+  onReplay,
+}: {
+  reduceMotion: boolean
+  onReplay: () => void
+}) {
+  return (
+    <motion.div
+      className="pointer-events-auto fixed inset-0 z-[90] overflow-hidden bg-black"
+      initial={reduceMotion ? { opacity: 1 } : { opacity: 1 }}
+      animate={reduceMotion ? { opacity: 1 } : { opacity: 1 }}
+      exit={reduceMotion ? { opacity: 0 } : { opacity: 0, transition: { duration: 0.55, ease: [0.22, 1, 0.36, 1] } }}
+    >
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_24%,rgba(239,68,68,0.2),transparent_24rem)]" />
+      <SignalBrainBurst active />
+
+      <div className="relative z-20 flex min-h-screen items-center justify-center px-4">
+        <motion.div
+          initial={reduceMotion ? { opacity: 1 } : { opacity: 0, y: 28, scale: 0.96, filter: 'blur(10px)' }}
+          animate={reduceMotion ? { opacity: 1 } : { opacity: 1, y: 0, scale: 1, filter: 'blur(0px)' }}
+          transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
+          className="mx-auto max-w-4xl text-center"
+        >
+          <div className="flex flex-wrap items-center justify-center gap-3">
+            <p className="text-sm font-bold uppercase tracking-[0.32em] text-red-500">Privacy. Restored.</p>
+            <button
+              type="button"
+              onClick={onReplay}
+              className="pointer-events-auto inline-flex items-center gap-2 rounded-full border border-red-500/35 bg-red-950/20 px-3 py-1.5 text-[11px] font-bold uppercase tracking-[0.16em] text-red-200 transition-colors hover:border-red-400 hover:bg-red-900/35"
+            >
+              <Play className="h-3 w-3" />
+              Replay signal
+            </button>
+          </div>
+          <motion.h1
+            className="hero-title mt-6 text-6xl font-black tracking-tight text-white sm:text-7xl lg:text-8xl"
+            initial={reduceMotion ? { opacity: 1 } : { y: 42, scale: 0.92, opacity: 0 }}
+            animate={reduceMotion ? { opacity: 1 } : { y: 0, scale: 1, opacity: 1 }}
+            transition={{ duration: 0.84, delay: reduceMotion ? 0 : 0.08, ease: [0.22, 1, 0.36, 1] }}
+          >
+            Take Back <span className="block text-red-500">Your Data.</span>
+          </motion.h1>
+          <motion.p
+            className="mx-auto mt-6 max-w-2xl text-lg leading-8 text-gray-300 sm:text-xl"
+            initial={reduceMotion ? { opacity: 1 } : { opacity: 0, y: 18 }}
+            animate={reduceMotion ? { opacity: 1 } : { opacity: 1, y: 0 }}
+            transition={{ duration: 0.72, delay: reduceMotion ? 0 : 0.18, ease: [0.22, 1, 0.36, 1] }}
+          >
+            Find, monitor, and remove personal data from data broker networks, social platforms, public records, and the open web.
+          </motion.p>
+        </motion.div>
+      </div>
+    </motion.div>
+  )
+}
+
 export function Home({ initialTab = 'scan' }: { initialTab?: 'scan' | 'scanSelf' | 'optout' | 'find' | 'image' | 'authority' | 'monitor' | 'osint' | 'brokers' | 'fingerprint' | 'platform' | 'email' }) {
   const reduceMotion = useReducedMotion()
   const { mutateAsync, isPending } = useCreateScan()
+  const { isAuthenticated } = useAuthSession()
+  const hasLaunchIntro = initialTab === 'scan'
   const initialSection: HomeSection =
     initialTab === 'authority' ? 'reports'
       : initialTab === 'optout' ? 'removal'
@@ -134,6 +192,7 @@ export function Home({ initialTab = 'scan' }: { initialTab?: 'scan' | 'scanSelf'
   const [liveScan, setLiveScan] = useState<LiveScanPreview | null>(null)
   const [introKey, setIntroKey] = useState(0)
   const [introSettled, setIntroSettled] = useState(false)
+  const [introVisible, setIntroVisible] = useState(hasLaunchIntro)
   const [completed, setCompleted] = useState<Record<string, boolean>>(() => {
     if (typeof window === 'undefined') return {}
     const saved = window.localStorage.getItem('vindica-command-progress')
@@ -156,30 +215,56 @@ export function Home({ initialTab = 'scan' }: { initialTab?: 'scan' | 'scanSelf'
 
   const brokerDone = DATA_BROKERS.filter((_, index) => completed[`broker-${index}`]).length
   const completion = Math.round((brokerDone / DATA_BROKERS.length) * 100)
-  const liveCounts = liveResult ? countsFromScanResult(liveResult) : liveScan?.counts ?? DEFAULT_EXPOSURE_COUNTS
-  const liveTotal = liveResult?.total_exposures ?? countExposureSources(liveCounts)
-  const privacyScore = liveResult ? `${Math.max(0, Math.round(100 - liveResult.risk_score))}/100` : liveScan ? `${Math.max(12, 78 - Math.round(liveTotal / 4))}/100` : '27/100'
-  const complianceScore = liveResult?.compliance ? `${liveResult.compliance.overall}%` : liveScan ? `${Math.max(34, 92 - Math.round(liveTotal / 3))}%` : '58%'
+  const liveCounts = liveResult ? countsFromScanResult(liveResult) : DEFAULT_EXPOSURE_COUNTS
+  const liveTotal = liveResult ? totalSourcesFromScanResult(liveResult) : countExposureSources(liveCounts)
+  const privacyScore = liveResult ? `${Math.max(0, Math.round(100 - liveResult.risk_score))}/100` : '--'
+  const complianceScore = liveResult?.compliance ? `${liveResult.compliance.overall}%` : '--'
 
   const reportPacket = useMemo(() => buildIncidentPacket(incident), [incident])
   const actorPacket = useMemo(() => buildActorPacket(actorTracker), [actorTracker])
 
   useEffect(() => {
+    setSection(initialSection)
+  }, [initialSection])
+
+  useEffect(() => {
     setIntroSettled(false)
+    if (hasLaunchIntro) {
+      setIntroVisible(true)
+    }
     const timer = window.setTimeout(() => setIntroSettled(true), reduceMotion ? 1600 : 2800)
-    return () => window.clearTimeout(timer)
-  }, [introKey, reduceMotion])
+    const dismissTimer = hasLaunchIntro
+      ? window.setTimeout(() => setIntroVisible(false), reduceMotion ? 1700 : 3200)
+      : undefined
+    return () => {
+      window.clearTimeout(timer)
+      if (dismissTimer) {
+        window.clearTimeout(dismissTimer)
+      }
+    }
+  }, [hasLaunchIntro, introKey, reduceMotion])
+
+  useEffect(() => {
+    if (typeof document === 'undefined') return
+    const previousOverflow = document.body.style.overflow
+    if (introVisible) {
+      document.body.style.overflow = 'hidden'
+    }
+    return () => {
+      document.body.style.overflow = previousOverflow
+    }
+  }, [introVisible])
 
   useEffect(() => {
     if (initialTab === 'scan') return
     const timer = window.setTimeout(() => {
-      document.getElementById('command-center')?.scrollIntoView({
+      document.getElementById('active-section-panel')?.scrollIntoView({
         behavior: reduceMotion ? 'auto' : 'smooth',
         block: 'start',
       })
     }, reduceMotion ? 100 : 450)
     return () => window.clearTimeout(timer)
-  }, [initialTab, reduceMotion])
+  }, [initialTab, reduceMotion, section])
 
   useEffect(() => {
     const scrollToHash = () => {
@@ -198,15 +283,14 @@ export function Home({ initialTab = 'scan' }: { initialTab?: 'scan' | 'scanSelf'
     return () => window.removeEventListener('hashchange', scrollToHash)
   }, [reduceMotion])
 
-  const startLiveScan = async (body: ScanRequest, subject: string, kind: ScanInputKind, seed: string) => {
-    const counts = deriveExposureCounts(seed, kind)
+  const startLiveScan = async (body: ScanRequest, subject: string, kind: ScanInputKind) => {
     const startedAt = new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
 
     setLiveScan({
       subject,
       kind,
       mode: 'scanning',
-      counts,
+      counts: DEFAULT_EXPOSURE_COUNTS,
       startedAt,
     })
     setSection('overview')
@@ -216,22 +300,15 @@ export function Home({ initialTab = 'scan' }: { initialTab?: 'scan' | 'scanSelf'
       setLiveScan({
         subject,
         kind,
-        mode: 'resolved',
-        counts,
+        mode: 'scanning',
+        counts: DEFAULT_EXPOSURE_COUNTS,
         startedAt,
         scanId: job.scan_id,
-        saveStatus: 'Full report saved',
+        saveStatus: 'Scan saved to vault',
       })
     } catch (error) {
-      setLiveScan({
-        subject,
-        kind,
-        mode: 'resolved',
-        counts,
-        startedAt,
-        saveStatus: 'Live map resolved. Sign in to save a full report.',
-      })
-      setQueryError(error instanceof Error ? error.message : 'The live map resolved, but the report could not be saved yet.')
+      setLiveScan(null)
+      setQueryError(error instanceof Error ? error.message : 'The scan could not be saved yet.')
     }
   }
 
@@ -245,7 +322,7 @@ export function Home({ initialTab = 'scan' }: { initialTab?: 'scan' | 'scanSelf'
     setQueryError('')
 
     const { body, kind } = parseScanInput(value)
-    await startLiveScan(body, value, kind, value)
+    await startLiveScan(body, value, kind)
   }
 
   const runStructuredScan = async (event: FormEvent) => {
@@ -259,9 +336,8 @@ export function Home({ initialTab = 'scan' }: { initialTab?: 'scan' | 'scanSelf'
 
     const subject = subjectFromScanRequest(body)
     const kind = kindFromScanRequest(body)
-    const seed = seedFromScanRequest(body) || subject
     setQuery(subject)
-    await startLiveScan(body, subject, kind, seed)
+    await startLiveScan(body, subject, kind)
   }
 
   const toggle = (id: string) => {
@@ -341,8 +417,18 @@ export function Home({ initialTab = 'scan' }: { initialTab?: 'scan' | 'scanSelf'
     { id: 'support' as const, label: 'Advocates', icon: LifeBuoy },
   ]
 
+  const replayIntro = () => {
+    setIntroVisible(true)
+    setIntroKey(key => key + 1)
+  }
+
   return (
     <div className="min-h-screen overflow-hidden bg-black text-white">
+      <AnimatePresence>
+        {introVisible && hasLaunchIntro && (
+          <LaunchIntroGate key={`launch-${introKey}`} reduceMotion={Boolean(reduceMotion)} onReplay={replayIntro} />
+        )}
+      </AnimatePresence>
       <section
         id="scan"
         className={clsx(
@@ -364,7 +450,7 @@ export function Home({ initialTab = 'scan' }: { initialTab?: 'scan' | 'scanSelf'
             <p className="text-sm font-bold uppercase tracking-[0.32em] text-red-500">Privacy. Restored.</p>
             <button
               type="button"
-              onClick={() => setIntroKey(key => key + 1)}
+              onClick={replayIntro}
               className="inline-flex items-center gap-2 rounded-full border border-red-500/35 bg-red-950/20 px-3 py-1.5 text-[11px] font-bold uppercase tracking-[0.16em] text-red-200 transition-colors hover:border-red-400 hover:bg-red-900/35"
             >
               <Play className="h-3 w-3" />
@@ -404,7 +490,7 @@ export function Home({ initialTab = 'scan' }: { initialTab?: 'scan' | 'scanSelf'
             {queryError && <p className="mt-2 text-sm text-red-300">{queryError}</p>}
           </form>
 
-          <LiveScanPanel liveScan={liveScan} isPending={isPending} />
+          <LiveScanPanel liveScan={liveScan} isPending={isPending} isAuthenticated={isAuthenticated} />
         </motion.div>
 
         <motion.div
@@ -427,7 +513,14 @@ export function Home({ initialTab = 'scan' }: { initialTab?: 'scan' | 'scanSelf'
       <HeartbeatDivider reverse />
       <DigitalSecondBrainSection liveScan={liveScan} liveCounts={liveCounts} />
       <HeartbeatDivider />
-      <PremiumDashboardPreview liveScan={liveScan} liveCounts={liveCounts} liveTotal={liveTotal} />
+      <PremiumDashboardPreview
+        liveScan={liveScan}
+        liveCounts={liveCounts}
+        liveTotal={liveTotal}
+        statusData={liveStatus}
+        result={liveResult}
+      />
+
 
       <section id="product" className="border-y border-white/10 bg-[#050506]/92">
         <div className="mx-auto grid max-w-7xl gap-4 px-4 py-5 sm:px-6 lg:grid-cols-5 lg:px-8">
@@ -447,7 +540,7 @@ export function Home({ initialTab = 'scan' }: { initialTab?: 'scan' | 'scanSelf'
       </section>
 
       <FullDataMap liveScan={liveScan} />
-      <LiveBrowserResults statusData={liveStatus} result={liveResult} liveScan={liveScan} />
+      <LiveBrowserResults statusData={liveStatus} result={liveResult} liveScan={liveScan} isAuthenticated={isAuthenticated} />
 
       <section id="command-center" className="mx-auto max-w-7xl scroll-mt-24 px-4 py-10 sm:px-6 lg:px-8">
         <div className="mb-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">
@@ -469,6 +562,7 @@ export function Home({ initialTab = 'scan' }: { initialTab?: 'scan' | 'scanSelf'
           ))}
         </div>
 
+        <div id="active-section-panel" className="scroll-mt-24">
         {section === 'overview' && (
           <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="grid gap-5 lg:grid-cols-[1fr_380px]">
             <div className="glass-panel rounded-xl p-6">
@@ -482,19 +576,19 @@ export function Home({ initialTab = 'scan' }: { initialTab?: 'scan' | 'scanSelf'
                 </div>
               </div>
               <div className="mt-6 grid gap-4 sm:grid-cols-3">
-                <DashboardMetric label="Privacy score" value={privacyScore} sub={liveScan ? `${formatScanKind(liveScan.kind)} risk` : 'High risk'} />
-                <DashboardMetric label="Sources found" value={`${liveTotal}`} sub="Across 6 linked groups" />
-                <DashboardMetric label="Compliance score" value={complianceScore} sub="Action required" />
+                <DashboardMetric label="Privacy score" value={privacyScore} sub={liveResult ? `${formatScanKind(liveScan?.kind ?? 'email')} risk` : 'Run a scan to measure'} />
+                <DashboardMetric label="Sources found" value={`${liveTotal}`} sub={liveResult ? 'Across linked evidence groups' : 'Awaiting live evidence'} />
+                <DashboardMetric label="Compliance score" value={complianceScore} sub={liveResult?.compliance ? 'Scored from returned findings' : 'Awaiting live evidence'} />
               </div>
               <div className="mt-6 rounded-xl border border-red-500/25 bg-red-950/15 p-4">
                 <div className="flex items-start gap-3">
                   <AlertTriangle className="mt-1 h-5 w-5 text-red-300" />
                   <div>
-                    <h3 className="font-semibold">Your data is widely exposed</h3>
+                    <h3 className="font-semibold">{liveResult ? 'Returned exposure findings' : 'No exposure score before the scan runs'}</h3>
                     <p className="mt-1 text-sm text-gray-400">
-                      {liveScan
-                        ? `${liveScan.subject} resolved into broker listings, people-search profiles, public records, breach signals, and social-profile traces that can become removal tasks and report evidence.`
-                        : 'Broker listings, people-search profiles, public records, breach data, and social-profile traces are converted into removal tasks and report evidence.'}
+                      {liveResult && liveScan
+                        ? `${liveScan.subject} returned broker listings, people-search profiles, public records, breach signals, and social-profile traces that can become removal tasks and report evidence.`
+                        : 'The dashboard stays neutral until a real scan returns evidence. Once it does, those findings become removal tasks, report inputs, and vault records.'}
                     </p>
                   </div>
                 </div>
@@ -510,9 +604,9 @@ export function Home({ initialTab = 'scan' }: { initialTab?: 'scan' | 'scanSelf'
             </div>
 
             <div className="space-y-4">
-              <SidePanel title="Removal Requests" value={liveScan ? `${liveCounts.brokers}` : `${brokerDone}/${DATA_BROKERS.length}`} body="Submitted through the one-stop broker queue." />
-              <SidePanel title="Broker Coverage" value={liveScan ? `${Math.min(99, 82 + (stableSeed(liveScan.subject) % 16))}%` : '97%'} body="Coverage across people-search, address, background, and public-record sources." />
-              <SidePanel title="Report Pack" value={liveScan?.scanId ? 'Saved' : 'Ready'} body="IC3 summary, state privacy complaint, platform takedown demand, and family notice drafts." />
+              <SidePanel title="Removal Requests" value={liveResult ? `${liveCounts.brokers}` : `${brokerDone}/${DATA_BROKERS.length}`} body={liveResult ? 'Broker listings returned by the scan.' : 'Submitted through the one-stop broker queue.'} />
+              <SidePanel title="Broker Coverage" value={liveResult ? `${liveResult.broker_listings.length} matched` : '--'} body={liveResult ? 'Broker targets actually returned by the current scan.' : 'Measured after broker listings return from a real scan.'} />
+              <SidePanel title="Report Pack" value={liveScan?.scanId ? 'Saved' : 'Awaiting scan'} body="IC3 summary, state privacy complaint, platform takedown demand, and family notice drafts." />
             </div>
           </motion.div>
         )}
@@ -597,17 +691,27 @@ export function Home({ initialTab = 'scan' }: { initialTab?: 'scan' | 'scanSelf'
         )}
 
         {section === 'support' && <SupportCenter />}
+        </div>
       </section>
     </div>
   )
 }
 
-function LiveScanPanel({ liveScan, isPending }: { liveScan: LiveScanPreview | null; isPending: boolean }) {
+function LiveScanPanel({
+  liveScan,
+  isPending,
+  isAuthenticated,
+}: {
+  liveScan: LiveScanPreview | null
+  isPending: boolean
+  isAuthenticated: boolean
+}) {
   const counts = liveScan?.counts ?? DEFAULT_EXPOSURE_COUNTS
+  const hasMeasuredSignals = countExposureSources(counts) > 0
   const status = liveScan
     ? liveScan.mode === 'scanning' || isPending
       ? 'Resolving source links'
-      : liveScan.saveStatus ?? 'Live map resolved'
+      : liveScan.saveStatus ?? 'Scan completed'
     : 'Enter a name, email, phone, or handle to activate the in-house linkage map.'
 
   return (
@@ -630,9 +734,9 @@ function LiveScanPanel({ liveScan, isPending }: { liveScan: LiveScanPreview | nu
 
       <div className="mt-4 grid gap-2 sm:grid-cols-3">
         {[
-          { icon: ShieldCheck, label: liveScan ? liveScan.subject : 'Identity node', detail: liveScan ? `${countExposureSources(counts)} linked sources` : 'Search activates graph' },
-          { icon: Lock, label: 'Private evidence', detail: 'Browser-safe preview' },
-          { icon: Bell, label: 'Removal queue', detail: liveScan?.scanId ? 'Report ready' : 'Prepared after scan' },
+          { icon: ShieldCheck, label: liveScan ? liveScan.subject : 'Identity node', detail: hasMeasuredSignals ? `${countExposureSources(counts)} linked sources` : 'Search activates graph' },
+          { icon: Lock, label: 'Private evidence', detail: 'Browser-visible evidence' },
+          { icon: Bell, label: 'Removal queue', detail: liveScan?.scanId ? 'Ready after evidence returns' : 'Prepared after scan' },
         ].map(({ icon: Icon, label, detail }) => (
           <div key={label} className="rounded-lg border border-white/10 bg-black/40 p-3">
             <Icon className="h-4 w-4 text-red-300" />
@@ -642,33 +746,32 @@ function LiveScanPanel({ liveScan, isPending }: { liveScan: LiveScanPreview | nu
         ))}
       </div>
 
-      <div className="mt-4 rounded-lg border border-red-500/30 bg-red-950/15 p-3">
-        <div className="flex gap-3">
-          <div className="mt-0.5 rounded-full border border-red-500/30 bg-black/45 p-2 text-red-300">
-            <Database className="h-4 w-4" />
-          </div>
-          <div>
-            <div className="text-sm font-bold text-white">Sign in to save the full vault</div>
-            <p className="mt-1 text-xs leading-5 text-gray-400">
-              Live previews stay visible here. A saved vault keeps the exposure map, opt-out queue, evidence receipts, and reports ready when you come back.
-            </p>
-            <Link to="/account" className="mt-2 inline-flex text-xs font-bold text-red-200 transition-colors hover:text-white">
-              Log in to save scans
-            </Link>
-          </div>
-        </div>
-      </div>
+      {!isAuthenticated && (
+        <AuthVaultPrompt
+          compact
+          className="mt-4"
+          title="Seal this live scan into a private vault"
+          body="Live evidence is visible right now. Sign in or create your secure vault to keep the graph, removal queue, receipts, and reports bound to your account instead of disappearing with the session."
+          ctaLabel="Sign in to save scans"
+        />
+      )}
 
       {liveScan && (
         <div className="mt-4 space-y-2">
-          <div className="grid gap-2 sm:grid-cols-2">
-            {LIVE_SOURCE_ROWS.slice(0, 4).map(row => (
-              <div key={row.id} className="flex items-center justify-between gap-3 rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2">
-                <span className="truncate text-xs text-gray-300">{row.label}</span>
-                <span className="font-mono text-sm font-black text-red-300">{counts[row.id]}</span>
-              </div>
-            ))}
-          </div>
+          {hasMeasuredSignals ? (
+            <div className="grid gap-2 sm:grid-cols-2">
+              {LIVE_SOURCE_ROWS.slice(0, 4).map(row => (
+                <div key={row.id} className="flex items-center justify-between gap-3 rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2">
+                  <span className="truncate text-xs text-gray-300">{row.label}</span>
+                  <span className="font-mono text-sm font-black text-red-300">{counts[row.id]}</span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="rounded-lg border border-white/10 bg-white/[0.03] px-3 py-3 text-xs leading-5 text-gray-500">
+              No source-group counts are shown until the backend returns real evidence.
+            </div>
+          )}
           <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
             <span className="text-xs text-gray-500">Started {liveScan.startedAt}. Graph updates before the full report opens.</span>
             {liveScan.scanId && (
@@ -695,9 +798,10 @@ function HeroCommandDeck({
   liveTotal: number
   graphMode: ExposureGraphMode
 }) {
+  const hasMeasuredSignals = liveTotal > 0
   const deckCards = [
-    { title: 'Heartbeat', value: liveScan ? `${Math.max(76, 98 - liveCounts.breach)} BPM` : '88 BPM', detail: 'System pulse locked to privacy events' },
-    { title: 'Protection score', value: liveScan ? `${Math.max(28, 92 - Math.round(liveTotal / 4))}/100` : '41/100', detail: 'Animated risk model recalculating live' },
+    { title: 'Heartbeat', value: hasMeasuredSignals ? `${Math.max(76, 98 - liveCounts.breach)} BPM` : 'Standby', detail: hasMeasuredSignals ? 'System pulse locked to privacy events' : 'Activates after live evidence returns' },
+    { title: 'Protection score', value: hasMeasuredSignals ? `${Math.max(28, 92 - Math.round(liveTotal / 4))}/100` : '--', detail: hasMeasuredSignals ? 'Animated risk model recalculating live' : 'Calculated from returned evidence only' },
     { title: 'Vault', value: liveScan?.scanId ? 'Armed' : 'Standby', detail: 'Evidence cards stack into retained command memory' },
   ]
 
@@ -756,6 +860,7 @@ function LiveResolutionSection({
 }) {
   const subject = liveScan?.subject ?? 'Awaiting live scan'
   const maxCount = Math.max(...LIVE_SOURCE_ROWS.map(row => liveCounts[row.id]), 1)
+  const hasMeasuredSignals = liveTotal > 0
   return (
     <section className="relative overflow-hidden bg-[#040404] py-16">
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_10%,rgba(186,24,27,0.18),transparent_32rem),radial-gradient(circle_at_88%_55%,rgba(212,175,55,0.12),transparent_26rem)]" />
@@ -776,8 +881,8 @@ function LiveResolutionSection({
             </div>
             <div className="premium-panel p-4">
               <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#f5d7a1]">Exposure total</div>
-              <div className="mt-2 text-2xl font-black text-white">{liveTotal}</div>
-              <div className="mt-1 text-xs text-gray-500">linked public, broker, and social signals</div>
+              <div className="mt-2 text-2xl font-black text-white">{hasMeasuredSignals ? liveTotal : '--'}</div>
+              <div className="mt-1 text-xs text-gray-500">{hasMeasuredSignals ? 'linked public, broker, and social signals' : 'Shown after real evidence returns'}</div>
             </div>
           </div>
         </div>
@@ -795,19 +900,19 @@ function LiveResolutionSection({
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: index * 0.08 }}
             >
-              <div className="flex items-center justify-between gap-3">
-                <div className="text-sm font-bold text-[#fff7e8]">{row.label}</div>
-                <div className={clsx('text-sm font-black', count > Math.round(maxCount * 0.6) ? 'text-red-300' : 'text-[#f5d7a1]')}>{count}</div>
-              </div>
-              <p className="mt-3 text-sm leading-6 text-gray-400">{row.detail}</p>
-              <div className="mt-4 h-1.5 overflow-hidden rounded-full bg-white/8">
-                <motion.div
-                  className="h-full rounded-full bg-[linear-gradient(90deg,#7a1117,#ba181b,#d4af37)]"
-                  initial={{ width: '0%' }}
-                  animate={{ width }}
-                  transition={{ duration: 0.9, delay: 0.2 + index * 0.08 }}
-                />
-              </div>
+                <div className="flex items-center justify-between gap-3">
+                  <div className="text-sm font-bold text-[#fff7e8]">{row.label}</div>
+                  <div className={clsx('text-sm font-black', count > Math.round(maxCount * 0.6) ? 'text-red-300' : 'text-[#f5d7a1]')}>{hasMeasuredSignals ? count : '--'}</div>
+                </div>
+                <p className="mt-3 text-sm leading-6 text-gray-400">{row.detail}</p>
+                <div className="mt-4 h-1.5 overflow-hidden rounded-full bg-white/8">
+                  <motion.div
+                    className="h-full rounded-full bg-[linear-gradient(90deg,#7a1117,#ba181b,#d4af37)]"
+                    initial={{ width: '0%' }}
+                    animate={{ width: hasMeasuredSignals ? width : '0%' }}
+                    transition={{ duration: 0.9, delay: 0.2 + index * 0.08 }}
+                  />
+                </div>
             </motion.div>
             )
           })}
@@ -913,12 +1018,81 @@ function PremiumDashboardPreview({
   liveScan,
   liveCounts,
   liveTotal,
+  statusData,
+  result,
 }: {
   liveScan: LiveScanPreview | null
   liveCounts: ExposureCounts
   liveTotal: number
+  statusData?: ScanJob
+  result?: ScanResult
 }) {
   const statusLabel = liveScan?.scanId ? 'Vault engaged' : liveScan ? 'Scan active' : 'Awaiting scan'
+  const hasMeasuredSignals = liveTotal > 0
+  const moduleValues = [
+    {
+      title: 'Exposure monitoring',
+      value: hasMeasuredSignals ? `${liveTotal} linked` : '--',
+      detail: hasMeasuredSignals ? 'Returned evidence groups under watch.' : 'Populates after a real scan returns evidence.',
+      icon: ShieldCheck,
+    },
+    {
+      title: 'Removals completed',
+      value: result ? `${result.broker_listings.filter(item => item.opt_out_status !== 'not_started').length} queued` : '--',
+      detail: result ? 'Broker listings with live removal state.' : 'Requires broker listings from a real scan.',
+      icon: ClipboardCheck,
+    },
+    {
+      title: 'Live alerts',
+      value: result ? `${result.provider_status.filter(item => item.status !== 'completed').length} active` : '--',
+      detail: result ? 'Provider failures, misses, or unresolved evidence lanes.' : 'Starts once provider results are returned.',
+      icon: Bell,
+    },
+    {
+      title: 'Image monitoring',
+      value: '--',
+      detail: 'Turns on when reverse-image evidence is captured and saved.',
+      icon: Upload,
+    },
+    {
+      title: 'Evidence vault',
+      value: result ? `${result.evidence_items.length} items` : '--',
+      detail: result ? 'Explicit evidence currently preserved in this scan.' : 'Waits for returned evidence or manual captures.',
+      icon: Hash,
+    },
+    {
+      title: 'Privacy reports',
+      value: result?.scan_id ? 'Ready' : 'Awaiting scan',
+      detail: result?.scan_id ? 'Report generation is unlocked from the saved scan.' : 'Generated from completed scans only.',
+      icon: Gavel,
+    },
+    {
+      title: 'Live threat feed',
+      value: result ? `${Math.min(4, result.evidence_items.length + result.provider_status.length)} events` : '--',
+      detail: result ? 'Derived from provider status and returned evidence.' : 'Starts once a scan returns live status.',
+      icon: AlertTriangle,
+    },
+  ]
+  const threatFeed = result
+    ? [
+        ...result.provider_status.slice(0, 2).map(item => ({
+          key: `${item.provider}-${item.status}`,
+          label: item.status === 'completed' ? 'Resolved' : item.status === 'failed' ? 'Critical' : 'Watching',
+          event: item.message,
+        })),
+        ...result.evidence_items.slice(0, 2).map(item => ({
+          key: item.id,
+          label: item.risk_level.toUpperCase(),
+          event: `${item.title} | ${item.source_name}`,
+        })),
+      ]
+    : statusData
+      ? [{
+          key: 'scan-stage',
+          label: statusData.status.toUpperCase(),
+          event: statusData.current_stage,
+        }]
+      : []
 
   return (
     <section className="relative overflow-hidden bg-[#050505] py-16">
@@ -937,13 +1111,13 @@ function PremiumDashboardPreview({
           <div className="premium-panel p-4">
             <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#f5d7a1]">Status</div>
             <div className="mt-2 text-2xl font-black text-white">{statusLabel}</div>
-            <div className="mt-1 text-xs text-gray-500">{liveTotal} linked signals under watch</div>
+            <div className="mt-1 text-xs text-gray-500">{hasMeasuredSignals ? `${liveTotal} linked signals under watch` : 'Awaiting real evidence'}</div>
           </div>
         </div>
 
         <div className="grid gap-5 lg:grid-cols-[1.12fr_0.88fr]">
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-            {COMMAND_MODULES.map((module, index) => {
+            {moduleValues.map((module, index) => {
               const Icon = module.icon
               return (
                 <motion.div
@@ -980,15 +1154,19 @@ function PremiumDashboardPreview({
               </div>
 
               <div className="mt-5 space-y-3">
-                {THREAT_FEED.map(item => (
-                  <div key={`${item.time}-${item.event}`} className="vault-stack rounded-xl border border-white/10 bg-black/35 px-4 py-3">
+                {threatFeed.length ? threatFeed.map(item => (
+                  <div key={item.key} className="vault-stack rounded-xl border border-white/10 bg-black/35 px-4 py-3">
                     <div className="flex items-center justify-between gap-4">
-                      <div className="font-mono text-xs text-[#f5d7a1]">{item.time}</div>
-                      <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-red-200">{item.level}</div>
+                      <div className="font-mono text-xs text-[#f5d7a1]">LIVE</div>
+                      <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-red-200">{item.label}</div>
                     </div>
                     <div className="mt-2 text-sm leading-6 text-gray-300">{item.event}</div>
                   </div>
-                ))}
+                )) : (
+                  <div className="vault-stack rounded-xl border border-white/10 bg-black/35 px-4 py-3 text-sm leading-6 text-gray-400">
+                    No live threat events are shown until a real scan or provider status returns.
+                  </div>
+                )}
               </div>
             </div>
 
@@ -996,12 +1174,12 @@ function PremiumDashboardPreview({
               <div className="text-xs font-bold uppercase tracking-[0.18em] text-[#f5d7a1]">Animated risk score</div>
               <div className="mt-4 flex items-end justify-between gap-3">
                 <div>
-                  <div className="text-5xl font-black text-white">{Math.max(22, 92 - Math.round(liveTotal / 4))}</div>
-                  <div className="mt-2 text-sm text-gray-400">Protection score after removals and vault evidence.</div>
+                  <div className="text-5xl font-black text-white">{hasMeasuredSignals ? Math.max(22, 92 - Math.round(liveTotal / 4)) : '--'}</div>
+                  <div className="mt-2 text-sm text-gray-400">{hasMeasuredSignals ? 'Protection score after removals and vault evidence.' : 'Calculated after returned evidence is linked.'}</div>
                 </div>
                 <div className="risk-orbit">
                   <div className="risk-orbit__ring" />
-                  <div className="risk-orbit__core">{liveCounts.breach}</div>
+                  <div className="risk-orbit__core">{hasMeasuredSignals ? liveCounts.breach : '--'}</div>
                 </div>
               </div>
             </div>
@@ -1016,19 +1194,21 @@ function LiveBrowserResults({
   statusData,
   result,
   liveScan,
+  isAuthenticated,
 }: {
   statusData?: ScanJob
   result?: ScanResult
   liveScan: LiveScanPreview | null
+  isAuthenticated: boolean
 }) {
   if (!liveScan) return null
 
-  const progress = Math.max(8, Math.min(100, Math.round(statusData?.progress ?? (result ? 100 : 18))))
+  const progress = Math.max(0, Math.min(100, Math.round(statusData?.progress ?? (result ? 100 : 0))))
   const stage = result
     ? 'Results resolved in browser'
     : statusData?.current_stage ?? liveScan.saveStatus ?? 'Building live exposure map'
   const outputCounts = result ? countsFromScanResult(result) : liveScan.counts
-  const outputTotal = result?.total_exposures ?? countExposureSources(outputCounts)
+  const outputTotal = result ? totalSourcesFromScanResult(result) : countExposureSources(outputCounts)
 
   return (
     <section id="live-results" className="border-y border-white/10 bg-[#050506]">
@@ -1109,7 +1289,7 @@ function LiveBrowserResults({
             </div>
           )}
 
-          <BrowserOutputTable liveScan={liveScan} counts={outputCounts} totalSources={outputTotal} result={result} />
+          <BrowserOutputTable liveScan={liveScan} counts={outputCounts} totalSources={outputTotal} result={result} isAuthenticated={isAuthenticated} />
 
           {result && (
             <div className="mt-6 flex flex-wrap gap-3">
@@ -1165,14 +1345,18 @@ function BrowserOutputTable({
   counts,
   totalSources,
   result,
+  isAuthenticated,
 }: {
   liveScan: LiveScanPreview
   counts: ExposureCounts
   totalSources: number
   result?: ScanResult
+  isAuthenticated: boolean
 }) {
   const [copied, setCopied] = useState(false)
   const rows = buildBrowserOutputRows(liveScan, counts, result)
+  const providerStatus = result?.provider_status ?? []
+  const providerFallback = providerStatus.filter(status => status.fallback_available)
   const copyOutput = async () => {
     await copyText(buildCaseFile(liveScan, counts, totalSources, result))
     setCopied(true)
@@ -1186,7 +1370,7 @@ function BrowserOutputTable({
           <div className="text-xs font-bold uppercase tracking-[0.2em] text-red-300">In-browser output</div>
           <h3 className="mt-1 text-xl font-black text-white">Readable scan results before you leave the page</h3>
           <p className="mt-1 max-w-3xl text-sm leading-6 text-gray-400">
-            This is the live display users should see immediately: source group, finding, severity, and the next action. Login saves the same output to the vault.
+            These rows come from backend evidence resolution: explicit source, captured finding, severity, and the next action. Login saves the same output to the vault.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -1194,29 +1378,124 @@ function BrowserOutputTable({
             <Copy className="h-3.5 w-3.5" />
             {copied ? 'Copied output' : 'Copy output'}
           </button>
-          <Link to="/account" className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-black/55 px-3 py-2 text-xs font-bold text-gray-200 transition-colors hover:border-red-500/45 hover:text-white">
-            <Lock className="h-3.5 w-3.5" />
-            Log in to save
-          </Link>
+          {!isAuthenticated && (
+            <Link to="/account" className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-black/55 px-3 py-2 text-xs font-bold text-gray-200 transition-colors hover:border-red-500/45 hover:text-white">
+              <Lock className="h-3.5 w-3.5" />
+              Sign in / create vault
+            </Link>
+          )}
         </div>
       </div>
+
+      {!!providerStatus.length && (
+        <div className="mt-4 grid gap-3 md:grid-cols-2">
+          {providerStatus.map(status => {
+            const setup = getProviderSetup(status.provider)
+            return (
+            <div
+              key={`${status.provider}-${status.status}`}
+              className={clsx(
+                'rounded-lg border px-4 py-3',
+                status.status === 'completed'
+                  ? 'border-emerald-500/25 bg-emerald-950/15 text-emerald-100/90'
+                  : status.status === 'failed'
+                    ? 'border-red-500/35 bg-red-950/20 text-red-100/90'
+                    : 'border-amber-500/30 bg-amber-950/15 text-amber-100/90'
+              )}
+            >
+              <div className="flex items-center justify-between gap-3">
+                <div className="text-sm font-semibold text-white">{status.label}</div>
+                <div className="text-[10px] font-bold uppercase tracking-[0.16em]">
+                  {status.status.replace(/_/g, ' ')}
+                </div>
+              </div>
+              <p className="mt-2 text-sm leading-6">{status.message}</p>
+              {status.status === 'unavailable' && setup?.requiredSettings.length ? (
+                <div className="mt-3 space-y-3">
+                  <div className="flex flex-wrap gap-2">
+                    {setup.requiredSettings.map(setting => (
+                      <code key={`${status.provider}-${setting}`} className="rounded-md border border-white/10 bg-black/25 px-2.5 py-1 text-[11px] text-white/80">
+                        {setting}
+                      </code>
+                    ))}
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2 text-xs">
+                    <a
+                      href={setup.setupHref}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 rounded-md border border-white/10 bg-black/25 px-2.5 py-1 text-white/85 transition-colors hover:border-red-500/35 hover:text-white"
+                    >
+                      {setup.setupLabel}
+                      <ExternalLink className="h-3.5 w-3.5" />
+                    </a>
+                    {setup.docsHref ? (
+                      <a
+                        href={setup.docsHref}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 rounded-md border border-white/10 bg-black/25 px-2.5 py-1 text-white/70 transition-colors hover:border-white/20 hover:text-white"
+                      >
+                        {setup.docsLabel ?? 'Docs'}
+                        <ExternalLink className="h-3.5 w-3.5" />
+                      </a>
+                    ) : null}
+                  </div>
+                </div>
+              ) : null}
+            </div>
+            )
+          })}
+        </div>
+      )}
+
+      {!!providerFallback.length && result?.scan_id && (
+        <div className="mt-4 rounded-xl border border-[#d4af37]/30 bg-[#d4af37]/10 p-4">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div className="max-w-3xl">
+              <div className="text-xs font-bold uppercase tracking-[0.2em] text-[#f1c96b]">Operator fallback</div>
+              <h4 className="mt-1 text-lg font-black text-white">If the API misses, we still bring the source into the vault</h4>
+              <p className="mt-2 text-sm leading-6 text-gray-300">
+                Vindica now tells you when a provider is unavailable or comes back empty. At that point we can search manually, capture the exact source URL, and attach that evidence to this same scan so it survives in the vault and the report pack.
+              </p>
+            </div>
+            <Link
+              to={`/scan/${result.scan_id}`}
+              className="inline-flex items-center gap-2 rounded-lg border border-[#d4af37]/35 bg-black/50 px-4 py-3 text-sm font-bold text-[#f4d889] transition-colors hover:border-[#d4af37]/55 hover:bg-black/65"
+            >
+              Open evidence capture
+              <ExternalLink className="h-4 w-4" />
+            </Link>
+          </div>
+        </div>
+      )}
 
       <div className="mt-4 overflow-hidden rounded-lg border border-white/10">
         <div className="hidden grid-cols-[1fr_1.35fr_0.65fr_0.8fr] gap-3 border-b border-white/10 bg-black/60 px-3 py-2 text-[10px] font-bold uppercase tracking-[0.16em] text-gray-500 md:grid">
           <span>Source</span>
-          <span>Displayed finding</span>
+          <span>Evidence returned</span>
           <span>Severity</span>
           <span>Action</span>
         </div>
         <div className="divide-y divide-white/10">
-          {rows.map(row => (
-            <div key={`${row.source}-${row.finding}`} className="grid gap-2 bg-black/35 px-3 py-3 text-sm md:grid-cols-[1fr_1.35fr_0.65fr_0.8fr] md:gap-3">
-              <div>
+          {rows.length ? rows.map(row => (
+            <div key={`${row.source}-${row.finding}-${row.capturedAt ?? 'uncaptured'}`} className="grid gap-2 bg-black/35 px-3 py-3 text-sm md:grid-cols-[1fr_1.35fr_0.65fr_0.8fr] md:gap-3">
+              <div className="min-w-0">
                 <div className="md:hidden text-[10px] font-bold uppercase tracking-[0.16em] text-gray-500">Source</div>
-                <div className="font-bold text-white">{row.source}</div>
+                {row.sourceUrl ? (
+                  <a href={row.sourceUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 font-bold text-white hover:text-red-100">
+                    <span className="truncate">{row.source}</span>
+                    <ExternalLink className="h-3.5 w-3.5 shrink-0 text-red-300" />
+                  </a>
+                ) : (
+                  <div className="font-bold text-white">{row.source}</div>
+                )}
+                {row.capturedAt && (
+                  <div className="mt-1 text-[11px] text-gray-500">{new Date(row.capturedAt).toLocaleString()}</div>
+                )}
               </div>
               <div>
-                <div className="md:hidden text-[10px] font-bold uppercase tracking-[0.16em] text-gray-500">Displayed finding</div>
+                <div className="md:hidden text-[10px] font-bold uppercase tracking-[0.16em] text-gray-500">Evidence returned</div>
                 <div className="leading-6 text-gray-300">{row.finding}</div>
               </div>
               <div>
@@ -1228,14 +1507,25 @@ function BrowserOutputTable({
                 <div className="text-xs font-bold text-red-200">{row.action}</div>
               </div>
             </div>
-          ))}
+          )) : (
+            <div className="bg-black/35 px-3 py-4 text-sm leading-6 text-gray-400">
+              {result
+                ? providerFallback.length
+                  ? 'No provider-backed rows were returned yet. Use the operator fallback above to capture the source into this scan anyway.'
+                  : 'No explicit evidence rows were returned for this scan yet.'
+                : 'Waiting for backend evidence rows. As each provider resolves a source, it will appear here with its link and captured details.'}
+            </div>
+          )}
         </div>
       </div>
-
-      {!result && (
-        <div className="mt-3 rounded-lg border border-white/10 bg-black/45 px-3 py-2 text-xs leading-5 text-gray-400">
-          Preview rows are generated in-browser while the backend save/report job requires login. Once authenticated, the full backend result replaces the preview with verified breach, broker, compliance, and sentinel rows.
-        </div>
+      {!isAuthenticated && (
+        <AuthVaultPrompt
+          compact
+          className="mt-4"
+          title="Privacy gets durable once the vault is active"
+          body="These evidence rows are real, but they are only durable once attached to your account. Sign in or create your vault to keep source links, timestamps, reports, and removals private and recoverable."
+          ctaLabel="Activate private vault"
+        />
       )}
     </div>
   )
@@ -1371,9 +1661,10 @@ function OperatorWorkbench({
   result?: ScanResult
 }) {
   const [copiedCase, setCopiedCase] = useState(false)
-  const confidence = operatorConfidence(liveScan?.subject ?? '', liveTotal)
-  const severity = operatorSeverity(liveTotal, liveCounts.breach)
-  const progress = Math.max(0, Math.min(100, Math.round(statusData?.progress ?? (result ? 100 : liveScan ? 34 : 0))))
+  const hasMeasuredSignals = Boolean(result) || liveTotal > 0
+  const confidence = hasMeasuredSignals ? operatorConfidence(liveScan?.subject ?? '', liveTotal) : null
+  const severity = hasMeasuredSignals ? operatorSeverity(liveTotal, liveCounts.breach) : null
+  const progress = Math.max(0, Math.min(100, Math.round(statusData?.progress ?? (result ? 100 : 0))))
   const pipeline = [
     { label: 'Normalize pivots', detail: 'Name, email, phone, handle', activeAt: 1 },
     { label: 'Link identity graph', detail: 'Broker, public-record, social nodes', activeAt: 18 },
@@ -1383,8 +1674,8 @@ function OperatorWorkbench({
   ]
   const intelCards = [
     { label: 'Primary pivot', value: liveScan?.subject ?? 'Awaiting input', detail: liveScan ? formatScanKind(liveScan.kind) : 'Enter an identifier to start' },
-    { label: 'Operator severity', value: severity, detail: `${liveCounts.breach} breach signals / ${liveCounts.brokers} broker targets` },
-    { label: 'Identity confidence', value: liveScan ? `${confidence}%` : 'Standby', detail: 'Estimated from linked source groups' },
+    { label: 'Operator severity', value: severity ?? 'Awaiting result', detail: hasMeasuredSignals ? `${liveCounts.breach} breach signals / ${liveCounts.brokers} broker targets` : 'Set after returned evidence is linked' },
+    { label: 'Identity confidence', value: confidence !== null ? `${confidence}%` : 'Awaiting result', detail: hasMeasuredSignals ? 'Estimated from linked source groups' : 'Requires returned evidence groups' },
     { label: 'Next best action', value: liveScan?.scanId ? 'Open report' : liveScan ? 'Log in to save' : 'Run scan', detail: liveScan?.scanId ? 'Full scan dashboard is ready' : 'Vault saves evidence and removals' },
   ]
 
@@ -1430,7 +1721,7 @@ function OperatorWorkbench({
           <div className="font-mono text-xs font-bold text-red-200">{progress}%</div>
         </div>
         <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/10">
-          <div className="h-full rounded-full bg-red-500 transition-all duration-500" style={{ width: `${Math.max(6, progress)}%` }} />
+          <div className="h-full rounded-full bg-red-500 transition-all duration-500" style={{ width: progress > 0 ? `${Math.max(6, progress)}%` : '0%' }} />
         </div>
         <div className="mt-4 grid gap-3 lg:grid-cols-5">
           {pipeline.map(step => {
@@ -1532,6 +1823,7 @@ function CommandActionResults() {
 function FullDataMap({ liveScan }: { liveScan: LiveScanPreview | null }) {
   const counts = liveScan?.counts ?? DEFAULT_EXPOSURE_COUNTS
   const total = countExposureSources(counts)
+  const hasMeasuredSignals = total > 0
   const mapSignals = [
     { label: 'People search', value: counts.people, icon: UserSearch },
     { label: 'Broker sites', value: counts.brokers, icon: Database },
@@ -1549,9 +1841,9 @@ function FullDataMap({ liveScan }: { liveScan: LiveScanPreview | null }) {
             <p className="text-xs font-bold uppercase tracking-[0.26em] text-red-300">In-house exposure graph</p>
             <h2 className="mt-2 text-3xl font-black text-white">{liveScan ? `${liveScan.subject} Data Map` : 'Full Data Map'}</h2>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-gray-400">
-              {liveScan
+              {hasMeasuredSignals && liveScan
                 ? `Real-time results stay on this page: ${total} linked sources are grouped into broker, breach, public-record, social, and removal pathways.`
-                : 'The map stays on the page: brokers, people-search sites, public records, breach traces, social profiles, and report pathways connect into one command view.'}
+                : 'The map stays on the page. It only populates source counts after a real scan returns evidence.'}
             </p>
           </div>
           <a href="#command-center" className="inline-flex items-center gap-2 rounded-lg border border-red-500/40 bg-red-950/25 px-4 py-3 text-sm font-bold text-red-100 transition-colors hover:border-red-400 hover:bg-red-900/35">
@@ -1584,7 +1876,7 @@ function FullDataMap({ liveScan }: { liveScan: LiveScanPreview | null }) {
                       <div className="text-xs uppercase tracking-[0.14em] text-gray-500">linked source group</div>
                     </div>
                   </div>
-                  <div className="text-3xl font-black text-red-400">{value}</div>
+                  <div className="text-3xl font-black text-red-400">{hasMeasuredSignals ? value : '--'}</div>
                 </div>
               </div>
             ))}
@@ -1667,6 +1959,15 @@ function ScanSelfCenter({
             </label>
           </div>
           <label className="block">
+            <span className="mb-1.5 block text-xs font-bold uppercase tracking-[0.16em] text-gray-500">IP address</span>
+            <input
+              value={scanFields.ip_address}
+              onChange={event => update('ip_address', event.target.value)}
+              placeholder="8.8.8.8 or IPv6"
+              className="input-field font-mono text-xs"
+            />
+          </label>
+          <label className="block">
             <span className="mb-1.5 block text-xs font-bold uppercase tracking-[0.16em] text-gray-500">Username / handle</span>
             <input
               value={scanFields.username}
@@ -1698,7 +1999,7 @@ function ScanSelfCenter({
             <div>
               <div className="text-sm font-bold text-white">Login keeps your results saved</div>
               <p className="mt-1 text-xs leading-5 text-gray-500">
-                Run a preview instantly, then sign in to attach full reports, removals, and evidence receipts to your private vault.
+                Run a live scan instantly, then sign in to attach full reports, removals, and evidence receipts to your private vault.
               </p>
               <Link to="/account" className="mt-2 inline-flex text-xs font-bold text-red-200 transition-colors hover:text-white">
                 Save future scans
@@ -1745,12 +2046,32 @@ function ScanSelfCenter({
   )
 }
 
+type OsintKind = 'username' | 'phone' | 'domain' | 'ip' | 'unsupported'
+
+function detectOsintKind(value: string): OsintKind {
+  const trimmed = value.trim()
+  if (!trimmed) return 'unsupported'
+  if (/^(?:\d{1,3}\.){3}\d{1,3}$/.test(trimmed) || (trimmed.includes(':') && /^[a-f0-9:]+$/i.test(trimmed))) return 'ip'
+  if (/^[+\d\s().-]{7,}$/.test(trimmed)) return 'phone'
+  if (/^(?!.*@)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,}$/i.test(trimmed)) return 'domain'
+  if (!trimmed.includes('@') && !trimmed.includes(' ')) return 'username'
+  return 'unsupported'
+}
+
 function OSINTToolsPanel() {
   const [query, setQuery] = useState('')
   const [copied, setCopied] = useState(false)
   const [savedId, setSavedId] = useState<string | null>(null)
   const [saveError, setSaveError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [lookupError, setLookupError] = useState<string | null>(null)
+  const [activeKind, setActiveKind] = useState<OsintKind>('unsupported')
+  const [usernameResults, setUsernameResults] = useState<UsernamePlatformResult[]>([])
+  const [phoneResult, setPhoneResult] = useState<PhoneLookupResult | null>(null)
+  const [domainResult, setDomainResult] = useState<DomainLookupResult | null>(null)
+  const [domainIntel, setDomainIntel] = useState<DomainIntelResult | null>(null)
+  const [ipResult, setIpResult] = useState<IpLookupResult | null>(null)
   const trimmed = query.trim()
 
   const copyPacket = async () => {
@@ -1758,6 +2079,7 @@ function OSINTToolsPanel() {
     await copyText([
       'VINDICA OSINT LOOKUP PACKET',
       `Lookup term: ${trimmed}`,
+      `Detected mode: ${activeKind}`,
       '',
       ...OSINT_TOOLS.map(tool => `- ${tool.name} (${tool.type}): ${tool.url}`),
       '',
@@ -1765,6 +2087,49 @@ function OSINTToolsPanel() {
     ].join('\n'))
     setCopied(true)
     window.setTimeout(() => setCopied(false), 1400)
+  }
+
+  const runLookup = async () => {
+    if (!trimmed) {
+      setLookupError('Enter a username, phone number, IP, or domain to run in-app OSINT.')
+      return
+    }
+
+    const kind = detectOsintKind(trimmed)
+    setActiveKind(kind)
+    setLookupError(null)
+    setUsernameResults([])
+    setPhoneResult(null)
+    setDomainResult(null)
+    setDomainIntel(null)
+    setIpResult(null)
+
+    if (kind === 'unsupported') {
+      setLookupError('This OSINT workspace now handles username, phone, IP, and domain intel. Use Find Yourself for email or full-name evidence scans.')
+      return
+    }
+
+    setLoading(true)
+    try {
+      if (kind === 'username') {
+        setUsernameResults(await api.lookup.username(trimmed))
+      } else if (kind === 'phone') {
+        setPhoneResult(await api.lookup.phone(trimmed))
+      } else if (kind === 'ip') {
+        setIpResult(await api.lookup.ip(trimmed))
+      } else if (kind === 'domain') {
+        const [rdap, intel] = await Promise.all([
+          api.lookup.domain(trimmed),
+          api.lookup.domainIntel(trimmed),
+        ])
+        setDomainResult(rdap)
+        setDomainIntel(intel)
+      }
+    } catch (error) {
+      setLookupError(error instanceof Error ? error.message : 'Could not run the in-app OSINT lookup.')
+    } finally {
+      setLoading(false)
+    }
   }
 
   const saveLookup = async () => {
@@ -1781,6 +2146,12 @@ function OSINTToolsPanel() {
         status: 'ready',
         payload: {
           query: trimmed,
+          kind: activeKind,
+          username_results: usernameResults,
+          phone_result: phoneResult,
+          ip_result: ipResult,
+          domain_result: domainResult,
+          domain_intel: domainIntel,
           tools: OSINT_TOOLS.map(tool => ({
             name: tool.name,
             type: tool.type,
@@ -1798,6 +2169,17 @@ function OSINTToolsPanel() {
     }
   }
 
+  const hasInAppResult = Boolean(usernameResults.length || phoneResult || ipResult || domainResult || domainIntel)
+  const groupedUsernameResults = usernameResults.reduce<Record<string, UsernamePlatformResult[]>>((groups, item) => {
+    groups[item.category] ||= []
+    groups[item.category].push(item)
+    return groups
+  }, {})
+  const domainSetup = {
+    virustotal: getProviderSetup('virustotal'),
+    shodan: getProviderSetup('shodan'),
+  }
+
   return (
     <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="grid gap-5 lg:grid-cols-[390px_1fr]">
       <aside className="glass-panel rounded-xl p-5">
@@ -1807,15 +2189,19 @@ function OSINTToolsPanel() {
           </div>
           <div>
             <h2 className="font-bold">OSINT Tools</h2>
-            <p className="mt-1 text-xs leading-5 text-gray-500">Username, email breach, phone, IP, and domain lookups in one workflow.</p>
+            <p className="mt-1 text-xs leading-5 text-gray-500">Free in-app username probe, phone parsing, IP context, and domain recon. Use Find Yourself for full evidence scans.</p>
           </div>
         </div>
 
         <label className="mt-4 block">
           <span className="mb-1.5 block text-xs font-bold uppercase tracking-[0.16em] text-gray-500">Lookup term</span>
-          <input value={query} onChange={event => setQuery(event.target.value)} placeholder="email, username, phone, IP, or domain" className="input-field font-mono text-xs" />
+          <input value={query} onChange={event => setQuery(event.target.value)} placeholder="username, phone, IP, or domain" className="input-field font-mono text-xs" />
         </label>
-        <button type="button" onClick={copyPacket} className="red-button-glow mt-3 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-red-600 px-4 py-3 text-sm font-bold text-white">
+        <button type="button" onClick={runLookup} disabled={loading} className="red-button-glow mt-3 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-red-600 px-4 py-3 text-sm font-bold text-white disabled:opacity-70">
+          {loading ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+          Run in-app intel
+        </button>
+        <button type="button" onClick={copyPacket} className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-lg border border-white/10 bg-black/55 px-4 py-3 text-sm font-bold text-gray-200 transition-colors hover:border-red-500/45 hover:text-white">
           <Copy className="h-4 w-4" />
           {copied ? 'Copied lookup packet' : 'Copy lookup packet'}
         </button>
@@ -1826,39 +2212,375 @@ function OSINTToolsPanel() {
         <ActionReceipt id={savedId} error={saveError} />
 
         <div className="mt-4 rounded-lg border border-red-500/25 bg-red-950/10 p-3 text-xs leading-5 text-red-100/80">
-          These links do not run covert tracking. They organize self-search and authorized safety research.
+          This workspace now pulls direct data into the app where we have safe, useful providers. External portals stay secondary.
         </div>
       </aside>
 
-      <section className="glass-panel rounded-xl p-5">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h3 className="font-bold">Tool launcher</h3>
-            <p className="mt-1 text-sm text-gray-500">{trimmed ? `Stage "${trimmed}" across the lookup set.` : 'Enter a term, then open the right lookup path.'}</p>
+      <section className="space-y-5">
+        <div className="glass-panel rounded-xl p-5">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h3 className="font-bold">In-app OSINT workspace</h3>
+              <p className="mt-1 text-sm text-gray-500">
+                {trimmed
+                  ? `Detected mode: ${activeKind.replace(/_/g, ' ')}. Run free in-app reconnaissance first, then use secondary portals only when needed.`
+                  : 'Enter a username, phone, IP, or domain to run the free in-app lanes from the handoff.'}
+              </p>
+            </div>
+            <span className="rounded-full border border-red-500/30 bg-red-950/20 px-3 py-2 text-xs font-bold uppercase tracking-[0.12em] text-red-200">
+              {loading ? 'running' : hasInAppResult ? 'results ready' : 'standby'}
+            </span>
           </div>
-          <span className="rounded-full border border-red-500/30 bg-red-950/20 px-3 py-2 text-xs font-bold uppercase tracking-[0.12em] text-red-200">
-            6 tools
-          </span>
-        </div>
-        <div className="mt-5 grid gap-3 md:grid-cols-2">
-          {OSINT_TOOLS.map(tool => {
-            const href = buildOsintToolHref(tool, trimmed)
-            return (
-              <a key={tool.name} href={href} target="_blank" rel="noopener noreferrer" className="rounded-xl border border-white/10 bg-black/45 p-4 transition-colors hover:border-red-500/50">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <div className="font-semibold text-white">{tool.name}</div>
-                    <div className="mt-1 text-[11px] font-bold uppercase tracking-[0.14em] text-red-300">{tool.type}</div>
+
+          {lookupError && (
+            <div className="mt-4 rounded-xl border border-red-500/35 bg-red-950/25 px-4 py-3 text-sm text-red-100">
+              {lookupError}
+            </div>
+          )}
+
+          {!hasInAppResult && !lookupError && (
+            <div className="mt-4 rounded-xl border border-white/10 bg-black/45 px-4 py-4 text-sm leading-6 text-gray-400">
+              This lane now handles direct <span className="font-semibold text-white">username probes</span>, <span className="font-semibold text-white">phone parsing</span>, <span className="font-semibold text-white">IP enrichment</span>, and <span className="font-semibold text-white">domain intel</span>. Use Find Yourself when the subject is an email or full name and you want source-backed evidence rows.
+            </div>
+          )}
+
+          {activeKind === 'username' && !!usernameResults.length && (
+            <div className="mt-5 space-y-4">
+              <div className="grid gap-3 sm:grid-cols-4">
+                {[
+                  ['Found', usernameResults.filter(item => item.status === 'found').length],
+                  ['Protected', usernameResults.filter(item => item.status === 'protected').length],
+                  ['Not found', usernameResults.filter(item => item.status === 'not_found').length],
+                  ['Errors', usernameResults.filter(item => item.status === 'error').length],
+                ].map(([label, value]) => (
+                  <div key={label} className="rounded-xl border border-white/10 bg-black/45 p-3">
+                    <div className="text-2xl font-black text-red-300">{value}</div>
+                    <div className="mt-1 text-[10px] font-bold uppercase tracking-[0.16em] text-gray-500">{label}</div>
                   </div>
-                  <ExternalLink className="h-4 w-4 shrink-0 text-red-400" />
+                ))}
+              </div>
+              <div className="grid gap-4 lg:grid-cols-2">
+                {Object.entries(groupedUsernameResults).map(([category, items]) => (
+                  <div key={category} className="rounded-xl border border-white/10 bg-black/45 p-4">
+                    <div className="mb-3 text-xs font-bold uppercase tracking-[0.16em] text-red-300">{category}</div>
+                    <div className="space-y-2">
+                      {items.map(item => (
+                        <div key={`${category}-${item.name}`} className="flex items-center justify-between gap-3 rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2">
+                          <div className="min-w-0">
+                            <div className="font-semibold text-white">{item.name}</div>
+                            <div className="truncate text-xs text-gray-500">{item.url}</div>
+                          </div>
+                          <span className={clsx(
+                            'rounded-full border px-2 py-1 text-[10px] font-bold uppercase tracking-[0.14em]',
+                            item.status === 'found'
+                              ? 'border-emerald-500/30 bg-emerald-950/20 text-emerald-200'
+                              : item.status === 'protected'
+                                ? 'border-amber-500/30 bg-amber-950/20 text-amber-200'
+                                : item.status === 'not_found'
+                                  ? 'border-white/10 bg-black/45 text-gray-400'
+                                  : 'border-red-500/30 bg-red-950/20 text-red-200'
+                          )}>
+                            {item.status.replace(/_/g, ' ')}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {activeKind === 'phone' && phoneResult && (
+            <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+              {[
+                ['E.164', phoneResult.e164],
+                ['International', phoneResult.international],
+                ['National', phoneResult.national],
+                ['Country', phoneResult.country || 'Unknown'],
+                ['Carrier', phoneResult.carrier || 'Unknown'],
+                ['Line type', phoneResult.line_type],
+                ['Region', phoneResult.region_code || 'Unknown'],
+                ['Valid', phoneResult.valid ? 'Yes' : 'No'],
+                ['Possible', phoneResult.possible ? 'Yes' : 'No'],
+              ].map(([label, value]) => (
+                <div key={label} className="rounded-xl border border-white/10 bg-black/45 p-4">
+                  <div className="text-[10px] font-bold uppercase tracking-[0.16em] text-gray-500">{label}</div>
+                  <div className="mt-2 text-sm font-semibold text-white">{value}</div>
                 </div>
-                <p className="mt-3 text-sm leading-6 text-gray-500">{tool.note}</p>
-                <div className="mt-3 rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 font-mono text-xs text-gray-400">
-                  {trimmed ? `Open with: ${trimmed}` : `Input: ${tool.query}`}
+              ))}
+              <div className="rounded-xl border border-white/10 bg-black/45 p-4 md:col-span-2 xl:col-span-3">
+                <div className="text-[10px] font-bold uppercase tracking-[0.16em] text-gray-500">Time zones</div>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {phoneResult.timezones.length
+                    ? phoneResult.timezones.map(zone => (
+                        <span key={zone} className="rounded-md border border-white/10 bg-white/[0.03] px-2.5 py-1 text-xs text-gray-200">
+                          {zone}
+                        </span>
+                      ))
+                    : <span className="text-sm text-gray-500">No timezone hints returned.</span>}
                 </div>
+              </div>
+            </div>
+          )}
+
+          {activeKind === 'ip' && ipResult && (
+            <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+              {[
+                ['IP', ipResult.ip],
+                ['Country', ipResult.country || 'Unknown'],
+                ['Continent', ipResult.continent || 'Unknown'],
+                ['ASN', ipResult.asn || 'Unknown'],
+                ['Organization', ipResult.as_name || 'Unknown'],
+                ['Domain', ipResult.as_domain || 'Unknown'],
+              ].map(([label, value]) => (
+                <div key={label} className="rounded-xl border border-white/10 bg-black/45 p-4">
+                  <div className="text-[10px] font-bold uppercase tracking-[0.16em] text-gray-500">{label}</div>
+                  <div className="mt-2 text-sm font-semibold text-white">{value}</div>
+                </div>
+              ))}
+              <a
+                href={ipResult.source_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center justify-center gap-2 rounded-xl border border-red-500/35 bg-red-950/20 px-4 py-3 text-sm font-bold text-red-100 transition-colors hover:border-red-400 hover:bg-red-900/30"
+              >
+                Open {ipResult.source_name}
+                <ExternalLink className="h-4 w-4" />
               </a>
-            )
-          })}
+            </div>
+          )}
+
+          {activeKind === 'domain' && (
+            <div className="mt-5 space-y-4">
+              {domainResult && (
+                <div className="rounded-xl border border-white/10 bg-black/45 p-4">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <div className="text-xs font-bold uppercase tracking-[0.16em] text-red-300">RDAP summary</div>
+                      <div className="mt-1 text-lg font-bold text-white">{domainResult.domain}</div>
+                    </div>
+                    {domainResult.error ? (
+                      <span className="rounded-full border border-red-500/30 bg-red-950/20 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-red-200">lookup failed</span>
+                    ) : null}
+                  </div>
+                  {domainResult.error ? (
+                    <p className="mt-3 text-sm text-red-200">{domainResult.error}</p>
+                  ) : (
+                    <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                      {[
+                        ['Registrar', domainResult.registrar || 'Unknown'],
+                        ['Created', domainResult.created || 'Unknown'],
+                        ['Expires', domainResult.expires || 'Unknown'],
+                        ['Statuses', domainResult.status.join(', ') || 'Unknown'],
+                      ].map(([label, value]) => (
+                        <div key={label} className="rounded-lg border border-white/10 bg-white/[0.03] p-3">
+                          <div className="text-[10px] font-bold uppercase tracking-[0.16em] text-gray-500">{label}</div>
+                          <div className="mt-2 text-sm font-semibold text-white">{value}</div>
+                        </div>
+                      ))}
+                      <div className="rounded-lg border border-white/10 bg-white/[0.03] p-3 md:col-span-2 xl:col-span-4">
+                        <div className="text-[10px] font-bold uppercase tracking-[0.16em] text-gray-500">Name servers</div>
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          {domainResult.nameservers.length
+                            ? domainResult.nameservers.map(name => (
+                                <span key={name} className="rounded-md border border-white/10 bg-black/35 px-2.5 py-1 text-xs text-gray-200">
+                                  {name}
+                                </span>
+                              ))
+                            : <span className="text-sm text-gray-500">No nameservers returned.</span>}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {domainIntel && (
+                <div className="grid gap-4 xl:grid-cols-2">
+                  {domainIntel.virustotal ? (
+                    <div className="rounded-xl border border-white/10 bg-black/45 p-4">
+                      <div className="flex items-center justify-between gap-3">
+                        <div>
+                          <div className="text-xs font-bold uppercase tracking-[0.16em] text-red-300">VirusTotal</div>
+                          <div className="mt-1 font-semibold text-white">Threat analysis</div>
+                        </div>
+                        <span className={clsx(
+                          'rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.14em]',
+                          domainIntel.virustotal.malicious > 0
+                            ? 'border-red-500/30 bg-red-950/20 text-red-200'
+                            : 'border-emerald-500/30 bg-emerald-950/20 text-emerald-200'
+                        )}>
+                          {domainIntel.virustotal.malicious > 0 ? `${domainIntel.virustotal.malicious} malicious` : 'clean'}
+                        </span>
+                      </div>
+                      <div className="mt-4 grid grid-cols-2 gap-3">
+                        {[
+                          ['Malicious', domainIntel.virustotal.malicious],
+                          ['Suspicious', domainIntel.virustotal.suspicious],
+                          ['Harmless', domainIntel.virustotal.harmless],
+                          ['Undetected', domainIntel.virustotal.undetected],
+                        ].map(([label, value]) => (
+                          <div key={label} className="rounded-lg border border-white/10 bg-white/[0.03] p-3 text-center">
+                            <div className="text-2xl font-black text-red-300">{value}</div>
+                            <div className="mt-1 text-[10px] font-bold uppercase tracking-[0.16em] text-gray-500">{label}</div>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="mt-4 flex flex-wrap gap-2">
+                        {Object.values(domainIntel.virustotal.categories).length
+                          ? Object.values(domainIntel.virustotal.categories).map(category => (
+                              <span key={category} className="rounded-md border border-white/10 bg-black/35 px-2.5 py-1 text-xs text-gray-200">
+                                {category}
+                              </span>
+                            ))
+                          : <span className="text-sm text-gray-500">No categories returned.</span>}
+                      </div>
+                    </div>
+                  ) : !domainIntel.available.virustotal && domainSetup.virustotal ? (
+                    <div className="rounded-xl border border-amber-500/30 bg-amber-950/20 p-4 text-amber-100">
+                      <div className="font-semibold text-white">VirusTotal setup still needed</div>
+                      <p className="mt-1 text-sm leading-6 text-amber-100/85">{domainSetup.virustotal.hint}</p>
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {domainSetup.virustotal.requiredSettings.map(setting => (
+                          <code key={setting} className="rounded-md border border-amber-500/25 bg-black/35 px-2.5 py-1 text-xs text-amber-100">
+                            {setting}
+                          </code>
+                        ))}
+                      </div>
+                      <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
+                        <a href={domainSetup.virustotal.setupHref} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 rounded-md border border-amber-500/25 bg-black/35 px-2.5 py-1 text-amber-100 transition-colors hover:border-amber-400/45 hover:text-white">
+                          {domainSetup.virustotal.setupLabel}
+                          <ExternalLink className="h-3.5 w-3.5" />
+                        </a>
+                        {domainSetup.virustotal.docsHref ? (
+                          <a href={domainSetup.virustotal.docsHref} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 rounded-md border border-white/10 bg-black/35 px-2.5 py-1 text-white/75 transition-colors hover:border-white/20 hover:text-white">
+                            {domainSetup.virustotal.docsLabel ?? 'Docs'}
+                            <ExternalLink className="h-3.5 w-3.5" />
+                          </a>
+                        ) : null}
+                      </div>
+                    </div>
+                  ) : null}
+
+                  {domainIntel.shodan ? (
+                    <div className="rounded-xl border border-white/10 bg-black/45 p-4">
+                      <div className="text-xs font-bold uppercase tracking-[0.16em] text-red-300">Shodan</div>
+                      <div className="mt-1 font-semibold text-white">{domainIntel.shodan.ip} · {domainIntel.shodan.country || 'Unknown country'}</div>
+                      <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                        {[
+                          ['Org', domainIntel.shodan.org || 'Unknown'],
+                          ['ISP', domainIntel.shodan.isp || 'Unknown'],
+                          ['OS', domainIntel.shodan.os || 'Unknown'],
+                          ['Ports', domainIntel.shodan.ports.join(', ') || 'None'],
+                        ].map(([label, value]) => (
+                          <div key={label} className="rounded-lg border border-white/10 bg-white/[0.03] p-3">
+                            <div className="text-[10px] font-bold uppercase tracking-[0.16em] text-gray-500">{label}</div>
+                            <div className="mt-2 text-sm font-semibold text-white">{value}</div>
+                          </div>
+                        ))}
+                      </div>
+                      {!!domainIntel.shodan.vulns.length && (
+                        <div className="mt-4 flex flex-wrap gap-2">
+                          {domainIntel.shodan.vulns.map(vuln => (
+                            <span key={vuln} className="rounded-md border border-red-500/25 bg-red-950/20 px-2.5 py-1 text-xs text-red-100">
+                              {vuln}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ) : !domainIntel.available.shodan && domainSetup.shodan ? (
+                    <div className="rounded-xl border border-amber-500/30 bg-amber-950/20 p-4 text-amber-100">
+                      <div className="font-semibold text-white">Shodan setup still needed</div>
+                      <p className="mt-1 text-sm leading-6 text-amber-100/85">{domainSetup.shodan.hint}</p>
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {domainSetup.shodan.requiredSettings.map(setting => (
+                          <code key={setting} className="rounded-md border border-amber-500/25 bg-black/35 px-2.5 py-1 text-xs text-amber-100">
+                            {setting}
+                          </code>
+                        ))}
+                      </div>
+                      <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
+                        <a href={domainSetup.shodan.setupHref} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 rounded-md border border-amber-500/25 bg-black/35 px-2.5 py-1 text-amber-100 transition-colors hover:border-amber-400/45 hover:text-white">
+                          {domainSetup.shodan.setupLabel}
+                          <ExternalLink className="h-3.5 w-3.5" />
+                        </a>
+                        {domainSetup.shodan.docsHref ? (
+                          <a href={domainSetup.shodan.docsHref} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 rounded-md border border-white/10 bg-black/35 px-2.5 py-1 text-white/75 transition-colors hover:border-white/20 hover:text-white">
+                            {domainSetup.shodan.docsLabel ?? 'Docs'}
+                            <ExternalLink className="h-3.5 w-3.5" />
+                          </a>
+                        ) : null}
+                      </div>
+                    </div>
+                  ) : null}
+
+                  <div className="rounded-xl border border-white/10 bg-black/45 p-4 xl:col-span-2">
+                    <div className="text-xs font-bold uppercase tracking-[0.16em] text-red-300">URLScan.io</div>
+                    <div className="mt-1 font-semibold text-white">Recent scans pulled directly into the app</div>
+                    <div className="mt-4 grid gap-3 lg:grid-cols-2">
+                      {domainIntel.urlscan.length ? domainIntel.urlscan.map(scan => (
+                        <div key={`${scan.url}-${scan.scan_date}`} className={clsx(
+                          'rounded-lg border p-3',
+                          scan.malicious ? 'border-red-500/25 bg-red-950/15' : 'border-white/10 bg-white/[0.03]'
+                        )}>
+                          <div className="flex gap-3">
+                            {scan.screenshot ? (
+                              <img src={scan.screenshot} alt="" className="h-12 w-16 rounded border border-white/10 object-cover" />
+                            ) : null}
+                            <div className="min-w-0 flex-1">
+                              <div className="font-semibold text-white">{scan.title || scan.url}</div>
+                              <div className="truncate text-xs text-gray-500">{scan.url}</div>
+                              <div className="mt-1 flex flex-wrap gap-2 text-[10px] uppercase tracking-[0.14em] text-gray-500">
+                                {scan.country ? <span>{scan.country}</span> : null}
+                                {scan.ip ? <span>{scan.ip}</span> : null}
+                                {scan.scan_date ? <span>{scan.scan_date.slice(0, 10)}</span> : null}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )) : (
+                        <div className="text-sm text-gray-500">No recent URLScan entries returned for this domain.</div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        <div className="glass-panel rounded-xl p-5">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h3 className="font-bold">Secondary portals</h3>
+              <p className="mt-1 text-sm text-gray-500">{trimmed ? `Use "${trimmed}" in these only when you need extra corroboration.` : 'These remain useful follow-up portals, not the primary experience.'}</p>
+            </div>
+            <span className="rounded-full border border-red-500/30 bg-red-950/20 px-3 py-2 text-xs font-bold uppercase tracking-[0.12em] text-red-200">
+              {OSINT_TOOLS.length} portals
+            </span>
+          </div>
+          <div className="mt-5 grid gap-3 md:grid-cols-2">
+            {OSINT_TOOLS.map(tool => {
+              const href = buildOsintToolHref(tool, trimmed)
+              return (
+                <a key={tool.name} href={href} target="_blank" rel="noopener noreferrer" className="rounded-xl border border-white/10 bg-black/45 p-4 transition-colors hover:border-red-500/50">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <div className="font-semibold text-white">{tool.name}</div>
+                      <div className="mt-1 text-[11px] font-bold uppercase tracking-[0.14em] text-red-300">{tool.type}</div>
+                    </div>
+                    <ExternalLink className="h-4 w-4 shrink-0 text-red-400" />
+                  </div>
+                  <p className="mt-3 text-sm leading-6 text-gray-500">{tool.note}</p>
+                  <div className="mt-3 rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 font-mono text-xs text-gray-400">
+                    {trimmed ? `Open with: ${trimmed}` : `Input: ${tool.query}`}
+                  </div>
+                </a>
+              )
+            })}
+          </div>
         </div>
       </section>
     </motion.div>
@@ -2107,7 +2829,7 @@ function EmailBlastCenter({
 
       <section className="glass-panel rounded-xl p-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h3 className="font-bold">Generated blast preview</h3>
+          <h3 className="font-bold">Blast packet ready</h3>
           <span className="text-xs font-bold uppercase tracking-[0.16em] text-red-300">{incident.incidentType}</span>
         </div>
         <pre className="mt-4 max-h-[560px] overflow-auto whitespace-pre-wrap rounded-lg border border-white/10 bg-black/60 p-4 font-mono text-xs leading-5 text-gray-300">
@@ -2227,7 +2949,7 @@ function ActorTracker({
         </div>
 
         <div className="glass-panel rounded-xl p-5">
-          <h3 className="font-bold">Generated tracker preview</h3>
+          <h3 className="font-bold">Tracker packet ready</h3>
           <pre className="mt-4 max-h-96 overflow-auto whitespace-pre-wrap rounded-lg border border-white/10 bg-black/60 p-4 font-mono text-xs leading-5 text-gray-300">
             {actorPacket}
           </pre>
@@ -2603,7 +3325,7 @@ function ReportCenter({
         </div>
 
         <div className="glass-panel rounded-xl p-5">
-          <h3 className="font-bold">Generated report preview</h3>
+          <h3 className="font-bold">Authority packet ready</h3>
           <pre className="mt-4 max-h-96 overflow-auto whitespace-pre-wrap rounded-lg border border-white/10 bg-black/60 p-4 font-mono text-xs leading-5 text-gray-300">
             {reportPacket}
           </pre>

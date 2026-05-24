@@ -145,10 +145,10 @@ export const THREAT_FEED = [
 ] as const
 
 export const DEFAULT_EXPOSURE_COUNTS: ExposureCounts = {
-  people: 23,
-  brokers: 47,
-  records: 12,
-  ads: 89,
-  breach: 6,
-  social: 19,
+  people: 0,
+  brokers: 0,
+  records: 0,
+  ads: 0,
+  breach: 0,
+  social: 0,
 }

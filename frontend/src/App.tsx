@@ -5,6 +5,8 @@ import { Home } from '@/pages/Home'
 import { ScanPage } from '@/pages/ScanPage'
 import { Dashboard } from '@/pages/Dashboard'
 import { Account } from '@/pages/Account'
+// @ts-expect-error Phase1Status is a standalone JSX audit artifact.
+import Phase1Status from '@/pages/Phase1Status'
 
 const qc = new QueryClient({
   defaultOptions: {
@@ -38,6 +40,7 @@ export default function App() {
               <Route path="/account" element={<Account />} />
               <Route path="/scan/:scanId" element={<ScanPage />} />
               <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/internal/phase1" element={<Phase1Status />} />
             </Routes>
           </main>
         </div>

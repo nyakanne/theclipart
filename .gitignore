@@ -1,6 +1,9 @@
 # Node
 node_modules/
 dist/
+dist.backup.*/
+*.backup.*/
+*.stale.*/
 .vite/
 
 # Python

@@ -41,6 +41,7 @@ export const DEFAULT_SCAN_FIELDS = {
   full_name: '',
   email: '',
   phone: '',
+  ip_address: '',
   username: '',
   notify_email: '',
 }
@@ -62,7 +63,7 @@ export type HomeSection =
   | 'reports'
   | 'support'
 
-export type ScanInputKind = 'name' | 'email' | 'phone' | 'username'
+export type ScanInputKind = 'name' | 'email' | 'phone' | 'ip' | 'username'
 
 export type ExposureCounts = Record<ExposureCategoryId, number>
 
@@ -77,10 +78,10 @@ export type LiveScanPreview = {
 }
 
 export const DEFAULT_EXPOSURE_COUNTS: ExposureCounts = {
-  people: 23,
-  brokers: 47,
-  records: 12,
-  ads: 89,
-  breach: 6,
-  social: 19,
+  people: 0,
+  brokers: 0,
+  records: 0,
+  ads: 0,
+  breach: 0,
+  social: 0,
 }

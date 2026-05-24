@@ -9,10 +9,11 @@ import { useNavigate } from 'react-router-dom'
 const schema = z.object({
   email:        z.string().email().optional().or(z.literal('')),
   phone:        z.string().regex(/^\+?[\d\s\-()]{7,20}$/).optional().or(z.literal('')),
+  ip_address:   z.string().regex(/^(?:\d{1,3}\.){3}\d{1,3}$|^(?:[a-fA-F0-9:]+)$/).optional().or(z.literal('')),
   username:     z.string().min(2).max(64).optional().or(z.literal('')),
   full_name:    z.string().min(2).max(120).optional().or(z.literal('')),
   notify_email: z.string().email().optional().or(z.literal('')),
-}).refine(d => d.email || d.phone || d.username || d.full_name, {
+}).refine(d => d.email || d.phone || d.ip_address || d.username || d.full_name, {
   message: 'Provide at least one identifier to search',
 })
 
@@ -51,6 +52,14 @@ export function SearchForm() {
             {...register('phone')}
             type="tel"
             placeholder="+1 555 000 0000"
+            className="input-field"
+          />
+        </Field>
+
+        <Field icon={<Search className="h-4 w-4" />} label="IP address" error={errors.ip_address?.message}>
+          <input
+            {...register('ip_address')}
+            placeholder="8.8.8.8"
             className="input-field"
           />
         </Field>

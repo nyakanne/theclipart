@@ -14,9 +14,12 @@ import { useQueryClient } from '@tanstack/react-query'
 import { ExposureGraph } from '@/components/visuals/ExposureGraph'
 import { ExposureLookupPanel } from '@/components/Investigation/ExposureLookupPanel'
 import { ReverseImageSearchPanel } from '@/components/Investigation/ReverseImageSearchPanel'
+import { EvidencePanel } from '@/components/Investigation/EvidencePanel'
+import { totalSourcesFromScanResult } from './home/utils'
 
 const TABS = [
   { id: 'lookup', label: 'Find Yourself', icon: Search },
+  { id: 'evidence', label: 'Evidence', icon: ShieldAlert },
   { id: 'breaches', label: 'Breaches',   icon: Database },
   { id: 'brokers',  label: 'Brokers',    icon: Globe },
   { id: 'images',   label: 'Images',     icon: Camera },
@@ -37,6 +40,7 @@ export function ScanPage() {
   const { data: result } = useScanResult(scanId ?? null)
 
   const isScanning = statusData && statusData.status !== 'completed' && statusData.status !== 'failed'
+  const totalSources = result ? totalSourcesFromScanResult(result) : 0
 
   const refresh = () => {
     qc.invalidateQueries({ queryKey: ['scan-result', scanId] })
@@ -76,8 +80,8 @@ export function ScanPage() {
             />
             <DashboardCard
               label="Total Sources Found"
-              value={`${result.total_exposures}`}
-              sub={`Across ${Math.max(1, result.breaches.length + result.broker_listings.length + result.honey_token_hits.length)} evidence points`}
+              value={`${totalSources}`}
+              sub={`Across ${Math.max(1, result.evidence_items.length || result.breaches.length + result.broker_listings.length + result.honey_token_hits.length)} evidence points`}
               tone="white"
               icon={<Database className="h-8 w-8" />}
               footer={`${result.broker_listings.length} broker listings pending review`}
@@ -93,7 +97,7 @@ export function ScanPage() {
           </Link>
 
           <div className="premium-panel overflow-hidden rounded-[28px]">
-            <ExposureGraph focused totalSources={result.total_exposures} className="min-h-[620px]" />
+            <ExposureGraph focused totalSources={totalSources} className="min-h-[620px]" />
           </div>
 
           <div className="premium-panel rounded-[28px] p-5">
@@ -104,7 +108,7 @@ export function ScanPage() {
               <div>
                 <h2 className="text-xl font-black text-[#fff7e8]">Your data is widely exposed</h2>
                 <p className="mt-1 text-gray-400">
-                  Personal information was found across {result.total_exposures} sources. Use the broker queue, compliance analysis, and regulator pack below to remove and document it.
+                  Personal information was found across {totalSources} sources. Use the broker queue, compliance analysis, and regulator pack below to remove and document it.
                 </p>
               </div>
             </div>
@@ -114,6 +118,7 @@ export function ScanPage() {
             {TABS.map(t => {
               const Icon = t.icon
               const count = t.id === 'breaches' ? result.breaches.length
+                : t.id === 'evidence' ? result.evidence_items.length
                 : t.id === 'brokers' ? result.broker_listings.length
                 : t.id === 'tokens' ? result.honey_token_hits.length
                 : null
@@ -139,12 +144,19 @@ export function ScanPage() {
 
           <div>
             {tab === 'breaches'   && <BreachList breaches={result.breaches} />}
+            {tab === 'evidence'   && (
+              <EvidencePanel
+                items={result.evidence_items}
+                scanId={result.scan_id}
+                providerStatus={result.provider_status}
+              />
+            )}
             {tab === 'brokers'    && <BrokerList listings={result.broker_listings} scanId={result.scan_id} onUpdate={refresh} />}
-            {tab === 'lookup'     && <ExposureLookupPanel />}
+            {tab === 'lookup'     && <ExposureLookupPanel compact scanResult={result} scanJob={statusData} />}
             {tab === 'images'     && <ReverseImageSearchPanel />}
             {tab === 'tokens'     && <HoneyTokenPanel hits={result.honey_token_hits} />}
             {tab === 'compliance' && result.compliance && <CompliancePanel compliance={result.compliance} />}
-            {tab === 'regulator'  && <RegulatorPack scanId={result.scan_id} />}
+            {tab === 'regulator'  && <RegulatorPack scanId={result.scan_id} scanStatus={result.status} />}
           </div>
         </motion.div>
       )}

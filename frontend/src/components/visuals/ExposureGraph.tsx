@@ -10,12 +10,12 @@ import {
 import { clsx } from 'clsx'
 
 const CATEGORIES = [
-  { id: 'people', label: 'People Search', count: 23, x: 19, y: 28, icon: User },
-  { id: 'brokers', label: 'Broker Sites', count: 47, x: 76, y: 24, icon: Building2 },
-  { id: 'records', label: 'Public Records', count: 12, x: 82, y: 46, icon: FileText },
-  { id: 'ads', label: 'Ad Networks', count: 89, x: 78, y: 70, icon: Target },
-  { id: 'breach', label: 'Breach Data', count: 6, x: 52, y: 82, icon: Shield },
-  { id: 'social', label: 'Social Profiles', count: 19, x: 26, y: 72, icon: Users },
+  { id: 'people', label: 'People Search', count: 0, x: 19, y: 28, icon: User },
+  { id: 'brokers', label: 'Broker Sites', count: 0, x: 76, y: 24, icon: Building2 },
+  { id: 'records', label: 'Public Records', count: 0, x: 82, y: 46, icon: FileText },
+  { id: 'ads', label: 'Ad Networks', count: 0, x: 78, y: 70, icon: Target },
+  { id: 'breach', label: 'Breach Data', count: 0, x: 52, y: 82, icon: Shield },
+  { id: 'social', label: 'Social Profiles', count: 0, x: 26, y: 72, icon: Users },
 ] as const
 
 const EDGES = [
@@ -69,7 +69,8 @@ export function ExposureGraph({
       : mode === 'resolved'
         ? 'Matched identity'
         : 'Your Digital Footprint'
-  const privacyScore = mode === 'idle' ? (focused ? '27/100' : '72/100') : `${Math.max(12, 78 - Math.round(displayTotal / 4))}/100`
+  const hasMeasuredSignals = displayTotal > 0
+  const privacyScore = hasMeasuredSignals ? `${Math.max(12, 78 - Math.round(displayTotal / 4))}/100` : '--'
 
   return (
     <div className={clsx('exposure-graph relative min-h-[520px] overflow-hidden', focused && 'is-focused', mode === 'scanning' && 'is-scanning', className)}>
@@ -136,7 +137,7 @@ export function ExposureGraph({
             </span>
             <span>
               <span className="block text-sm font-semibold text-white">{category.label}</span>
-              <span className="text-xs text-gray-400">{category.count} Sources Found</span>
+              <span className="text-xs text-gray-400">{category.count > 0 ? `${category.count} Sources Found` : 'Awaiting evidence'}</span>
             </span>
           </div>
         )
@@ -146,9 +147,9 @@ export function ExposureGraph({
         {[
           ['Privacy Score', privacyScore],
           ['Sources Found', `${displayTotal}`],
-          ['Graph State', mode === 'scanning' ? 'Resolving' : mode === 'resolved' ? 'Linked' : 'Ready'],
-          ['Removal Queue', `${categories.find(category => category.id === 'brokers')?.count ?? 0} brokers`],
-          ['Report Pack', 'IC3 + State'],
+          ['Graph State', mode === 'scanning' ? 'Resolving' : mode === 'resolved' ? 'Linked' : 'Awaiting scan'],
+          ['Removal Queue', hasMeasuredSignals ? `${categories.find(category => category.id === 'brokers')?.count ?? 0} brokers` : 'Awaiting scan'],
+          ['Report Pack', hasMeasuredSignals ? 'Available' : 'Awaiting scan'],
         ].map(([label, value]) => (
           <div key={label} className="border-white/10 px-4 py-3 even:border-l sm:border-l sm:first:border-l-0">
             <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-gray-500">{label}</div>

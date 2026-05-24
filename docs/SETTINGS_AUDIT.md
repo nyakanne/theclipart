@@ -28,14 +28,45 @@ Defined in [backend/app/core/config.py](/Users/anneshirleynyako/Documents/Codex/
 - `AWS_SECRET_ACCESS_KEY`
 - `S3_BUCKET`
 - `KMS_KEY_ID`
+- `REPORT_STORAGE_DIR`
 - `SES_FROM_EMAIL`
 - `PUBLIC_APP_URL`
 - `ALLOW_REAL_OPT_OUTS`
 - `REQUIRE_AUTH`
+- `RUN_SCANS_INLINE`
 - `SUPABASE_JWT_SECRET`
 - `SUPABASE_JWKS_URL`
 - `SUPABASE_JWT_AUDIENCE`
 - `HIBP_API_KEY`
+- `IPINFO_TOKEN`
+- `IPINFO_BASE_URL`
+- `AZURE_COMPUTER_VISION_ENDPOINT`
+- `AZURE_COMPUTER_VISION_KEY`
+- `AZURE_COMPUTER_VISION_API_VERSION`
+- `AZURE_COMPUTER_VISION_VISUAL_FEATURES`
+- `AZURE_COMPUTER_VISION_TIMEOUT_SECONDS`
+- `AZURE_COMPUTER_VISION_MAX_UPLOAD_BYTES`
+- `GOOGLE_CLOUD_VISION_API_KEY`
+- `GOOGLE_CLOUD_VISION_BASE_URL`
+- `GOOGLE_CLOUD_VISION_FEATURES`
+- `GOOGLE_CLOUD_VISION_MAX_RESULTS`
+- `GOOGLE_CLOUD_VISION_TIMEOUT_SECONDS`
+- `HUGGINGFACE_API_KEY`
+- `HUGGINGFACE_BASE_URL`
+- `HUGGINGFACE_IMAGE_CAPTION_MODEL`
+- `HUGGINGFACE_OBJECT_DETECTION_MODEL`
+- `HUGGINGFACE_IMAGE_CLASSIFICATION_MODEL`
+- `HUGGINGFACE_NSFW_MODEL`
+- `HUGGINGFACE_TIMEOUT_SECONDS`
+- `HUGGINGFACE_MAX_LABELS`
+- `BRAVE_SEARCH_API_KEY`
+- `BRAVE_SEARCH_BASE_URL`
+- `BRAVE_SEARCH_COUNTRY`
+- `BRAVE_SEARCH_SEARCH_LANG`
+- `BRAVE_SEARCH_SAFESEARCH`
+- `BRAVE_SEARCH_TIMEOUT_SECONDS`
+- `BRAVE_SEARCH_MAX_RESULTS`
+- `BRAVE_SEARCH_MAX_BROKER_QUERIES`
 - `HONEY_DOMAIN`
 - `MAILGUN_API_KEY`
 - `MAX_CONCURRENT_PLAYWRIGHT`
@@ -113,19 +144,23 @@ Recommended setting:
 - keep `VITE_PUBLIC_APP_URL`
 - prefer it consistently in production builds
 
-### 4. Backend report generation wait timeout
+### 4. Backend report artifact storage
 
 Current:
 
-- [backend/app/api/v1/scans.py](/Users/anneshirleynyako/Documents/Codex/2026-04-27/https-github-com-nyakanne-theclipart-git/backend/app/api/v1/scans.py): `generate_report.delay(...).get(timeout=120)`
+- [backend/app/core/config.py](/Users/anneshirleynyako/Documents/Codex/2026-04-27/https-github-com-nyakanne-theclipart-git/backend/app/core/config.py): `REPORT_STORAGE_DIR`
+- [backend/app/services/report_service.py](/Users/anneshirleynyako/Documents/Codex/2026-04-27/https-github-com-nyakanne-theclipart-git/backend/app/services/report_service.py): local fallback writes report artifacts under the configured storage root when S3 is unavailable
 
 Why it should be configurable:
 
-- report generation time may vary by environment and workload
+- local dev, staging, and constrained environments may not always have working S3/KMS access
+- fallback storage location should be explicit instead of hidden in code
+- retention and disk-space expectations are operational concerns
 
 Recommended setting:
 
-- `REPORT_TASK_TIMEOUT_SECONDS`
+- keep `REPORT_STORAGE_DIR`
+- if retention becomes important, add `REPORT_ARTIFACT_TTL_DAYS`
 
 ### 5. External HTTP timeouts
 
@@ -145,8 +180,76 @@ Recommended settings:
 - `EXTERNAL_HTTP_TIMEOUT_SECONDS`
 - or separate:
   - `HIBP_TIMEOUT_SECONDS`
+  - `IPINFO_TIMEOUT_SECONDS`
   - `SUPABASE_JWKS_TIMEOUT_SECONDS`
   - `MAILGUN_TIMEOUT_SECONDS`
+
+### 8. External OSINT / enrichment provider credentials
+
+Current:
+
+- provider access for enrichments like IP geolocation and Brave-backed source-link evidence is formalized in backend config and service adapters, but rollout still depends on live credentials and tuning per environment
+
+Why it should be configurable:
+
+- third-party lookup providers use secrets, quotas, and pricing
+- the frontend should never carry those tokens directly
+- provider choice may change without changing product presentation
+
+Recommended settings:
+
+- `IPINFO_TOKEN`
+- `IPINFO_BASE_URL`
+- `BRAVE_SEARCH_API_KEY`
+- `BRAVE_SEARCH_BASE_URL`
+- `BRAVE_SEARCH_COUNTRY`
+- `BRAVE_SEARCH_SEARCH_LANG`
+- `BRAVE_SEARCH_SAFESEARCH`
+- `BRAVE_SEARCH_TIMEOUT_SECONDS`
+- `BRAVE_SEARCH_MAX_RESULTS`
+- `BRAVE_SEARCH_MAX_BROKER_QUERIES`
+- `GOOGLE_CLOUD_VISION_API_KEY`
+- `GOOGLE_CLOUD_VISION_BASE_URL`
+- `GOOGLE_CLOUD_VISION_FEATURES`
+- `GOOGLE_CLOUD_VISION_MAX_RESULTS`
+- `GOOGLE_CLOUD_VISION_TIMEOUT_SECONDS`
+- `HUGGINGFACE_API_KEY`
+- `HUGGINGFACE_BASE_URL`
+- `HUGGINGFACE_IMAGE_CAPTION_MODEL`
+- `HUGGINGFACE_OBJECT_DETECTION_MODEL`
+- `HUGGINGFACE_IMAGE_CLASSIFICATION_MODEL`
+- `HUGGINGFACE_NSFW_MODEL`
+- `HUGGINGFACE_TIMEOUT_SECONDS`
+- `HUGGINGFACE_MAX_LABELS`
+- next provider wave:
+  - `HIBP_API_KEY`
+  - `HIBP_TIMEOUT_SECONDS`
+  - `TELESIGN_CUSTOMER_ID`
+  - `TELESIGN_API_KEY`
+  - `TELESIGN_TIMEOUT_SECONDS`
+  - `PDL_API_KEY`
+  - `PDL_TIMEOUT_SECONDS`
+
+### 9. Provider-source presentation rules
+
+Current:
+
+- evidence rendering rules still live in code across:
+  - [backend/app/services/evidence_service.py](/Users/anneshirleynyako/Documents/Codex/2026-04-27/https-github-com-nyakanne-theclipart-git/backend/app/services/evidence_service.py)
+  - [frontend/src/components/Investigation/EvidencePanel.tsx](/Users/anneshirleynyako/Documents/Codex/2026-04-27/https-github-com-nyakanne-theclipart-git/frontend/src/components/Investigation/EvidencePanel.tsx)
+  - [frontend/src/components/Investigation/ExposureLookupPanel.tsx](/Users/anneshirleynyako/Documents/Codex/2026-04-27/https-github-com-nyakanne-theclipart-git/frontend/src/components/Investigation/ExposureLookupPanel.tsx)
+
+Why it should stay mostly in code:
+
+- these rules define how explicit evidence rows are normalized and presented
+- they are product behavior, not deploy-time environment differences
+- the important thing is to keep them shared and typed, not to turn them into env vars
+
+Recommended shape:
+
+- keep provider credentials in settings
+- keep evidence normalization and “source link / action label / confidence / captured time” rules in shared backend/frontend code
+- keep manual evidence capture fields in typed request models and persistent scan/vault storage, not env vars
 
 ### 6. Playwright worker timing defaults
 

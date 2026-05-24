@@ -19,6 +19,8 @@ async def list_actions(
     stmt = select(CommandAction).order_by(CommandAction.created_at.desc()).limit(100)
     if user_id is not None:
         stmt = stmt.where(CommandAction.user_id == user_id)
+    else:
+        stmt = stmt.where(CommandAction.user_id.is_(None))
     if feature:
         stmt = stmt.where(CommandAction.feature == feature)
     result = await db.execute(stmt)
@@ -40,6 +42,7 @@ async def create_action(
     )
     db.add(action)
     await db.flush()
+    await db.commit()
     await db.refresh(action)
     return action
 
@@ -55,6 +58,8 @@ async def update_action(
     action = result.scalar_one_or_none()
     if not action:
         raise HTTPException(404, 'Command action not found')
+    if action.user_id is not None and user_id is None:
+        raise HTTPException(404, 'Command action not found')
     if user_id is not None and action.user_id != user_id:
         raise HTTPException(404, 'Command action not found')
     if body.status is not None:
@@ -62,5 +67,6 @@ async def update_action(
     if body.payload is not None:
         action.payload = body.payload
     await db.flush()
+    await db.commit()
     await db.refresh(action)
     return action

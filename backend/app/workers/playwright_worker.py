@@ -8,14 +8,18 @@ import logging
 import time
 from pathlib import Path
 from datetime import datetime, timezone
-from typing import Any
+from typing import Any, Callable
 
 from playwright.sync_api import sync_playwright, Browser, Page, TimeoutError as PWTimeout
 
 log = logging.getLogger(__name__)
 
-DEFAULT_TIMEOUT = 15_000
+GOTO_TIMEOUT_MS = 7_000
+POST_GOTO_WAIT_MS = 750
+RESULT_TIMEOUT_MS = 1_500
+INTER_BROKER_DELAY_SECONDS = 0.25
 VIEWPORT = {'width': 1280, 'height': 900}
+BrokerProgressCallback = Callable[[int, int, dict], None]
 
 
 def _load_brokers(path: str) -> list[dict]:
@@ -86,12 +90,12 @@ def _scrape_broker(page: Page, broker: dict, query: dict) -> dict | None:
 
     url = broker['search_url'].format(query=q.replace(' ', '+'))
     try:
-        page.goto(url, timeout=DEFAULT_TIMEOUT, wait_until='domcontentloaded')
-        page.wait_for_timeout(2000)
+        page.goto(url, timeout=GOTO_TIMEOUT_MS, wait_until='domcontentloaded')
+        page.wait_for_timeout(POST_GOTO_WAIT_MS)
 
         selector = broker.get('result_selector', '.result')
         try:
-            page.wait_for_selector(selector, timeout=5000)
+            page.wait_for_selector(selector, timeout=RESULT_TIMEOUT_MS)
             found = True
         except PWTimeout:
             found = False
@@ -115,7 +119,11 @@ def _scrape_broker(page: Page, broker: dict, query: dict) -> dict | None:
         return None
 
 
-def scan_all_brokers(query: dict, broker_list_path: str) -> list[dict]:
+def scan_all_brokers(
+    query: dict,
+    broker_list_path: str,
+    on_progress: BrokerProgressCallback | None = None,
+) -> list[dict]:
     brokers = _load_brokers(broker_list_path)
     results: list[dict] = []
 
@@ -141,13 +149,16 @@ def scan_all_brokers(query: dict, broker_list_path: str) -> list[dict]:
         )
         page = context.new_page()
 
-        for broker in brokers:
+        total_brokers = len(brokers)
+        for index, broker in enumerate(brokers, start=1):
             try:
+                if on_progress:
+                    on_progress(index, total_brokers, broker)
                 listing = _scrape_broker(page, broker, query)
                 if listing:
                     results.append(listing)
                     log.info('Found listing on %s', broker['name'])
-                time.sleep(1.5)
+                time.sleep(INTER_BROKER_DELAY_SECONDS)
             except Exception as e:
                 log.warning('Broker %s failed: %s', broker.get('name', '?'), e)
 

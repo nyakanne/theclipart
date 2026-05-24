@@ -1,6 +1,8 @@
-import { FormEvent, useEffect, useState } from 'react'
+import { FormEvent, useState } from 'react'
 import { CheckCircle2, Database, FileText, ListChecks, LogOut, Mail, ShieldAlert, Lock, Bell } from 'lucide-react'
-import { supabase, getSupabaseSession } from '@/services/supabase'
+import { supabase } from '@/services/supabase'
+import { AuthVaultPrompt } from '@/components/auth/AuthVaultPrompt'
+import { useAuthSession } from '@/hooks/useAuthSession'
 
 const VAULT_ITEMS = [
   { icon: Database, title: 'Saved scans', detail: 'Keep exposure maps and source links tied to your account.' },
@@ -22,24 +24,9 @@ function authRedirectUrl() {
 
 export function Account() {
   const [email, setEmail] = useState('')
-  const [sessionEmail, setSessionEmail] = useState<string | null>(null)
   const [message, setMessage] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
-
-  useEffect(() => {
-    let mounted = true
-    void getSupabaseSession().then(session => {
-      if (mounted) setSessionEmail(session?.user.email ?? null)
-    })
-
-    const subscription = supabase?.auth.onAuthStateChange((_event, session) => {
-      setSessionEmail(session?.user.email ?? null)
-    })
-    return () => {
-      mounted = false
-      subscription?.data.subscription.unsubscribe()
-    }
-  }, [])
+  const { isConfigured, sessionEmail } = useAuthSession()
 
   const signIn = async (event: FormEvent) => {
     event.preventDefault()
@@ -64,7 +51,6 @@ export function Account() {
 
   const signOut = async () => {
     await supabase?.auth.signOut()
-    setSessionEmail(null)
   }
 
   return (
@@ -112,7 +98,7 @@ export function Account() {
             </div>
           </div>
 
-          {!supabase && (
+          {!isConfigured && (
             <div className="mt-6 rounded-xl border border-red-500/30 bg-red-950/15 p-4 text-sm leading-6 text-red-100/85">
               Supabase is not configured in this frontend build. Set `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` before hosting.
             </div>
@@ -138,6 +124,12 @@ export function Account() {
             </div>
           ) : (
             <form onSubmit={signIn} className="mt-6 max-w-2xl space-y-4">
+              <AuthVaultPrompt
+                compact
+                title="Create private vault access before you leave the page"
+                body="One secure magic link signs you in or creates your private vault. After that, scans, removals, reports, and evidence history stay account-scoped instead of evaporating with the browser session."
+                ctaLabel="Create vault access"
+              />
               <p className="text-sm leading-6 text-gray-400">
                 Use a secure email link before scanning when you want the exposure graph, removals, reports, and evidence history saved for later.
               </p>
@@ -149,17 +141,17 @@ export function Account() {
                   onChange={event => setEmail(event.target.value)}
                   placeholder="you@example.com"
                   required
-                  disabled={!supabase}
+                  disabled={!isConfigured}
                   className="input-field"
                 />
               </label>
               <button
                 type="submit"
-                disabled={!supabase || loading}
+                disabled={!isConfigured || loading}
                 className="red-button-glow inline-flex w-full items-center justify-center gap-2 rounded-xl bg-red-600 px-4 py-3 font-bold text-white disabled:opacity-50"
               >
                 <Mail className="h-4 w-4" />
-                {loading ? 'Sending link...' : 'Send secure sign-in link'}
+                {loading ? 'Sending link...' : 'Send secure sign-in / vault link'}
               </button>
             </form>
           )}

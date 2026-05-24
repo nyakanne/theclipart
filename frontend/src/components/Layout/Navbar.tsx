@@ -1,6 +1,7 @@
 import { Link, useLocation } from 'react-router-dom'
 import { ArrowRight, ChevronDown, ShieldAlert } from 'lucide-react'
 import { clsx } from 'clsx'
+import { useAuthSession } from '@/hooks/useAuthSession'
 
 const navItems = [
   { label: 'Command Center', href: '/#command-center' },
@@ -13,8 +14,13 @@ const navItems = [
   { label: 'Dashboard', href: '/dashboard' },
 ]
 
+const visibleNavItems = import.meta.env.DEV
+  ? [...navItems, { label: 'Phase 1', href: '/internal/phase1' }]
+  : navItems
+
 export function Navbar() {
   const { pathname } = useLocation()
+  const { isAuthenticated } = useAuthSession()
 
   return (
     <nav className="sticky top-0 z-40 border-b border-[#d4af37]/12 bg-black/88 backdrop-blur-xl">
@@ -32,7 +38,7 @@ export function Navbar() {
           </Link>
 
           <div className="hidden items-center gap-5 xl:gap-8 lg:flex">
-            {navItems.map(({ label, href, hasMenu }) => (
+            {visibleNavItems.map(({ label, href, hasMenu }) => (
               <Link
                 key={href}
                 to={href}
@@ -50,8 +56,24 @@ export function Navbar() {
           </div>
 
           <div className="flex items-center gap-4">
-            <Link to="/account" className="inline-flex text-xs font-semibold text-gray-300 transition-colors hover:text-white sm:text-sm">
-              Log in to save
+            <Link
+              to="/account"
+              className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-black/40 px-3 py-2 text-xs font-semibold text-gray-300 transition-colors hover:border-red-500/40 hover:text-white sm:text-sm"
+            >
+              {isAuthenticated ? (
+                <>
+                  <span className="h-2 w-2 rounded-full bg-emerald-400" />
+                  Vault active
+                </>
+              ) : (
+                <>
+                  <span className="relative flex h-2.5 w-2.5">
+                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-400/75" />
+                    <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-red-400" />
+                  </span>
+                  Sign in / create vault
+                </>
+              )}
             </Link>
             <Link
               to="/#scan"

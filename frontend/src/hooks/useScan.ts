@@ -50,7 +50,12 @@ export function useScanResult(scanId: string | null) {
   const query = useQuery<ScanResult>({
     queryKey: ['scan-result', scanId],
     queryFn: () => api.scan.result(scanId!),
-    enabled: !!scanId && statusData?.status === 'completed',
+    enabled: !!scanId && !!statusData && statusData.status !== 'queued',
+    refetchInterval: q => {
+      const status = statusData?.status ?? q.state.data?.status
+      if (!status || status === 'completed' || status === 'failed') return false
+      return POLL_INTERVAL
+    },
   })
 
   useEffect(() => {

@@ -1,9 +1,9 @@
-import { useState } from 'react'
-import { FileText, Download, Gavel, Send, ShieldAlert } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { FileText, Download, Gavel, Send, ShieldAlert, Loader2 } from 'lucide-react'
 import { Card, CardHeader, CardBody } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { api } from '@/services/api'
-import type { ReportPackage } from '@/types'
+import type { ReportJob, ScanStatus } from '@/types'
 
 const REGULATORS = [
   { id: 'ic3', name: 'FBI IC3 Cybercrime Report', url: 'https://www.ic3.gov/' },
@@ -14,19 +14,39 @@ const REGULATORS = [
   { id: 'takeitdown', name: 'NCMEC Take It Down', url: 'https://takeitdown.ncmec.org/' },
 ]
 
-export function RegulatorPack({ scanId }: { scanId: string }) {
-  const [pkg, setPkg] = useState<ReportPackage | null>(null)
+export function RegulatorPack({ scanId, scanStatus }: { scanId: string; scanStatus: ScanStatus }) {
+  const [job, setJob] = useState<ReportJob | null>(null)
   const [generating, setGenerating] = useState<'pdf' | 'json' | 'csv' | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const canGenerate = scanStatus === 'completed'
 
   const generate = async (fmt: 'pdf' | 'json' | 'csv') => {
     setGenerating(fmt)
+    setError(null)
     try {
-      const p = await api.report.generate(scanId, fmt)
-      setPkg(p)
+      const nextJob = await api.report.generate(scanId, fmt)
+      setJob(nextJob)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Report generation failed')
     } finally {
       setGenerating(null)
     }
   }
+
+  useEffect(() => {
+    if (!job || job.status === 'completed' || job.status === 'failed') return
+
+    const timer = window.setInterval(async () => {
+      try {
+        const nextJob = await api.report.status(scanId, job.action_id)
+        setJob(nextJob)
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Could not refresh report status')
+      }
+    }, 2500)
+
+    return () => window.clearInterval(timer)
+  }, [job, scanId])
 
   return (
     <Card className="rounded-xl">
@@ -46,6 +66,7 @@ export function RegulatorPack({ scanId }: { scanId: string }) {
               key={fmt}
               size="sm"
               variant="secondary"
+              disabled={!canGenerate}
               loading={generating === fmt}
               icon={<FileText className="h-4 w-4" />}
               onClick={() => generate(fmt)}
@@ -55,17 +76,45 @@ export function RegulatorPack({ scanId }: { scanId: string }) {
           ))}
         </div>
 
-        {pkg && (
+        {!canGenerate && (
+          <div className="rounded-lg border border-amber-500/25 bg-amber-950/15 p-4 text-sm text-amber-100">
+            Finish the scan before generating a regulator packet so the report includes the final evidence set.
+          </div>
+        )}
+
+        {job && (
           <div className="rounded-lg border border-gray-800 bg-gray-900 p-4 space-y-2">
             <div className="flex items-center justify-between">
-              <span className="text-sm font-medium text-gray-300">Package ready</span>
-              <a href={pkg.download_url} download>
-                <Button size="sm" icon={<Download className="h-4 w-4" />}>Download</Button>
-              </a>
+              <span className="text-sm font-medium text-gray-300">
+                {job.status === 'completed' ? 'Package ready' : job.status === 'failed' ? 'Package failed' : 'Generating package'}
+              </span>
+              {job.status === 'completed' && job.download_url ? (
+                <a href={job.download_url} download>
+                  <Button size="sm" icon={<Download className="h-4 w-4" />}>Download</Button>
+                </a>
+              ) : (
+                <div className="inline-flex items-center gap-2 rounded-lg border border-red-500/25 bg-red-950/15 px-3 py-2 text-xs font-bold text-red-100">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  {job.status}
+                </div>
+              )}
             </div>
-            <p className="text-xs text-gray-500">
-              Generated {new Date(pkg.generated_at).toLocaleString()} · Expires {new Date(pkg.expires_at).toLocaleString()}
-            </p>
+            {job.generated_at && job.expires_at ? (
+              <p className="text-xs text-gray-500">
+                Generated {new Date(job.generated_at).toLocaleString()} · Expires {new Date(job.expires_at).toLocaleString()}
+              </p>
+            ) : (
+              <p className="text-xs text-gray-500">
+                Vindica is assembling the regulator-ready packet in the background and will attach the download as soon as it finishes.
+              </p>
+            )}
+            {job.error && <p className="text-xs text-red-300">{job.error}</p>}
+          </div>
+        )}
+
+        {error && (
+          <div className="rounded-lg border border-red-500/25 bg-red-950/15 p-4 text-sm text-red-100">
+            {error}
           </div>
         )}
 
