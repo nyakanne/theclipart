@@ -96,6 +96,69 @@ export const OSINT_TOOLS = [
   { name: 'IPinfo', type: 'IP geolocation', url: 'https://ipinfo.io/', query: 'IP address', note: 'Rough IP ownership and network context for evidence notes.' },
 ] as const
 
+export const OSINT_SKILL_PLAYBOOKS = [
+  {
+    id: 'authorized-personal-exposure',
+    title: 'Personal Exposure Triage',
+    mode: 'Defensive OSINT',
+    summary: 'Use when the subject is yourself, a client, or a person who explicitly authorized the check.',
+    inputs: ['Name or handle', 'Known emails', 'Known phone numbers', 'Known domains', 'Incident notes'],
+    steps: [
+      'Run Find Yourself for email or full-name evidence rows.',
+      'Run this OSINT panel for usernames, phones, IPs, and domains.',
+      'Save each result packet to the vault before opening secondary portals.',
+      'Corroborate sensitive claims with screenshots, timestamps, and source URLs.',
+      'Move broker findings into removal or DSAR queues.',
+    ],
+    commands: [
+      'Find Yourself -> full evidence scan',
+      'OSINT Tools -> username / phone / IP / domain intel',
+      'Evidence Vault -> save packet',
+    ],
+    caution: 'Do not infer identity from one signal. Require two or more corroborating sources before escalation.',
+  },
+  {
+    id: 'domain-risk-recon',
+    title: 'Domain Risk Recon',
+    mode: 'Passive recon',
+    summary: 'Use for domains you own, manage, or are authorized to investigate during safety response.',
+    inputs: ['Domain', 'Known subdomains', 'Reported URL', 'Incident screenshot'],
+    steps: [
+      'Run RDAP plus domain intel in-app.',
+      'Review URLScan screenshots and VirusTotal scores before visiting suspicious pages.',
+      'Use Shodan only as host context, not as permission to probe services.',
+      'Document registrars, nameservers, recent scans, CVEs, and open ports.',
+      'Escalate suspicious infrastructure into an authority or platform report packet.',
+    ],
+    commands: [
+      'OSINT Tools -> example.com',
+      'Copy lookup packet',
+      'Save OSINT results',
+    ],
+    caution: 'Keep this passive unless you own the target. No active exploitation from the public app.',
+  },
+  {
+    id: 'shannon-local-audit',
+    title: 'Shannon Local Audit Prep',
+    mode: 'Local / staging pentest prep',
+    summary: 'A safe in-app checklist adapted from the Shannon skill, without launching exploits from Vindica.',
+    inputs: ['Local or staging URL', 'Source repo path', 'Written authorization', 'Scope boundaries'],
+    steps: [
+      'Confirm authorization and non-production scope.',
+      'Prepare source code in a local Shannon workspace.',
+      'Translate localhost targets to host.docker.internal for Docker-based tools.',
+      'Set provider credentials outside Vindica, never in browser storage.',
+      'Run Shannon manually from a terminal only after explicit approval.',
+    ],
+    commands: [
+      'cd ~/shannon',
+      './shannon start URL=http://host.docker.internal:3000 REPO=vindica WORKSPACE=local-audit',
+      './shannon workspaces',
+    ],
+    caution: 'Shannon executes real attacks. Use only on systems you own or have written authorization to test.',
+  },
+] as const
+
 export const EMAIL_BLAST_RECIPIENTS = [
   'Broker privacy teams',
   'Platform safety teams',

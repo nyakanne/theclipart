@@ -46,6 +46,7 @@ import {
   EMAIL_BLAST_RECIPIENTS,
   LEGAL_SIGNALS,
   LIVE_SOURCE_ROWS,
+  OSINT_SKILL_PLAYBOOKS,
   OSINT_TOOLS,
   PLATFORM_REPORTS,
   PRIORITY_STYLES,
@@ -2072,7 +2073,28 @@ function OSINTToolsPanel() {
   const [domainResult, setDomainResult] = useState<DomainLookupResult | null>(null)
   const [domainIntel, setDomainIntel] = useState<DomainIntelResult | null>(null)
   const [ipResult, setIpResult] = useState<IpLookupResult | null>(null)
+  const [activePlaybookId, setActivePlaybookId] = useState<typeof OSINT_SKILL_PLAYBOOKS[number]['id']>(OSINT_SKILL_PLAYBOOKS[0].id)
+  const [playbookCopied, setPlaybookCopied] = useState(false)
   const trimmed = query.trim()
+  const activePlaybook = OSINT_SKILL_PLAYBOOKS.find(playbook => playbook.id === activePlaybookId) ?? OSINT_SKILL_PLAYBOOKS[0]
+
+  const playbookPacket = () => [
+    'VINDICA OSINT SKILL PLAYBOOK',
+    `Playbook: ${activePlaybook.title}`,
+    `Mode: ${activePlaybook.mode}`,
+    `Current lookup: ${trimmed || 'not set'}`,
+    '',
+    'Inputs:',
+    ...activePlaybook.inputs.map(item => `- ${item}`),
+    '',
+    'Steps:',
+    ...activePlaybook.steps.map((step, index) => `${index + 1}. ${step}`),
+    '',
+    'Commands / app actions:',
+    ...activePlaybook.commands.map(command => `- ${command}`),
+    '',
+    `Caution: ${activePlaybook.caution}`,
+  ].join('\n')
 
   const copyPacket = async () => {
     if (!trimmed) return
@@ -2164,6 +2186,36 @@ function OSINTToolsPanel() {
       setSavedId(action.id)
     } catch (error) {
       setSaveError(error instanceof Error ? error.message : 'Could not save OSINT action.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const copyPlaybook = async () => {
+    await copyText(playbookPacket())
+    setPlaybookCopied(true)
+    window.setTimeout(() => setPlaybookCopied(false), 1400)
+  }
+
+  const savePlaybook = async () => {
+    setSaving(true)
+    setSaveError(null)
+    try {
+      const action = await api.command.create({
+        feature: 'osint',
+        title: `OSINT playbook: ${activePlaybook.title}`,
+        status: 'ready',
+        payload: {
+          query: trimmed || null,
+          kind: activeKind,
+          playbook: activePlaybook,
+          source: 'shannon-skill-adapted',
+          safety_note: 'This is a passive/authorized workflow checklist. Vindica does not launch exploit automation from the browser.',
+        },
+      })
+      setSavedId(action.id)
+    } catch (error) {
+      setSaveError(error instanceof Error ? error.message : 'Could not save OSINT playbook.')
     } finally {
       setSaving(false)
     }
@@ -2549,6 +2601,92 @@ function OSINTToolsPanel() {
               )}
             </div>
           )}
+        </div>
+
+        <div className="glass-panel rounded-xl p-5">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h3 className="font-bold">Skill Playbooks</h3>
+              <p className="mt-1 text-sm text-gray-500">Shannon-style OSINT workflow guidance, adapted into safe in-app checklists and saved case packets.</p>
+            </div>
+            <span className="rounded-full border border-red-500/30 bg-red-950/20 px-3 py-2 text-xs font-bold uppercase tracking-[0.12em] text-red-200">
+              workaround
+            </span>
+          </div>
+
+          <div className="mt-5 grid gap-3 lg:grid-cols-3">
+            {OSINT_SKILL_PLAYBOOKS.map(playbook => (
+              <button
+                key={playbook.id}
+                type="button"
+                onClick={() => setActivePlaybookId(playbook.id)}
+                className={clsx(
+                  'rounded-xl border p-4 text-left transition-colors',
+                  playbook.id === activePlaybook.id
+                    ? 'border-red-500/50 bg-red-950/20'
+                    : 'border-white/10 bg-black/45 hover:border-red-500/35'
+                )}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <div className="font-semibold text-white">{playbook.title}</div>
+                    <div className="mt-1 text-[10px] font-bold uppercase tracking-[0.14em] text-red-300">{playbook.mode}</div>
+                  </div>
+                  {playbook.id === activePlaybook.id ? <Check className="h-4 w-4 text-red-300" /> : null}
+                </div>
+                <p className="mt-3 text-sm leading-6 text-gray-500">{playbook.summary}</p>
+              </button>
+            ))}
+          </div>
+
+          <div className="mt-4 grid gap-4 xl:grid-cols-[1fr_320px]">
+            <div className="rounded-xl border border-white/10 bg-black/45 p-4">
+              <div className="text-xs font-bold uppercase tracking-[0.16em] text-red-300">{activePlaybook.title}</div>
+              <ol className="mt-4 space-y-3">
+                {activePlaybook.steps.map((step, index) => (
+                  <li key={step} className="flex gap-3 text-sm leading-6 text-gray-300">
+                    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-red-500/30 bg-red-950/20 text-xs font-black text-red-200">
+                      {index + 1}
+                    </span>
+                    <span>{step}</span>
+                  </li>
+                ))}
+              </ol>
+              <div className="mt-4 rounded-lg border border-amber-500/25 bg-amber-950/15 p-3 text-xs leading-5 text-amber-100/85">
+                {activePlaybook.caution}
+              </div>
+            </div>
+
+            <div className="rounded-xl border border-white/10 bg-black/45 p-4">
+              <div className="text-xs font-bold uppercase tracking-[0.16em] text-gray-500">Inputs</div>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {activePlaybook.inputs.map(input => (
+                  <span key={input} className="rounded-md border border-white/10 bg-white/[0.03] px-2.5 py-1 text-xs text-gray-200">
+                    {input}
+                  </span>
+                ))}
+              </div>
+
+              <div className="mt-5 text-xs font-bold uppercase tracking-[0.16em] text-gray-500">Actions</div>
+              <div className="mt-3 space-y-2">
+                {activePlaybook.commands.map(command => (
+                  <code key={command} className="block rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-xs text-gray-300">
+                    {command}
+                  </code>
+                ))}
+              </div>
+
+              <button type="button" onClick={copyPlaybook} className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-lg border border-white/10 bg-black/55 px-4 py-3 text-sm font-bold text-gray-200 transition-colors hover:border-red-500/45 hover:text-white">
+                <Copy className="h-4 w-4" />
+                {playbookCopied ? 'Copied playbook' : 'Copy playbook'}
+              </button>
+              <button type="button" onClick={savePlaybook} disabled={saving} className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-lg border border-red-500/40 bg-red-950/25 px-4 py-3 text-sm font-bold text-red-100 transition-colors hover:border-red-400 hover:bg-red-900/35 disabled:opacity-70">
+                {saving ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Database className="h-4 w-4" />}
+                Save playbook
+              </button>
+              <ActionReceipt id={savedId} error={saveError} />
+            </div>
+          </div>
         </div>
 
         <div className="glass-panel rounded-xl p-5">
