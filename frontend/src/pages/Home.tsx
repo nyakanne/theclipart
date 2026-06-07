@@ -407,7 +407,7 @@ export function Home({ initialTab = 'scan' }: { initialTab?: 'scan' | 'scanSelf'
     { id: 'scanSelf' as const, label: 'Scan Yourself', icon: ScanLine },
     { id: 'lookup' as const, label: 'Find Yourself', icon: Search },
     { id: 'osint' as const, label: 'OSINT Tools', icon: Network },
-    { id: 'track' as const, label: 'Track Him', icon: Target },
+    { id: 'track' as const, label: 'Authorized Tracker', icon: Target },
     { id: 'removal' as const, label: 'One-Stop Opt Out', icon: ClipboardCheck },
     { id: 'brokers' as const, label: 'Broker DB', icon: Database },
     { id: 'image' as const, label: 'Image Search', icon: Upload },
@@ -3023,7 +3023,7 @@ function ActorTracker({
         <div className="flex items-center gap-3 border-b border-white/10 pb-4">
           <Target className="h-6 w-6 text-red-300" />
           <div>
-            <h2 className="font-bold">Track Him</h2>
+            <h2 className="font-bold">Authorized Tracker</h2>
             <p className="text-xs text-gray-500">Actor evidence, accounts, reports, and safety timeline.</p>
           </div>
         </div>

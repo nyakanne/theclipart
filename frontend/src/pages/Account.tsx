@@ -1,7 +1,10 @@
-import { FormEvent, useState } from 'react'
+import { FormEvent, useEffect, useState } from 'react'
+import { AnimatePresence } from 'framer-motion'
+import { Link, useNavigate } from 'react-router-dom'
 import { CheckCircle2, Database, FileText, ListChecks, LogOut, Mail, ShieldAlert, Lock, Bell } from 'lucide-react'
 import { supabase } from '@/services/supabase'
 import { AuthVaultPrompt } from '@/components/auth/AuthVaultPrompt'
+import { VaultActivationTransition } from '@/components/auth/VaultActivationTransition'
 import { useAuthSession } from '@/hooks/useAuthSession'
 
 const VAULT_ITEMS = [
@@ -26,11 +29,28 @@ export function Account() {
   const [email, setEmail] = useState('')
   const [message, setMessage] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
-  const { isConfigured, sessionEmail } = useAuthSession()
+  const [accepted, setAccepted] = useState(false)
+  const [showActivation, setShowActivation] = useState(false)
+  const { isConfigured, isReady, sessionEmail } = useAuthSession()
+  const navigate = useNavigate()
+
+  useEffect(() => {
+    if (!isReady || !sessionEmail) return
+    const activationKey = `vindica-vault-welcome:${sessionEmail}`
+    if (window.sessionStorage.getItem(activationKey)) return
+
+    window.sessionStorage.setItem(activationKey, 'shown')
+    setShowActivation(true)
+    const timer = window.setTimeout(() => {
+      setShowActivation(false)
+      navigate('/dashboard')
+    }, 4200)
+    return () => window.clearTimeout(timer)
+  }, [isReady, navigate, sessionEmail])
 
   const signIn = async (event: FormEvent) => {
     event.preventDefault()
-    if (!supabase) return
+    if (!supabase || !accepted) return
     setLoading(true)
     setMessage(null)
     try {
@@ -55,6 +75,17 @@ export function Account() {
 
   return (
     <div className="relative overflow-hidden">
+      <AnimatePresence>
+        {showActivation && sessionEmail ? (
+          <VaultActivationTransition
+            email={sessionEmail}
+            onContinue={() => {
+              setShowActivation(false)
+              navigate('/dashboard')
+            }}
+          />
+        ) : null}
+      </AnimatePresence>
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_18%,rgba(186,24,27,0.16),transparent_26rem),radial-gradient(circle_at_84%_14%,rgba(212,175,55,0.11),transparent_20rem)]" />
       <div className="mx-auto max-w-5xl px-4 py-12 sm:px-6 lg:px-8">
         <div className="premium-panel rounded-[28px] p-6 sm:p-8">
@@ -145,9 +176,21 @@ export function Account() {
                   className="input-field"
                 />
               </label>
+              <label className="flex items-start gap-3 border-l-2 border-[#d4af37]/40 bg-[#d4af37]/[0.04] px-4 py-3 text-xs leading-6 text-gray-400">
+                <input
+                  type="checkbox"
+                  checked={accepted}
+                  onChange={event => setAccepted(event.target.checked)}
+                  required
+                  className="mt-1 h-4 w-4 accent-red-600"
+                />
+                <span>
+                  I agree to the <Link to="/terms" className="font-semibold text-white underline decoration-white/25 underline-offset-4">Terms of Use</Link> and acknowledge the <Link to="/privacy" className="font-semibold text-white underline decoration-white/25 underline-offset-4">Privacy Policy</Link>. I will use Vindica only for myself or authorized safety work.
+                </span>
+              </label>
               <button
                 type="submit"
-                disabled={!isConfigured || loading}
+                disabled={!isConfigured || loading || !accepted}
                 className="red-button-glow inline-flex w-full items-center justify-center gap-2 rounded-xl bg-red-600 px-4 py-3 font-bold text-white disabled:opacity-50"
               >
                 <Mail className="h-4 w-4" />
