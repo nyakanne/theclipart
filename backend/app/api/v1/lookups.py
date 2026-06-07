@@ -141,7 +141,7 @@ async def lookup_ip(
         data = await lookup_ipinfo(value)
     except ValueError:
         raise HTTPException(400, 'Invalid IP address')
-    except httpx.HTTPStatusError:
+    except httpx.HTTPError:
         raise HTTPException(502, 'IP enrichment provider request failed.')
 
     if not data:
