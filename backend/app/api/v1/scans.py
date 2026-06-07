@@ -183,7 +183,9 @@ async def get_scan_result(
         if scan.provider_status_enc
         else []
     )
-    if not provider_evidence and not provider_status:
+    # Older completed scans may predate persisted provider evidence. Do not
+    # re-run external providers during progress polling for an active scan.
+    if scan.status == 'completed' and not provider_evidence and not provider_status:
         provider_bundle = await build_provider_evidence(query)
         provider_evidence = provider_bundle.items
         provider_status = provider_bundle.statuses

@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Link } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { Navbar } from '@/components/Layout/Navbar'
 import { Footer } from '@/components/Layout/Footer'
@@ -19,10 +19,30 @@ const qc = new QueryClient({
   },
 })
 
+function NotFound() {
+  return (
+    <section className="mx-auto flex min-h-[70vh] max-w-3xl flex-col items-center justify-center px-6 text-center">
+      <p className="font-mono text-xs uppercase tracking-[0.28em] text-red-400">404 / Route not found</p>
+      <h1 className="mt-4 text-4xl font-bold text-white sm:text-5xl">This page is outside the signal.</h1>
+      <p className="mt-4 max-w-xl text-sm leading-6 text-gray-400">
+        The address may be outdated. Return to the command center to start a scan or open your saved vault.
+      </p>
+      <div className="mt-7 flex flex-wrap justify-center gap-3">
+        <Link className="rounded border border-red-500 bg-red-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-red-500" to="/#scan">
+          Start a scan
+        </Link>
+        <Link className="rounded border border-gray-700 px-5 py-2.5 text-sm font-semibold text-gray-200 hover:border-gray-500" to="/dashboard">
+          Open dashboard
+        </Link>
+      </div>
+    </section>
+  )
+}
+
 export default function App() {
   return (
     <QueryClientProvider client={qc}>
-      <BrowserRouter>
+      <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         <div className="flex min-h-screen flex-col bg-[#08080d]">
           <Navbar />
           <main className="flex-1">
@@ -45,6 +65,7 @@ export default function App() {
               <Route path="/privacy" element={<LegalPage kind="privacy" />} />
               <Route path="/terms" element={<LegalPage kind="terms" />} />
               <Route path="/internal/phase1" element={<Phase1Status />} />
+              <Route path="*" element={<NotFound />} />
             </Routes>
           </main>
           <Footer />

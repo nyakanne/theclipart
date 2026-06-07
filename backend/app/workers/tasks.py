@@ -12,7 +12,6 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
-from app.core.database import Base
 from app.core.security import decrypt_pii, encrypt_pii
 from app.workers.celery_app import celery_app
 
@@ -34,6 +33,45 @@ def _update_scan(db: Session, scan_id: str, **kwargs):
         for k, v in kwargs.items():
             setattr(scan, k, v)
         db.commit()
+
+
+def _clear_incomplete_scan_outputs(db: Session, scan_id: str) -> None:
+    """Make Celery retries idempotent after a partially completed scan."""
+    from app.models.scan import (
+        BreachRecord,
+        BrokerListing,
+        ComplianceResult,
+        DsarRequest,
+        HoneyToken,
+        HoneyTokenHit,
+        Scan,
+    )
+
+    token_ids = [
+        token_id
+        for (token_id,) in db.query(HoneyToken.id).filter(HoneyToken.scan_id == scan_id).all()
+    ]
+    if token_ids:
+        db.query(HoneyTokenHit).filter(HoneyTokenHit.token_id.in_(token_ids)).delete(
+            synchronize_session=False
+        )
+
+    db.query(DsarRequest).filter(DsarRequest.scan_id == scan_id).delete(synchronize_session=False)
+    db.query(ComplianceResult).filter(ComplianceResult.scan_id == scan_id).delete(synchronize_session=False)
+    db.query(BrokerListing).filter(BrokerListing.scan_id == scan_id).delete(synchronize_session=False)
+    db.query(BreachRecord).filter(BreachRecord.scan_id == scan_id).delete(synchronize_session=False)
+    db.query(HoneyToken).filter(HoneyToken.scan_id == scan_id).delete(synchronize_session=False)
+    db.query(Scan).filter(Scan.id == scan_id).update(
+        {
+            Scan.provider_evidence_enc: None,
+            Scan.provider_status_enc: None,
+            Scan.total_exposures: 0,
+            Scan.risk_score: 0.0,
+            Scan.completed_at: None,
+        },
+        synchronize_session=False,
+    )
+    db.commit()
 
 
 def _json_safe(value):
@@ -107,8 +145,13 @@ def execute_scan(scan_id: str):
         if not scan:
             log.error('Scan %s not found', scan_id)
             return
+        if scan.status == 'completed':
+            log.info('Scan %s is already complete; skipping duplicate delivery', scan_id)
+            return
 
         query = json.loads(decrypt_pii(scan.query_enc))
+
+        _clear_incomplete_scan_outputs(db, scan_id)
 
         _update_scan(db, scan_id, status='scanning', current_stage='breach_db — checking HIBP', progress=5.0, estimated_seconds=85)
 
@@ -146,10 +189,40 @@ def execute_scan(scan_id: str):
                 estimated_seconds=max(15, int(60 - ((current_index - 1) / total) * 40)),
             )
 
-        broker_listings = scan_all_brokers(
-            query,
-            settings.BROKER_LIST_PATH,
-            on_progress=_report_broker_progress,
+        try:
+            broker_listings = scan_all_brokers(
+                query,
+                settings.BROKER_LIST_PATH,
+                on_progress=_report_broker_progress,
+            )
+            provider_status.append({
+                'provider': 'data_broker',
+                'label': 'Data broker scan',
+                'status': 'completed' if broker_listings else 'no_match',
+                'message': (
+                    f'Found {len(broker_listings)} broker listing(s).'
+                    if broker_listings
+                    else 'No broker listings were returned.'
+                ),
+                'fallback_available': False,
+                'item_count': len(broker_listings),
+            })
+        except Exception as exc:
+            log.exception('Broker scan failed for scan %s', scan_id)
+            broker_listings = []
+            provider_status.append({
+                'provider': 'data_broker',
+                'label': 'Data broker scan',
+                'status': 'failed',
+                'message': f'Broker browser stage failed: {type(exc).__name__}. Other scan results are still available.',
+                'fallback_available': True,
+                'item_count': 0,
+            })
+
+        _update_scan(
+            db,
+            scan_id,
+            provider_status_enc=encrypt_pii(json.dumps(_json_safe(provider_status))),
         )
         if broker_listings:
             for bl in broker_listings:
