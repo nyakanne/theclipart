@@ -1,5 +1,6 @@
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Clock, CheckCircle, XCircle, Loader, Plus, ShieldAlert, Bell, Hash, ExternalLink, Vault } from 'lucide-react'
+import { Clock, CheckCircle, XCircle, Loader, Plus, ShieldAlert, Bell, Hash, ExternalLink, Vault, Database, Search, ShieldCheck, ChevronRight } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '@/services/api'
 import { Card, CardHeader, CardBody } from '@/components/ui/Card'
@@ -18,11 +19,18 @@ const statusIcon = {
 
 export function Dashboard() {
   const { isAuthenticated } = useAuthSession()
+  const [selectedScanId, setSelectedScanId] = useState<string | null>(null)
   const { data: scans = [], isLoading } = useQuery({
     queryKey: ['scans'],
     queryFn: () => api.scan.list(),
     refetchInterval: 5000,
     enabled: isAuthenticated,
+  })
+  const selectedCompletedScanId = selectedScanId ?? scans.find(scan => scan.status === 'completed')?.scan_id ?? null
+  const { data: selectedResult, isLoading: isResultLoading } = useQuery({
+    queryKey: ['scan-result', 'dashboard', selectedCompletedScanId],
+    queryFn: () => api.scan.result(selectedCompletedScanId!),
+    enabled: isAuthenticated && Boolean(selectedCompletedScanId),
   })
   const { data: savedEvidence = [] } = useQuery({
     queryKey: ['command-actions', 'evidence-item'],
@@ -73,6 +81,121 @@ export function Dashboard() {
           title="Sign in or create your private vault before opening case history"
           body="The dashboard is an account-scoped privacy surface. Sign in to unlock saved scans, evidence receipts, removals, alerts, and report packets without exposing that history publicly."
         />
+      )}
+
+      {isAuthenticated && (
+        <section className="space-y-4">
+          <div className="flex flex-wrap items-end justify-between gap-3">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#f5d7a1]">Result windows</p>
+              <h2 className="mt-1 text-xl font-black text-[#fff7e8]">Your saved investigations</h2>
+            </div>
+            <p className="text-xs text-gray-500">Each window is scoped to your signed-in vault.</p>
+          </div>
+
+          {!scans.length && !isLoading ? (
+            <div className="rounded-xl border border-white/10 bg-black/30 px-5 py-8 text-center text-sm text-gray-500">
+              Your first completed scan will open here with its exposure and risk values.
+            </div>
+          ) : (
+            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+              {scans.slice(0, 6).map(scan => {
+                const isSelected = selectedCompletedScanId === scan.scan_id
+                const privacyScore = Math.max(0, Math.round(100 - scan.risk_score))
+                return (
+                  <button
+                    key={scan.scan_id}
+                    type="button"
+                    disabled={scan.status !== 'completed'}
+                    onClick={() => setSelectedScanId(scan.scan_id)}
+                    className={`min-h-44 border p-4 text-left transition-colors ${
+                      isSelected
+                        ? 'border-red-400/60 bg-red-950/25'
+                        : 'border-white/10 bg-black/35 hover:border-white/20'
+                    } disabled:cursor-default disabled:opacity-65`}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-gray-500">
+                          {scan.subject_kind?.replace(/_/g, ' ') ?? 'identity scan'}
+                        </div>
+                        <div className="mt-1 truncate text-base font-black text-white">{scan.subject ?? scan.scan_id}</div>
+                      </div>
+                      {statusIcon[scan.status]}
+                    </div>
+                    <div className="mt-5 grid grid-cols-2 gap-2">
+                      <div className="border-l border-red-400/50 pl-3">
+                        <div className="text-2xl font-black text-red-200">{scan.total_exposures}</div>
+                        <div className="text-[10px] uppercase tracking-[0.14em] text-gray-500">Exposures</div>
+                      </div>
+                      <div className="border-l border-[#f5d7a1]/40 pl-3">
+                        <div className="text-2xl font-black text-[#fff7e8]">{privacyScore}</div>
+                        <div className="text-[10px] uppercase tracking-[0.14em] text-gray-500">Privacy score</div>
+                      </div>
+                    </div>
+                    <div className="mt-4 flex items-center justify-between gap-2 text-xs">
+                      <span className={scan.vault_saved ? 'text-emerald-300' : 'text-amber-300'}>
+                        {scan.vault_saved ? 'Saved to vault' : 'Vault not confirmed'}
+                      </span>
+                      <span className="capitalize text-gray-500">{scan.status}</span>
+                    </div>
+                  </button>
+                )
+              })}
+            </div>
+          )}
+
+          {selectedCompletedScanId && (
+            <div className="border border-white/10 bg-[#070708] p-5 sm:p-6">
+              {isResultLoading || !selectedResult ? (
+                <div className="flex min-h-36 items-center justify-center text-gray-500">
+                  <Loader className="h-5 w-5 animate-spin" />
+                </div>
+              ) : (
+                <>
+                  <div className="flex flex-wrap items-start justify-between gap-4">
+                    <div>
+                      <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.18em] text-emerald-300">
+                        <ShieldCheck className="h-4 w-4" />
+                        {selectedResult.vault_saved ? 'Vault-owned result' : 'Vault ownership not confirmed'}
+                      </div>
+                      <h3 className="mt-2 text-2xl font-black text-white">
+                        {Object.values(selectedResult.query).find(Boolean) ?? selectedResult.scan_id}
+                      </h3>
+                      <p className="mt-2 text-sm text-gray-500">
+                        Completed {new Date(selectedResult.completed_at ?? selectedResult.created_at).toLocaleString()}
+                      </p>
+                    </div>
+                    <Link to={`/scan/${selectedResult.scan_id}`}>
+                      <Button icon={<ChevronRight className="h-4 w-4" />}>Open full result</Button>
+                    </Link>
+                  </div>
+                  <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                    {[
+                      { icon: ShieldAlert, label: 'Exposure value', value: selectedResult.total_exposures },
+                      { icon: Search, label: 'Evidence sources', value: selectedResult.evidence_items.length },
+                      { icon: Database, label: 'Breach records', value: selectedResult.breaches.length },
+                      { icon: ShieldCheck, label: 'Privacy score', value: Math.max(0, Math.round(100 - selectedResult.risk_score)) },
+                    ].map(({ icon: Icon, label, value }) => (
+                      <div key={label} className="border border-white/8 bg-black/35 p-4">
+                        <Icon className="h-4 w-4 text-red-300" />
+                        <div className="mt-3 text-2xl font-black text-white">{value}</div>
+                        <div className="mt-1 text-[10px] font-bold uppercase tracking-[0.15em] text-gray-500">{label}</div>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="mt-5 flex flex-wrap gap-2">
+                    {selectedResult.provider_status.map(provider => (
+                      <span key={provider.provider} className="border border-white/10 bg-white/[0.03] px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.12em] text-gray-400">
+                        {provider.label}: {provider.status.replace(/_/g, ' ')}
+                      </span>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+        </section>
       )}
 
       <div className="flex items-center justify-between">
@@ -208,7 +331,7 @@ export function Dashboard() {
             >
               {statusIcon[scan.status]}
               <div className="flex-1 min-w-0">
-                <p className="truncate font-mono text-sm text-gray-200">{scan.scan_id}</p>
+                <p className="truncate text-sm font-semibold text-gray-200">{scan.subject ?? scan.scan_id}</p>
                 <p className="text-xs text-gray-500 mt-0.5">
                   {new Date(scan.created_at).toLocaleString()} · {scan.current_stage}
                 </p>

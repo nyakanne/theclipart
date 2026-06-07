@@ -28,6 +28,7 @@ class Settings(BaseSettings):
     ALLOW_REAL_OPT_OUTS: bool = False
     REQUIRE_AUTH: bool = False
     RUN_SCANS_INLINE: bool = False
+    SUPABASE_URL: str = ''
     SUPABASE_JWT_SECRET: str = ''
     SUPABASE_JWKS_URL: str = ''
     SUPABASE_JWT_AUDIENCE: str = 'authenticated'
@@ -99,7 +100,7 @@ class Settings(BaseSettings):
             raise RuntimeError('Set a strong SECRET_KEY before running in production.')
         if self.is_production and not self.REQUIRE_AUTH:
             raise RuntimeError('REQUIRE_AUTH must be enabled in production.')
-        if self.is_production and self.REQUIRE_AUTH and not (self.SUPABASE_JWT_SECRET or self.SUPABASE_JWKS_URL):
+        if self.is_production and self.REQUIRE_AUTH and not (self.SUPABASE_JWT_SECRET or self.supabase_jwks_url):
             raise RuntimeError('Set SUPABASE_JWT_SECRET or SUPABASE_JWKS_URL when REQUIRE_AUTH=true.')
         if self.ALLOW_REAL_OPT_OUTS and not self.SES_FROM_EMAIL:
             raise RuntimeError('SES_FROM_EMAIL is required when ALLOW_REAL_OPT_OUTS=true.')
@@ -119,6 +120,14 @@ class Settings(BaseSettings):
     @property
     def brave_search_key(self) -> str:
         return self.BRAVE_SEARCH_API_KEY or self.BRAVE_API_KEY
+
+    @property
+    def supabase_jwks_url(self) -> str:
+        if self.SUPABASE_JWKS_URL:
+            return self.SUPABASE_JWKS_URL
+        if self.SUPABASE_URL:
+            return f'{self.SUPABASE_URL.rstrip("/")}/auth/v1/.well-known/jwks.json'
+        return ''
 
 
 @lru_cache

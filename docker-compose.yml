@@ -45,6 +45,7 @@ services:
       CORS_ORIGINS: ${CORS_ORIGINS:-https://vindica.me,https://www.vindica.me,http://localhost:3000}
       PUBLIC_APP_URL: ${PUBLIC_APP_URL:-https://vindica.me}
       REQUIRE_AUTH: ${REQUIRE_AUTH:-false}
+      SUPABASE_URL: ${SUPABASE_URL:-}
       SUPABASE_JWT_SECRET: ${SUPABASE_JWT_SECRET:-}
       SUPABASE_JWKS_URL: ${SUPABASE_JWKS_URL:-}
       SUPABASE_JWT_AUDIENCE: ${SUPABASE_JWT_AUDIENCE:-authenticated}

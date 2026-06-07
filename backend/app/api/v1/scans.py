@@ -42,6 +42,32 @@ def _append_config_provider_status(query: dict, statuses: list[dict]) -> list[di
     return augmented
 
 
+def _scan_subject(query: dict) -> tuple[str | None, str | None]:
+    for key in ('email', 'phone', 'ip_address', 'username', 'full_name'):
+        value = query.get(key)
+        if value:
+            return str(value), key
+    return None, None
+
+
+def _scan_job_out(scan: Scan) -> ScanJobOut:
+    query = json.loads(decrypt_pii(scan.query_enc))
+    subject, subject_kind = _scan_subject(query)
+    return ScanJobOut(
+        scan_id=scan.id,
+        status=scan.status,
+        progress=scan.progress,
+        current_stage=scan.current_stage,
+        estimated_seconds=scan.estimated_seconds,
+        created_at=scan.created_at,
+        vault_saved=scan.user_id is not None,
+        subject=subject,
+        subject_kind=subject_kind,
+        total_exposures=scan.total_exposures,
+        risk_score=scan.risk_score,
+    )
+
+
 @router.post('', response_model=ScanJobOut, status_code=201)
 async def create_scan(
     body: ScanRequest,
@@ -70,13 +96,7 @@ async def create_scan(
         run_scan.apply_async(args=[scan_id], task_id=f'scan-{scan_id}')
     log.info('Scan %s queued', scan_id)
 
-    return ScanJobOut(
-        scan_id=scan_id,
-        status='queued',
-        progress=0.0,
-        current_stage='queued',
-        created_at=scan.created_at,
-    )
+    return _scan_job_out(scan)
 
 
 @router.get('', response_model=list[ScanJobOut])
@@ -91,11 +111,7 @@ async def list_scans(
         stmt = stmt.where(Scan.user_id.is_(None))
     result = await db.execute(stmt)
     scans = result.scalars().all()
-    return [ScanJobOut(
-        scan_id=s.id, status=s.status, progress=s.progress,
-        current_stage=s.current_stage, estimated_seconds=s.estimated_seconds,
-        created_at=s.created_at,
-    ) for s in scans]
+    return [_scan_job_out(scan) for scan in scans]
 
 
 @router.get('/{scan_id}/status', response_model=ScanJobOut)
@@ -105,11 +121,7 @@ async def scan_status(
     user_id: str | None = Depends(get_current_user_id),
 ):
     scan = await _get_scan(scan_id, db, user_id)
-    return ScanJobOut(
-        scan_id=scan.id, status=scan.status, progress=scan.progress,
-        current_stage=scan.current_stage, estimated_seconds=scan.estimated_seconds,
-        created_at=scan.created_at,
-    )
+    return _scan_job_out(scan)
 
 
 @router.get('/{scan_id}', response_model=ScanResultOut)
@@ -171,6 +183,8 @@ async def get_scan_result(
         'status': scan.status,
         'created_at': scan.created_at,
         'completed_at': scan.completed_at,
+        'query': query,
+        'vault_saved': scan.user_id is not None,
         'breaches': scan.breaches,
         'broker_listings': scan.broker_listings,
         'honey_token_hits': honey_hits,

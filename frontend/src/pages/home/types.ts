@@ -74,6 +74,7 @@ export type LiveScanPreview = {
   counts: ExposureCounts
   startedAt: string
   scanId?: string
+  vaultSaved?: boolean
   saveStatus?: string
 }
 

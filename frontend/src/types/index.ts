@@ -107,6 +107,7 @@ export interface ScanResult {
   created_at: string
   completed_at?: string
   query: ScanRequest
+  vault_saved: boolean
   breaches: BreachRecord[]
   broker_listings: BrokerListing[]
   honey_token_hits: HoneyTokenHit[]
@@ -125,6 +126,11 @@ export interface ScanJob {
   current_stage: string
   estimated_seconds?: number
   created_at: string
+  vault_saved: boolean
+  subject?: string | null
+  subject_kind?: string | null
+  total_exposures: number
+  risk_score: number
 }
 
 export interface DsarRequest {

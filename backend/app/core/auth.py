@@ -26,11 +26,15 @@ async def get_current_user_id(authorization: str | None = Header(default=None)) 
     and either SUPABASE_JWKS_URL or SUPABASE_JWT_SECRET so scans are scoped to
     the signed-in user.
     """
-    if not settings.REQUIRE_AUTH and not _has_token_verifier():
+    if not authorization:
+        if settings.REQUIRE_AUTH or _has_token_verifier():
+            raise HTTPException(401, 'Authentication required')
         return None
 
-    if not authorization or not authorization.lower().startswith('bearer '):
+    if not authorization.lower().startswith('bearer '):
         raise HTTPException(401, 'Authentication required')
+    if not _has_token_verifier():
+        raise HTTPException(503, 'Vault authentication is not configured on this server')
 
     token = authorization.split(' ', 1)[1].strip()
     payload = await _decode_supabase_token(token)
@@ -42,7 +46,7 @@ async def get_current_user_id(authorization: str | None = Header(default=None)) 
 
 
 def _has_token_verifier() -> bool:
-    return bool(settings.SUPABASE_JWKS_URL or settings.SUPABASE_JWT_SECRET)
+    return bool(settings.supabase_jwks_url or settings.SUPABASE_JWT_SECRET)
 
 
 async def _decode_supabase_token(token: str) -> Mapping[str, object]:
@@ -55,7 +59,7 @@ async def _decode_supabase_token(token: str) -> Mapping[str, object]:
     if algorithm == 'HS256' and settings.SUPABASE_JWT_SECRET:
         return _decode_with_legacy_secret(token)
 
-    if settings.SUPABASE_JWKS_URL:
+    if settings.supabase_jwks_url:
         return await _decode_with_jwks(token, header)
 
     if settings.SUPABASE_JWT_SECRET:
@@ -116,7 +120,7 @@ async def _get_jwks(force_refresh: bool = False) -> Mapping[str, object]:
     global _jwks_cache, _jwks_cache_expires_at, _jwks_cache_url
 
     now = time.monotonic()
-    url = settings.SUPABASE_JWKS_URL
+    url = settings.supabase_jwks_url
     if not url:
         raise HTTPException(500, 'SUPABASE_JWKS_URL is not configured')
 

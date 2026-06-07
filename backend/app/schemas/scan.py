@@ -42,6 +42,11 @@ class ScanJobOut(BaseModel):
     current_stage: str
     estimated_seconds: Optional[int] = None
     created_at: datetime
+    vault_saved: bool = False
+    subject: Optional[str] = None
+    subject_kind: Optional[str] = None
+    total_exposures: int = 0
+    risk_score: float = 0.0
 
     model_config = {'from_attributes': True}
 
@@ -337,6 +342,8 @@ class ScanResultOut(BaseModel):
     status: ScanStatus
     created_at: datetime
     completed_at: Optional[datetime] = None
+    query: ScanRequest
+    vault_saved: bool = False
     breaches: list[BreachRecordOut]
     broker_listings: list[BrokerListingOut]
     honey_token_hits: list[HoneyTokenHitOut]

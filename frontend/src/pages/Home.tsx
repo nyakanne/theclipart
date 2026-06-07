@@ -305,7 +305,12 @@ export function Home({ initialTab = 'scan' }: { initialTab?: 'scan' | 'scanSelf'
         counts: DEFAULT_EXPOSURE_COUNTS,
         startedAt,
         scanId: job.scan_id,
-        saveStatus: 'Scan saved to vault',
+        vaultSaved: job.vault_saved,
+        saveStatus: job.vault_saved
+          ? 'Scan saved to your private vault'
+          : isAuthenticated
+            ? 'Scan started, but this server did not attach it to your vault'
+            : 'Live scan started; sign in before scanning to save it',
       })
     } catch (error) {
       setLiveScan(null)
@@ -755,6 +760,12 @@ function LiveScanPanel({
           body="Live evidence is visible right now. Sign in or create your secure vault to keep the graph, removal queue, receipts, and reports bound to your account instead of disappearing with the session."
           ctaLabel="Sign in to save scans"
         />
+      )}
+
+      {isAuthenticated && liveScan?.scanId && liveScan.vaultSaved === false && (
+        <div className="mt-4 rounded-lg border border-amber-400/35 bg-amber-950/20 px-4 py-3 text-xs leading-5 text-amber-100">
+          This scan is running, but the server did not confirm vault ownership. Configure Supabase JWT verification before relying on saved history.
+        </div>
       )}
 
       {liveScan && (
