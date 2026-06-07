@@ -110,14 +110,14 @@ def execute_scan(scan_id: str):
 
         query = json.loads(decrypt_pii(scan.query_enc))
 
-        _update_scan(db, scan_id, status='scanning', current_stage='breach_db — checking HIBP', progress=5.0)
+        _update_scan(db, scan_id, status='scanning', current_stage='breach_db — checking HIBP', progress=5.0, estimated_seconds=85)
 
         breaches = asyncio.run(run_breach_checks(query))
         for b in breaches:
             db.add(BreachRecord(scan_id=scan_id, **b))
         db.commit()
 
-        _update_scan(db, scan_id, current_stage='source_intel — capturing provider evidence', progress=20.0)
+        _update_scan(db, scan_id, current_stage='source_intel — capturing provider evidence', progress=20.0, estimated_seconds=70)
         provider_bundle = asyncio.run(build_provider_evidence(query))
         provider_status = list(provider_bundle.statuses)
         hibp_status = _hibp_status(query, breaches)
@@ -130,7 +130,7 @@ def execute_scan(scan_id: str):
             provider_status_enc=encrypt_pii(json.dumps(_json_safe(provider_status))),
         )
 
-        _update_scan(db, scan_id, current_stage='data_broker — scanning Playwright workers', progress=30.0)
+        _update_scan(db, scan_id, current_stage='data_broker — scanning Playwright workers', progress=30.0, estimated_seconds=60)
 
         from app.workers.playwright_worker import scan_all_brokers
 
@@ -143,6 +143,7 @@ def execute_scan(scan_id: str):
                 scan_id,
                 current_stage=f'data_broker — scanning {broker_name} ({current_index}/{total})',
                 progress=broker_progress,
+                estimated_seconds=max(15, int(60 - ((current_index - 1) / total) * 40)),
             )
 
         broker_listings = scan_all_brokers(
@@ -155,10 +156,10 @@ def execute_scan(scan_id: str):
                 db.add(BrokerListing(scan_id=scan_id, **bl))
             db.commit()
 
-        _update_scan(db, scan_id, current_stage='honey_token — seeding aliases', progress=65.0)
+        _update_scan(db, scan_id, current_stage='honey_token — seeding aliases', progress=65.0, estimated_seconds=15)
         _seed_honey_tokens_sync(db, scan_id, query)
 
-        _update_scan(db, scan_id, current_stage='compliance — scoring violations', progress=80.0)
+        _update_scan(db, scan_id, current_stage='compliance — scoring violations', progress=80.0, estimated_seconds=8)
         all_breaches = [{'source': b.source, 'severity': b.severity, 'exposed_fields': b.exposed_fields, 'verified': b.verified} for b in db.query(BreachRecord).filter(BreachRecord.scan_id == scan_id).all()]
         all_listings = [{'broker_name': bl.broker_name, 'dsar_eligible': bl.dsar_eligible, 'opt_out_status': bl.opt_out_status, 'opt_out_deadline_days': bl.opt_out_deadline_days, 'fields_exposed': bl.fields_exposed} for bl in db.query(BrokerListing).filter(BrokerListing.scan_id == scan_id).all()]
         report = score_compliance(all_breaches, all_listings)
@@ -180,6 +181,7 @@ def execute_scan(scan_id: str):
                      status='completed',
                      progress=100.0,
                      current_stage='complete',
+                     estimated_seconds=0,
                      risk_score=risk_score,
                      total_exposures=total_exposures,
                      completed_at=datetime.now(timezone.utc))

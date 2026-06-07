@@ -29,7 +29,7 @@ export function useScanStatus(scanId: string | null) {
     enabled: !!scanId,
     refetchInterval: q => {
       const status = q.state.data?.status
-      if (!status || status === 'completed' || status === 'failed') return false
+      if (status === 'completed' || status === 'failed') return false
       return POLL_INTERVAL
     },
   })
@@ -53,7 +53,7 @@ export function useScanResult(scanId: string | null) {
     enabled: !!scanId && !!statusData && statusData.status !== 'queued',
     refetchInterval: q => {
       const status = statusData?.status ?? q.state.data?.status
-      if (!status || status === 'completed' || status === 'failed') return false
+      if (status === 'completed' || status === 'failed') return false
       return POLL_INTERVAL
     },
   })

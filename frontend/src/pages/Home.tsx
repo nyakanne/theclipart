@@ -92,6 +92,21 @@ import {
   totalSourcesFromScanResult,
 } from './home/utils'
 
+function formatProgressStage(stage: string) {
+  const [group, detail] = stage.split(' — ', 2)
+  const labels: Record<string, string> = {
+    queued: 'Queued for secure scan worker',
+    breach_db: 'Checking breach databases',
+    source_intel: 'Capturing public source evidence',
+    data_broker: 'Checking data broker listings',
+    honey_token: 'Preparing monitoring aliases',
+    compliance: 'Calculating privacy and compliance risk',
+    complete: 'Results saved and ready',
+  }
+  const label = labels[group] ?? group.replace(/_/g, ' ')
+  return detail ? `${label} · ${detail}` : label
+}
+
 function ActionReceipt({ id, error }: { id?: string | null; error?: string | null }) {
   if (!id && !error) return null
   const needsLogin = authRequired(error)
@@ -496,7 +511,13 @@ export function Home({ initialTab = 'scan' }: { initialTab?: 'scan' | 'scanSelf'
             {queryError && <p className="mt-2 text-sm text-red-300">{queryError}</p>}
           </form>
 
-          <LiveScanPanel liveScan={liveScan} isPending={isPending} isAuthenticated={isAuthenticated} />
+          <LiveScanPanel
+            liveScan={liveScan}
+            statusData={liveStatus}
+            result={liveResult}
+            isPending={isPending}
+            isAuthenticated={isAuthenticated}
+          />
         </motion.div>
 
         <motion.div
@@ -705,18 +726,35 @@ export function Home({ initialTab = 'scan' }: { initialTab?: 'scan' | 'scanSelf'
 
 function LiveScanPanel({
   liveScan,
+  statusData,
+  result,
   isPending,
   isAuthenticated,
 }: {
   liveScan: LiveScanPreview | null
+  statusData?: ScanJob
+  result?: ScanResult
   isPending: boolean
   isAuthenticated: boolean
 }) {
-  const counts = liveScan?.counts ?? DEFAULT_EXPOSURE_COUNTS
+  const counts = result ? countsFromScanResult(result) : liveScan?.counts ?? DEFAULT_EXPOSURE_COUNTS
   const hasMeasuredSignals = countExposureSources(counts) > 0
+  const isComplete = statusData?.status === 'completed' || result?.status === 'completed'
+  const progress = Math.max(0, Math.min(100, Math.round(statusData?.progress ?? (isComplete ? 100 : 0))))
+  const stage = isComplete
+    ? 'Results saved and ready'
+    : statusData?.current_stage
+      ? formatProgressStage(statusData.current_stage)
+      : liveScan?.scanId
+        ? 'Queued for secure scan worker'
+        : isPending
+          ? 'Creating encrypted scan'
+          : ''
   const status = liveScan
-    ? liveScan.mode === 'scanning' || isPending
-      ? 'Resolving source links'
+    ? statusData?.status === 'failed'
+      ? 'Scan interrupted. Open the report for details or try again.'
+      : liveScan.mode === 'scanning' || isPending
+        ? stage || 'Resolving source links'
       : liveScan.saveStatus ?? 'Scan completed'
     : 'Enter a name, email, phone, or handle to activate the in-house linkage map.'
 
@@ -729,7 +767,7 @@ function LiveScanPanel({
         </div>
         {liveScan ? (
           <div className="rounded-full border border-red-500/40 bg-red-950/25 px-3 py-1.5 text-xs font-bold uppercase tracking-[0.14em] text-red-100">
-            {formatScanKind(liveScan.kind)}
+            {statusData?.status === 'completed' ? 'Complete' : statusData?.status === 'failed' ? 'Failed' : `${progress}%`}
           </div>
         ) : (
           <div className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs font-bold uppercase tracking-[0.14em] text-gray-400">
@@ -737,6 +775,21 @@ function LiveScanPanel({
           </div>
         )}
       </div>
+
+      {liveScan && (
+        <div className="mt-4">
+          <div className="h-2 overflow-hidden rounded-full bg-white/10">
+            <div
+              className={clsx('h-full rounded-full transition-all duration-700', statusData?.status === 'failed' ? 'bg-amber-500' : 'bg-red-500')}
+              style={{ width: `${Math.max(progress, statusData?.status === 'queued' ? 3 : 0)}%` }}
+            />
+          </div>
+          <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-[11px] text-gray-500">
+            <span>{formatScanKind(liveScan.kind)} · {statusData?.status ?? (isPending ? 'creating' : 'queued')}</span>
+            <span>{statusData?.estimated_seconds ? `About ${statusData.estimated_seconds}s remaining` : progress ? `${progress}% resolved` : 'Worker assignment pending'}</span>
+          </div>
+        </div>
+      )}
 
       <div className="mt-4 grid gap-2 sm:grid-cols-3">
         {[
@@ -1215,8 +1268,9 @@ function LiveBrowserResults({
 }) {
   if (!liveScan) return null
 
-  const progress = Math.max(0, Math.min(100, Math.round(statusData?.progress ?? (result ? 100 : 0))))
-  const stage = result
+  const isComplete = statusData?.status === 'completed' || result?.status === 'completed'
+  const progress = Math.max(0, Math.min(100, Math.round(statusData?.progress ?? (isComplete ? 100 : 0))))
+  const stage = isComplete
     ? 'Results resolved in browser'
     : statusData?.current_stage ?? liveScan.saveStatus ?? 'Building live exposure map'
   const outputCounts = result ? countsFromScanResult(result) : liveScan.counts

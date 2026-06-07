@@ -85,6 +85,7 @@ async def create_scan(
         query_enc=encrypt_pii(json.dumps(query)),
         notify_email_enc=encrypt_pii(body.notify_email) if body.notify_email else None,
         user_id=user_id,
+        estimated_seconds=90,
     )
     db.add(scan)
     await db.flush()
