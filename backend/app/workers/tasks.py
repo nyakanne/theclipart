@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
 from app.core.database import Base
-from app.core.security import decrypt_pii
+from app.core.security import decrypt_pii, encrypt_pii
 from app.workers.celery_app import celery_app
 
 log = logging.getLogger(__name__)
@@ -59,6 +59,33 @@ def _serialize_compliance_result(compliance):
     }
 
 
+def _provider_risk_score(items: list[dict]) -> float:
+    weights = {'critical': 32.0, 'high': 20.0, 'medium': 10.0, 'low': 4.0, 'info': 1.0}
+    return min(100.0, sum(weights.get(str(item.get('risk_level')), 0.0) for item in items))
+
+
+def _hibp_status(query: dict, breaches: list[dict]) -> dict | None:
+    if not query.get('email'):
+        return None
+    if not settings.HIBP_API_KEY:
+        return {
+            'provider': 'hibp',
+            'label': 'Have I Been Pwned',
+            'status': 'unavailable',
+            'message': 'HIBP is not configured for this runtime. Add HIBP_API_KEY to enable email breach results.',
+            'fallback_available': True,
+            'item_count': 0,
+        }
+    return {
+        'provider': 'hibp',
+        'label': 'Have I Been Pwned',
+        'status': 'completed' if breaches else 'no_match',
+        'message': f'Found {len(breaches)} breach or paste records.' if breaches else 'No breach or paste records were returned.',
+        'fallback_available': False,
+        'item_count': len(breaches),
+    }
+
+
 @celery_app.task(bind=True, max_retries=3, default_retry_delay=10, queue='scans')
 def run_scan(self, scan_id: str):
     try:
@@ -72,6 +99,7 @@ def execute_scan(scan_id: str):
     from app.services.breach_checker import run_breach_checks
     from app.services.compliance_service import score_compliance
     from app.services.email_service import send_scan_complete
+    from app.services.provider_evidence_service import build_provider_evidence
 
     db = _sync_db()
     try:
@@ -88,6 +116,19 @@ def execute_scan(scan_id: str):
         for b in breaches:
             db.add(BreachRecord(scan_id=scan_id, **b))
         db.commit()
+
+        _update_scan(db, scan_id, current_stage='source_intel — capturing provider evidence', progress=20.0)
+        provider_bundle = asyncio.run(build_provider_evidence(query))
+        provider_status = list(provider_bundle.statuses)
+        hibp_status = _hibp_status(query, breaches)
+        if hibp_status:
+            provider_status.append(hibp_status)
+        _update_scan(
+            db,
+            scan_id,
+            provider_evidence_enc=encrypt_pii(json.dumps(_json_safe(provider_bundle.items))),
+            provider_status_enc=encrypt_pii(json.dumps(_json_safe(provider_status))),
+        )
 
         _update_scan(db, scan_id, current_stage='data_broker — scanning Playwright workers', progress=30.0)
 
@@ -132,8 +173,8 @@ def execute_scan(scan_id: str):
         ))
         db.commit()
 
-        risk_score = max(0.0, 100.0 - report.overall)
-        total_exposures = len(breaches) + (len(broker_listings) if broker_listings else 0)
+        risk_score = max(0.0, 100.0 - report.overall, _provider_risk_score(provider_bundle.items))
+        total_exposures = len(breaches) + (len(broker_listings) if broker_listings else 0) + len(provider_bundle.items)
 
         _update_scan(db, scan_id,
                      status='completed',
@@ -147,7 +188,13 @@ def execute_scan(scan_id: str):
             notify_email = decrypt_pii(scan.notify_email_enc)
             send_scan_complete(notify_email, scan_id, risk_score, len(breaches))
 
-        log.info('Scan %s completed — %d breaches, risk %.1f', scan_id, len(breaches), risk_score)
+        log.info(
+            'Scan %s completed — %d breaches, %d provider items, risk %.1f',
+            scan_id,
+            len(breaches),
+            len(provider_bundle.items),
+            risk_score,
+        )
 
     except Exception as exc:
         log.exception('Scan %s failed', scan_id)

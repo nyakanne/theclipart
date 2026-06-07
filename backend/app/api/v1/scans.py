@@ -171,12 +171,26 @@ async def get_scan_result(
 
     query = json.loads(decrypt_pii(scan.query_enc))
 
-    provider_bundle = await build_provider_evidence(query)
+    provider_bundle = None
+    provider_evidence = (
+        json.loads(decrypt_pii(scan.provider_evidence_enc))
+        if scan.provider_evidence_enc
+        else []
+    )
+    provider_status = (
+        json.loads(decrypt_pii(scan.provider_status_enc))
+        if scan.provider_status_enc
+        else []
+    )
+    if not provider_evidence and not provider_status:
+        provider_bundle = await build_provider_evidence(query)
+        provider_evidence = provider_bundle.items
+        provider_status = provider_bundle.statuses
     manual_evidence = await list_manual_evidence_for_scan(db, scan.id, user_id)
     evidence_items = build_scan_evidence(scan, query)
-    evidence_items = [*provider_bundle.items, *manual_evidence, *evidence_items]
+    evidence_items = [*provider_evidence, *manual_evidence, *evidence_items]
 
-    provider_status = _append_config_provider_status(query, provider_bundle.statuses)
+    provider_status = _append_config_provider_status(query, provider_status)
 
     return {
         'scan_id': scan.id,

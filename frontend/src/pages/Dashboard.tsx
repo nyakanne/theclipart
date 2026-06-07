@@ -191,6 +191,36 @@ export function Dashboard() {
                       </span>
                     ))}
                   </div>
+                  <div className="mt-6 border-t border-white/10 pt-5">
+                    <div className="mb-3 flex items-center justify-between gap-3">
+                      <h4 className="text-sm font-black text-white">Saved source evidence</h4>
+                      <span className="text-xs text-gray-500">{selectedResult.evidence_items.length} retained items</span>
+                    </div>
+                    {selectedResult.evidence_items.length ? (
+                      <div className="grid gap-2 lg:grid-cols-2">
+                        {selectedResult.evidence_items.slice(0, 6).map(item => (
+                          <a
+                            key={item.id}
+                            href={item.source_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="group border border-white/8 bg-black/35 p-3 transition-colors hover:border-red-400/45"
+                          >
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="min-w-0">
+                                <div className="truncate text-sm font-bold text-white">{item.title}</div>
+                                <div className="mt-1 text-[10px] font-bold uppercase tracking-[0.13em] text-red-300">{item.source_name}</div>
+                              </div>
+                              <ExternalLink className="h-3.5 w-3.5 flex-none text-gray-600 transition-colors group-hover:text-red-300" />
+                            </div>
+                            <p className="mt-2 line-clamp-2 text-xs leading-5 text-gray-500">{item.detail}</p>
+                          </a>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-gray-500">No source-backed evidence was returned by the configured providers.</p>
+                    )}
+                  </div>
                 </>
               )}
             </div>

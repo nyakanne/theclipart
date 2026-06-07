@@ -73,6 +73,7 @@ cp .env backend/.env
 
 ```bash
 docker compose --env-file .env build frontend backend worker-scans worker-honey beat
+docker compose --env-file .env run --rm backend alembic upgrade head
 docker compose --env-file .env up -d frontend backend worker-scans worker-honey beat
 docker compose --env-file .env ps
 ```
@@ -105,4 +106,3 @@ location /api/ {
 ```
 
 Do not use a trailing slash on `proxy_pass` here, or `/api/v1/...` can become `/v1/...`.
-

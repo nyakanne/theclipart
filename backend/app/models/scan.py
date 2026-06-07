@@ -27,6 +27,8 @@ class Scan(Base):
 
     risk_score: Mapped[float] = mapped_column(Float, default=0.0)
     total_exposures: Mapped[int] = mapped_column(Integer, default=0)
+    provider_evidence_enc: Mapped[str | None] = mapped_column(Text, nullable=True)
+    provider_status_enc: Mapped[str | None] = mapped_column(Text, nullable=True)
     notify_email_enc: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)

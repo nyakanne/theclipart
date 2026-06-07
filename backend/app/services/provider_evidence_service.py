@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import asyncio
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 
 from app.core.config import get_settings
 from app.services.ipinfo_service import lookup_ipinfo
+from app.services.identity_evidence_service import build_identity_evidence
 from app.services.search_evidence_service import build_search_evidence
 
 settings = get_settings()
@@ -77,7 +79,9 @@ async def build_provider_evidence(query: dict) -> ProviderEvidenceBundle:
                 'item_count': 0,
             })
 
-    search_bundle = await build_search_evidence(query)
+    identity_bundle, search_bundle = await asyncio.gather(build_identity_evidence(query), build_search_evidence(query))
+    evidence_items.extend(identity_bundle.items)
+    statuses.extend(identity_bundle.statuses)
     evidence_items.extend(search_bundle.items)
     statuses.extend(search_bundle.statuses)
     return ProviderEvidenceBundle(items=evidence_items, statuses=statuses)
