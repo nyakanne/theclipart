@@ -111,6 +111,8 @@ class Settings(BaseSettings):
             raise RuntimeError('DEMO_MODE cannot be enabled in production.')
         if self.is_production and self.SECRET_KEY in {'dev-secret-change-me', 'change-me-32-chars-minimum-please'}:
             raise RuntimeError('Set a strong SECRET_KEY before running in production.')
+        if self.is_production and (':secret@' in self.DATABASE_URL or ':secret@' in self.SYNC_DATABASE_URL):
+            raise RuntimeError('Replace the default database password before running in production.')
         if self.is_production and not self.REQUIRE_AUTH:
             raise RuntimeError('REQUIRE_AUTH must be enabled in production.')
         if self.is_production and self.REQUIRE_AUTH and not (self.SUPABASE_JWT_SECRET or self.supabase_jwks_url):

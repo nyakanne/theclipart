@@ -24,6 +24,9 @@ Updated: June 7, 2026
 APP_ENV=production
 REQUIRE_AUTH=true
 SECRET_KEY=<strong unique secret>
+POSTGRES_PASSWORD=<strong unique database password>
+DATABASE_URL=postgresql+asyncpg://dataguard:<same encoded password>@postgres:5432/dataguard
+SYNC_DATABASE_URL=postgresql://dataguard:<same encoded password>@postgres:5432/dataguard
 SUPABASE_URL=<project URL>
 SUPABASE_JWKS_URL=<project JWKS URL, or derive from SUPABASE_URL>
 VITE_SUPABASE_URL=<project URL>
@@ -32,6 +35,7 @@ PUBLIC_APP_URL=https://vindica.me
 ```
 
 Run all Alembic migrations and verify signed-in scans return `vault_saved: true`.
+Production startup intentionally refuses the development database password `secret`.
 
 ### Live API Routing
 
