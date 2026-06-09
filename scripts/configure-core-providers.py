@@ -68,19 +68,24 @@ def main() -> int:
     parser.add_argument('--restart', action='store_true')
     args = parser.parse_args()
 
-    brave = getpass.getpass('Brave Search API key: ').strip()
-    hibp = getpass.getpass('HIBP API key: ').strip()
-    if not brave or not hibp:
-        print('Both keys are required.', file=sys.stderr)
+    brave = getpass.getpass('Brave Search API key (blank to keep current): ').strip()
+    hibp = getpass.getpass('HIBP API key (blank to keep current): ').strip()
+    if not brave and not hibp:
+        print('Enter at least one provider key.', file=sys.stderr)
         return 2
 
-    validate_brave(brave)
-    print('Brave Search key validated.')
-    validate_hibp(hibp)
-    print('HIBP key validated.')
+    values: dict[str, str] = {}
+    if brave:
+        validate_brave(brave)
+        print('Brave Search key validated.')
+        values['BRAVE_SEARCH_API_KEY'] = brave
+    if hibp:
+        validate_hibp(hibp)
+        print('HIBP key validated.')
+        values['HIBP_API_KEY'] = hibp
 
     env_path = Path(args.env_file).resolve()
-    update_env(env_path, {'BRAVE_SEARCH_API_KEY': brave, 'HIBP_API_KEY': hibp})
+    update_env(env_path, values)
     print(f'Installed validated keys into {env_path}.')
 
     if args.restart:

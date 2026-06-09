@@ -4,9 +4,10 @@ Vindica now exposes setup links in-browser for missing providers. This file is t
 
 ## Safe server installation
 
-After purchasing or creating both keys, run this from `/var/www/vindica` on
-the server. The prompts are hidden, both keys are validated with their
-providers, and containers restart only after validation succeeds:
+After purchasing or creating either key, run this from `/var/www/vindica` on
+the server. The prompts are hidden, entered keys are validated with their
+providers, and containers restart only after validation succeeds. Leave a
+prompt blank to preserve its existing server value:
 
 ```bash
 python3 scripts/configure-core-providers.py --env-file .env --restart
