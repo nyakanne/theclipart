@@ -98,11 +98,24 @@ curl -i https://vindica.me/api/v1/lookups/username/github
 
 ## 8. Host Nginx Reminder
 
-The host nginx config must preserve `/api`:
+Install the tracked host config, then validate and reload nginx:
+
+```bash
+sudo cp nginx/vindica-host.conf /etc/nginx/sites-enabled/vindica
+sudo rm -f /etc/nginx/sites-enabled/vindica.me
+sudo nginx -t
+sudo systemctl reload nginx
+```
+
+The host nginx config must preserve `/api` and route both health endpoints:
 
 ```nginx
 location /api/ {
   proxy_pass http://127.0.0.1:8000;
+}
+
+location = /ready {
+  proxy_pass http://127.0.0.1:8000/ready;
 }
 ```
 

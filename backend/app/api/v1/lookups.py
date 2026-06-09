@@ -65,6 +65,8 @@ _HEADERS = {
     'Accept-Language': 'en-US,en;q=0.9',
 }
 
+_IANA_RDAP_DNS_BOOTSTRAP = 'https://data.iana.org/rdap/dns.json'
+
 _LINE_TYPE_LABELS: dict[PhoneNumberType, str] = {
     PhoneNumberType.MOBILE: 'Mobile',
     PhoneNumberType.FIXED_LINE: 'Fixed line',
@@ -96,6 +98,43 @@ def _clean_domain(value: str) -> str:
     if not clean or '.' not in clean:
         raise ValueError('Enter a valid domain like example.com.')
     return clean
+
+
+def _rdap_urls_from_bootstrap(payload: dict, domain: str) -> list[str]:
+    tld = domain.rsplit('.', 1)[-1].lower()
+    urls: list[str] = []
+    for service in payload.get('services') or []:
+        if not isinstance(service, list) or len(service) < 2:
+            continue
+        tlds, bases = service[0], service[1]
+        if tld not in {str(item).lower() for item in tlds or []}:
+            continue
+        for base in bases or []:
+            candidate = f'{str(base).rstrip("/")}/domain/{domain}'
+            if candidate not in urls:
+                urls.append(candidate)
+    return urls
+
+
+async def _fetch_domain_rdap(client: httpx.AsyncClient, domain: str) -> httpx.Response | None:
+    candidates: list[str] = []
+    try:
+        bootstrap = await client.get(_IANA_RDAP_DNS_BOOTSTRAP)
+        if bootstrap.status_code == 200:
+            candidates.extend(_rdap_urls_from_bootstrap(bootstrap.json(), domain))
+    except Exception as exc:
+        log.debug('IANA RDAP bootstrap lookup failed for %s: %s', domain, exc)
+
+    candidates.append(f'https://rdap.org/domain/{domain}')
+    for url in candidates:
+        try:
+            response = await client.get(url)
+        except Exception as exc:
+            log.debug('RDAP candidate failed for %s: %s', domain, exc)
+            continue
+        if response.status_code == 200:
+            return response
+    return None
 
 
 async def _probe(client: httpx.AsyncClient, platform: dict, username: str) -> dict:
@@ -205,12 +244,12 @@ async def lookup_domain(
 
     try:
         async with httpx.AsyncClient(timeout=12.0, follow_redirects=True, headers=_HEADERS) as client:
-            response = await client.get(f'https://rdap.org/domain/{clean}')
+            response = await _fetch_domain_rdap(client, clean)
     except Exception as exc:
         log.warning('RDAP lookup failed for %s: %s', clean, exc)
         return {'domain': clean, 'error': 'RDAP lookup failed — check your connection.'}
 
-    if response.status_code != 200:
+    if response is None:
         return {'domain': clean, 'error': 'RDAP lookup failed — domain may not exist.'}
 
     data = response.json()

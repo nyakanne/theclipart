@@ -26,17 +26,40 @@ require_status() {
   pass "$path -> $code"
 }
 
+require_json() {
+  local path="$1"
+  local expected_fragment="$2"
+  local headers
+  local body
+  headers="$(mktemp)"
+  body="$(mktemp)"
+  curl -sS -D "$headers" -o "$body" "$BASE_URL$path"
+  if ! grep -qi '^content-type: application/json' "$headers"; then
+    sed -n '1,20p' "$headers" >&2
+    sed -n '1,20p' "$body" >&2
+    fail "$path did not return JSON"
+  fi
+  if ! grep -Fq "$expected_fragment" "$body"; then
+    sed -n '1,30p' "$body" >&2
+    fail "$path JSON did not contain $expected_fragment"
+  fi
+  rm -f "$headers" "$body"
+  pass "$path -> structured JSON"
+}
+
 health_body="$(curl -sS "$BASE_URL/health")"
 case "$health_body" in
   *'"status":"ok"'*) pass "/health -> ok" ;;
   *) echo "$health_body" >&2; fail "/health did not return status ok" ;;
 esac
+require_json "/health" '"status":"ok"'
 
 ready_body="$(curl -sS "$BASE_URL/ready")"
 case "$ready_body" in
   *'"status":"ready"'*) pass "/ready -> ready" ;;
   *) echo "$ready_body" >&2; fail "/ready reported production blockers" ;;
 esac
+require_json "/ready" '"capabilities"'
 
 require_status "/"
 require_status "/lookup"
@@ -54,5 +77,8 @@ case "$api_code" in
     fail "/api/v1 prefix returned $api_code"
     ;;
 esac
+
+require_json "/api/v1/lookups/phone/%2B14155552671" '"e164":"+14155552671"'
+require_json "/api/v1/lookups/domain/example.com" '"domain":"example.com"'
 
 echo "Live smoke test complete for $BASE_URL"
