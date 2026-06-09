@@ -41,7 +41,8 @@ Set these for production:
 APP_ENV=production
 DEMO_MODE=false
 SECRET_KEY=<64+ random chars>
-CORS_ORIGINS=https://your-domain.com
+CORS_ORIGINS=["https://your-domain.com"]
+ALLOWED_HOSTS=["your-domain.com"]
 PUBLIC_APP_URL=https://your-domain.com
 
 DATABASE_URL=postgresql+asyncpg://...
@@ -165,7 +166,8 @@ Example production `.env` values:
 APP_ENV=production
 DEMO_MODE=false
 SECRET_KEY=<64+ random chars>
-CORS_ORIGINS=https://vindica.me,https://www.vindica.me
+CORS_ORIGINS=["https://vindica.me","https://www.vindica.me"]
+ALLOWED_HOSTS=["vindica.me","www.vindica.me","localhost","127.0.0.1"]
 PUBLIC_APP_URL=https://vindica.me
 SES_FROM_EMAIL=noreply@vindica.me
 HONEY_DOMAIN=honey.vindica.me

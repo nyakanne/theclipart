@@ -1,7 +1,14 @@
 import { resolve } from 'node:path'
-import { build, createServer, preview } from 'vite'
+import { build, createServer, loadEnv, preview } from 'vite'
 
 const command = process.argv[2] ?? 'dev'
+const mode = command === 'build' ? 'production' : 'development'
+const root = process.cwd()
+const loadedEnv = loadEnv(mode, root, '')
+for (const [key, value] of Object.entries(loadedEnv)) {
+  if (process.env[key] === undefined) process.env[key] = value
+}
+
 const apiProxy = {
   '/api': {
     target: process.env.VITE_API_PROXY_TARGET ?? 'http://127.0.0.1:8000',
@@ -10,6 +17,8 @@ const apiProxy = {
 }
 
 const config = {
+  root,
+  mode,
   configFile: false,
   resolve: {
     alias: {
