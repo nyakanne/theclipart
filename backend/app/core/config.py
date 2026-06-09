@@ -1,7 +1,7 @@
 from functools import lru_cache
 import json
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from pydantic import field_validator
+from pydantic import Field, field_validator
 
 
 class Settings(BaseSettings):
@@ -26,6 +26,7 @@ class Settings(BaseSettings):
     SES_FROM_EMAIL: str = 'noreply@vindica.me'
     PUBLIC_APP_URL: str = 'http://localhost:3000'
     ALLOW_REAL_OPT_OUTS: bool = False
+    BROKER_PRIVACY_EMAILS: dict[str, str] = Field(default_factory=dict)
     REQUIRE_AUTH: bool = False
     RUN_SCANS_INLINE: bool = False
     SUPABASE_URL: str = ''
@@ -89,6 +90,18 @@ class Settings(BaseSettings):
                 return [origin.strip() for origin in value.split(',') if origin.strip()]
         return value
 
+    @field_validator('BROKER_PRIVACY_EMAILS', mode='before')
+    @classmethod
+    def parse_broker_privacy_emails(cls, value):
+        if isinstance(value, str):
+            try:
+                parsed = json.loads(value)
+                if isinstance(parsed, dict):
+                    return parsed
+            except json.JSONDecodeError:
+                return {}
+        return value
+
     @property
     def is_production(self) -> bool:
         return self.APP_ENV == 'production'
@@ -104,6 +117,8 @@ class Settings(BaseSettings):
             raise RuntimeError('Set SUPABASE_JWT_SECRET or SUPABASE_JWKS_URL when REQUIRE_AUTH=true.')
         if self.ALLOW_REAL_OPT_OUTS and not self.SES_FROM_EMAIL:
             raise RuntimeError('SES_FROM_EMAIL is required when ALLOW_REAL_OPT_OUTS=true.')
+        if self.ALLOW_REAL_OPT_OUTS and not self.BROKER_PRIVACY_EMAILS:
+            raise RuntimeError('BROKER_PRIVACY_EMAILS with verified broker contacts is required when ALLOW_REAL_OPT_OUTS=true.')
 
     @property
     def azure_cv_endpoint(self) -> str:

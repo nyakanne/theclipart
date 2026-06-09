@@ -77,3 +77,28 @@ async def root():
 @app.get('/health')
 async def health():
     return {'status': 'ok', 'env': settings.APP_ENV}
+
+
+@app.get('/ready')
+async def readiness():
+    capabilities = {
+        'account_vault_auth': bool(settings.SUPABASE_JWT_SECRET or settings.supabase_jwks_url),
+        'kms_envelope_encryption': bool(settings.KMS_KEY_ID),
+        'hibp_breach_results': bool(settings.HIBP_API_KEY),
+        'ip_enrichment': bool(settings.IPINFO_TOKEN),
+        'brave_web_evidence': bool(settings.brave_search_key),
+        'image_analysis': bool(settings.azure_cv_key or settings.GOOGLE_CLOUD_VISION_API_KEY or settings.huggingface_token),
+        'domain_threat_intel': bool(settings.VIRUSTOTAL_API_KEY or settings.SHODAN_API_KEY),
+        'real_opt_out_email': bool(settings.ALLOW_REAL_OPT_OUTS and settings.SES_FROM_EMAIL and settings.BROKER_PRIVACY_EMAILS),
+    }
+    blockers = []
+    if settings.is_production and not capabilities['account_vault_auth']:
+        blockers.append('Account vault authentication is not configured.')
+    if settings.is_production and settings.PUBLIC_APP_URL.startswith('http://'):
+        blockers.append('PUBLIC_APP_URL must use HTTPS in production.')
+    return {
+        'status': 'ready' if not blockers else 'blocked',
+        'env': settings.APP_ENV,
+        'blockers': blockers,
+        'capabilities': capabilities,
+    }

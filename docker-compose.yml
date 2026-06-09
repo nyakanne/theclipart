@@ -60,6 +60,7 @@ services:
       REPORT_STORAGE_DIR: ${REPORT_STORAGE_DIR:-/tmp/vindica-reports}
       SES_FROM_EMAIL: ${SES_FROM_EMAIL:-noreply@vindica.me}
       ALLOW_REAL_OPT_OUTS: ${ALLOW_REAL_OPT_OUTS:-false}
+      BROKER_PRIVACY_EMAILS: ${BROKER_PRIVACY_EMAILS:-{}}
       HIBP_API_KEY: ${HIBP_API_KEY:-}
       IPINFO_TOKEN: ${IPINFO_TOKEN:-}
       IPINFO_BASE_URL: ${IPINFO_BASE_URL:-https://api.ipinfo.io/lite}
@@ -134,6 +135,7 @@ services:
       REPORT_STORAGE_DIR: ${REPORT_STORAGE_DIR:-/tmp/vindica-reports}
       SES_FROM_EMAIL: ${SES_FROM_EMAIL:-noreply@vindica.me}
       ALLOW_REAL_OPT_OUTS: ${ALLOW_REAL_OPT_OUTS:-false}
+      BROKER_PRIVACY_EMAILS: ${BROKER_PRIVACY_EMAILS:-{}}
       HIBP_API_KEY: ${HIBP_API_KEY:-}
       IPINFO_TOKEN: ${IPINFO_TOKEN:-}
       IPINFO_BASE_URL: ${IPINFO_BASE_URL:-https://api.ipinfo.io/lite}

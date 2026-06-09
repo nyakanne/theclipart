@@ -4,6 +4,7 @@ import { Card, CardHeader, CardBody } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { api } from '@/services/api'
 import type { BrokerListing } from '@/types'
+import { useQuery } from '@tanstack/react-query'
 
 const optOutStatusConfig = {
   not_started: { icon: <AlertTriangle className="h-4 w-4" />, color: 'text-red-300', label: 'Action needed' },
@@ -21,6 +22,10 @@ export function BrokerList({ listings, scanId, onUpdate }: {
   const [loading, setLoading] = useState<string | null>(null)
   const [submittingAll, setSubmittingAll] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const { data: readiness } = useQuery({
+    queryKey: ['opt-out-readiness', scanId],
+    queryFn: () => api.optOut.readiness(scanId),
+  })
 
   const handleOptOut = async (brokerId: string) => {
     const listing = listings.find(item => item.id === brokerId)
@@ -71,17 +76,25 @@ export function BrokerList({ listings, scanId, onUpdate }: {
   return (
     <div className="space-y-4">
       {pendingCount > 0 && (
-        <div className="flex items-center justify-between border border-red-500/30 bg-red-950/20 px-4 py-3">
-          <span className="text-sm text-red-100">
-            {pendingCount} brokers still need action. One-stop opt-out sends real deletion requests when backend email delivery is configured.
-          </span>
+        <div className={`flex items-center justify-between gap-4 border px-4 py-3 ${
+          readiness?.enabled
+            ? 'border-emerald-500/30 bg-emerald-950/15'
+            : 'border-amber-500/30 bg-amber-950/15'
+        }`}>
+          <div>
+            <div className="text-sm font-semibold text-white">{pendingCount} brokers still need action.</div>
+            <div className="mt-1 text-xs leading-5 text-gray-400">
+              {readiness?.message ?? 'Checking real email-delivery readiness...'}
+            </div>
+          </div>
           <Button
             size="sm"
             variant="secondary"
             loading={submittingAll}
+            disabled={!readiness?.enabled}
             onClick={handleOptOutAll}
           >
-            One-Stop Opt Out
+            {readiness?.enabled ? 'One-Stop Opt Out' : 'Delivery not configured'}
           </Button>
         </div>
       )}
@@ -94,6 +107,7 @@ export function BrokerList({ listings, scanId, onUpdate }: {
 
       {listings.map(b => {
         const status = optOutStatusConfig[b.opt_out_status]
+        const canEmail = readiness?.enabled && readiness.eligible_broker_ids.includes(b.id)
         return (
           <Card key={b.id} className="rounded-none bg-[#10101a]">
             <CardHeader>
@@ -144,9 +158,10 @@ export function BrokerList({ listings, scanId, onUpdate }: {
                     size="sm"
                     variant="danger"
                     loading={loading === b.id}
+                    disabled={!canEmail}
                     onClick={() => handleOptOut(b.id)}
                   >
-                    Request Deletion
+                    {canEmail ? 'Request Deletion' : 'Use opt-out portal'}
                   </Button>
                 )}
               </div>

@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Link } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { Navbar } from '@/components/Layout/Navbar'
 import { Footer } from '@/components/Layout/Footer'
+import { ConsentNotice } from '@/components/privacy/ConsentNotice'
 import { Home } from '@/pages/Home'
 
 const ScanPage = lazy(() => import('@/pages/ScanPage').then(module => ({ default: module.ScanPage })))
@@ -81,6 +82,7 @@ export default function App() {
             </Suspense>
           </main>
           <Footer />
+          <ConsentNotice />
         </div>
       </BrowserRouter>
     </QueryClientProvider>

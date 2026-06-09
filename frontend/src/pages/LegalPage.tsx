@@ -22,7 +22,11 @@ const privacySections = [
   },
   {
     title: 'Security and your choices',
-    body: 'Vindica uses access controls and account-scoped workflows, but no system is perfectly secure. You may request access, correction, or deletion of saved personal information by contacting privacy@vindica.me.',
+    body: 'Vindica uses encrypted identifiers, access controls, and account-scoped workflows, but no system is perfectly secure. Signed-in users can delete saved scan data from the account vault. You may also request access, correction, or deletion by contacting privacy@vindica.me.',
+  },
+  {
+    title: 'Removal requests and consent',
+    body: 'Vindica sends a broker deletion or access request only after explicit confirmation. The request may transmit identifiers from your scan to an explicitly verified broker privacy contact. Brokers without a verified contact remain available through their official opt-out portal.',
   },
 ] as const
 

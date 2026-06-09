@@ -32,6 +32,12 @@ case "$health_body" in
   *) echo "$health_body" >&2; fail "/health did not return status ok" ;;
 esac
 
+ready_body="$(curl -sS "$BASE_URL/ready")"
+case "$ready_body" in
+  *'"status":"ready"'*) pass "/ready -> ready" ;;
+  *) echo "$ready_body" >&2; fail "/ready reported production blockers" ;;
+esac
+
 require_status "/"
 require_status "/lookup"
 require_status "/osint"
@@ -50,4 +56,3 @@ case "$api_code" in
 esac
 
 echo "Live smoke test complete for $BASE_URL"
-

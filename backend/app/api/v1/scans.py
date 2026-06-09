@@ -12,13 +12,14 @@ from app.core.auth import get_current_user_id
 from app.core.database import get_db
 from app.core.security import encrypt_pii, generate_scan_id
 from app.models.scan import Scan, BreachRecord, BrokerListing, HoneyToken, HoneyTokenHit, DsarRequest, ComplianceResult, CommandAction
-from app.schemas.scan import ScanRequest, ScanJobOut, ScanResultOut, DsarRequestOut, ReportJobOut, OptOutConfirmIn, OptOutQueueOut, ManualEvidenceIn, EvidenceItemOut
+from app.schemas.scan import ScanRequest, ScanJobOut, ScanResultOut, DsarRequestOut, ReportJobOut, OptOutConfirmIn, OptOutQueueOut, OptOutReadinessOut, ManualEvidenceIn, EvidenceItemOut
 from app.workers.tasks import execute_scan, run_scan, send_dsar, generate_report, generate_report_for_action
 from app.core.config import get_settings
 from app.core.security import decrypt_pii
 from app.services.evidence_service import build_scan_evidence
 from app.services.provider_evidence_service import build_provider_evidence
 from app.services.manual_evidence_service import MANUAL_EVIDENCE_FEATURE, list_manual_evidence_for_scan, manual_evidence_action_to_item
+from app.services.email_service import resolve_broker_privacy_email
 
 log = logging.getLogger(__name__)
 router = APIRouter(prefix='/scans', tags=['scans'])
@@ -113,6 +114,21 @@ async def list_scans(
     result = await db.execute(stmt)
     scans = result.scalars().all()
     return [_scan_job_out(scan) for scan in scans]
+
+
+@router.delete('')
+async def delete_vault_scans(
+    db: AsyncSession = Depends(get_db),
+    user_id: str | None = Depends(get_current_user_id),
+):
+    if user_id is None:
+        raise HTTPException(401, 'Sign in before deleting vault data.')
+    result = await db.execute(select(Scan).where(Scan.user_id == user_id))
+    scans = result.scalars().all()
+    for scan in scans:
+        await db.delete(scan)
+    await db.commit()
+    return {'deleted': len(scans), 'status': 'deleted'}
 
 
 @router.get('/{scan_id}/status', response_model=ScanJobOut)
@@ -263,6 +279,36 @@ async def list_dsar(
     return result.scalars().all()
 
 
+@router.get('/{scan_id}/opt-out/readiness', response_model=OptOutReadinessOut)
+async def opt_out_readiness(
+    scan_id: str,
+    db: AsyncSession = Depends(get_db),
+    user_id: str | None = Depends(get_current_user_id),
+):
+    await _get_scan(scan_id, db, user_id)
+    result = await db.execute(select(BrokerListing).where(BrokerListing.scan_id == scan_id))
+    listings = result.scalars().all()
+    eligible_ids = [
+        listing.id
+        for listing in listings
+        if resolve_broker_privacy_email(listing.broker_name, listing.broker_url)
+    ]
+    enabled = settings.ALLOW_REAL_OPT_OUTS and bool(settings.SES_FROM_EMAIL) and bool(eligible_ids)
+    return OptOutReadinessOut(
+        enabled=enabled,
+        delivery_provider='AWS SES',
+        from_address_configured=bool(settings.SES_FROM_EMAIL),
+        eligible_broker_ids=eligible_ids,
+        eligible_count=len(eligible_ids),
+        unavailable_count=len(listings) - len(eligible_ids),
+        message=(
+            f'Real broker email delivery is enabled for {len(eligible_ids)} verified contact(s).'
+            if enabled
+            else 'Real delivery is not enabled for these results. Configure verified broker contacts, AWS SES, and ALLOW_REAL_OPT_OUTS=true.'
+        ),
+    )
+
+
 @router.post('/{scan_id}/dsar/{broker_id}/send', response_model=DsarRequestOut)
 async def send_single_dsar(
     scan_id: str,
@@ -277,6 +323,8 @@ async def send_single_dsar(
     listing = result.scalar_one_or_none()
     if not listing:
         raise HTTPException(404, 'Broker listing not found')
+    if not resolve_broker_privacy_email(listing.broker_name, listing.broker_url):
+        raise HTTPException(409, 'No verified privacy email is configured for this broker. Use its opt-out portal instead.')
 
     dsar = await _ensure_dsar(scan_id, listing, db)
     dsar.status = 'queued'
@@ -300,20 +348,24 @@ async def send_all_dsar(
         .where(BrokerListing.scan_id == scan_id, BrokerListing.dsar_eligible == True)
     )
     listings = result.scalars().all()
+    eligible = [
+        listing for listing in listings
+        if resolve_broker_privacy_email(listing.broker_name, listing.broker_url)
+    ]
     queued = 0
-    for listing in listings:
+    for listing in eligible:
         dsar = await _ensure_dsar(scan_id, listing, db)
         dsar.status = 'queued'
         listing.opt_out_status = 'in_progress'
         queued += 1
     await db.commit()
-    for listing in listings:
+    for listing in eligible:
         send_dsar.delay(scan_id, listing.id)
     return OptOutQueueOut(
         queued=queued,
-        skipped=0,
-        status='queued',
-        message='Real opt-out requests queued for delivery.',
+        skipped=len(listings) - len(eligible),
+        status='queued' if queued else 'skipped',
+        message=f'{queued} real opt-out request(s) queued; {len(listings) - len(eligible)} skipped without a verified contact.',
     )
 
 
@@ -331,6 +383,8 @@ async def opt_out_broker(
     listing = result.scalar_one_or_none()
     if not listing:
         raise HTTPException(404, 'Broker listing not found')
+    if not resolve_broker_privacy_email(listing.broker_name, listing.broker_url):
+        raise HTTPException(409, 'No verified privacy email is configured for this broker. Use its opt-out portal instead.')
     dsar = await _ensure_dsar(scan_id, listing, db)
     dsar.status = 'queued'
     listing.opt_out_status = 'in_progress'
@@ -352,20 +406,24 @@ async def opt_out_all(
         select(BrokerListing).where(BrokerListing.scan_id == scan_id, BrokerListing.opt_out_status == 'not_started')
     )
     listings = result.scalars().all()
+    eligible = [
+        listing for listing in listings
+        if resolve_broker_privacy_email(listing.broker_name, listing.broker_url)
+    ]
     queued = 0
-    for listing in listings:
+    for listing in eligible:
         dsar = await _ensure_dsar(scan_id, listing, db)
         dsar.status = 'queued'
         listing.opt_out_status = 'in_progress'
         queued += 1
     await db.commit()
-    for listing in listings:
+    for listing in eligible:
         send_dsar.delay(scan_id, listing.id)
     return OptOutQueueOut(
         queued=queued,
-        skipped=0,
-        status='queued',
-        message='One-stop opt-out requests queued for delivery.',
+        skipped=len(listings) - len(eligible),
+        status='queued' if queued else 'skipped',
+        message=f'{queued} one-stop opt-out request(s) queued; {len(listings) - len(eligible)} skipped without a verified contact.',
     )
 
 
@@ -449,6 +507,8 @@ async def _get_scan(scan_id: str, db: AsyncSession, user_id: str | None = None) 
 
 def _assert_scan_owner(scan: Scan, user_id: str | None) -> None:
     if scan.user_id is None:
+        if settings.REQUIRE_AUTH:
+            raise HTTPException(404, 'Scan not found')
         return
     if user_id is None:
         raise HTTPException(404, 'Scan not found')

@@ -44,6 +44,16 @@ env = Environment(loader=BaseLoader())
 dsar_tmpl = env.from_string(DSAR_TEMPLATE)
 
 
+def resolve_broker_privacy_email(broker_name: str, broker_url: str) -> str | None:
+    """Return only an explicitly verified broker contact; never guess an address."""
+    from urllib.parse import urlparse
+
+    contacts = {str(key).lower(): str(value).strip() for key, value in settings.BROKER_PRIVACY_EMAILS.items()}
+    hostname = (urlparse(broker_url).hostname or '').lower()
+    keys = [broker_name.lower(), hostname, hostname.removeprefix('www.')]
+    return next((contacts[key] for key in keys if contacts.get(key)), None)
+
+
 def send_dsar_email(
     to_email: str,
     broker_name: str,

@@ -294,7 +294,7 @@ def run_playwright_scan(self, scan_id: str, query: dict) -> list[dict]:
 def send_dsar(self, scan_id: str, broker_listing_id: str):
     from app.models.scan import DsarRequest, BrokerListing, Scan
     from app.core.security import decrypt_pii
-    from app.services.email_service import send_dsar_email
+    from app.services.email_service import resolve_broker_privacy_email, send_dsar_email
     from datetime import timedelta
 
     db = _sync_db()
@@ -306,7 +306,13 @@ def send_dsar(self, scan_id: str, broker_listing_id: str):
             return
 
         query = json.loads(decrypt_pii(scan.query_enc))
-        to_email = f'privacy@{listing.broker_url.split("/")[2]}'
+        to_email = resolve_broker_privacy_email(listing.broker_name, listing.broker_url)
+        if not to_email:
+            dsar.status = 'failed'
+            listing.opt_out_status = 'failed'
+            db.commit()
+            log.error('No verified privacy email configured for broker %s', listing.broker_name)
+            return
         ok = send_dsar_email(to_email, listing.broker_name, scan_id, query)
 
         now = datetime.now(timezone.utc)

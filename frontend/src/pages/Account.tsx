@@ -1,11 +1,12 @@
 import { FormEvent, useEffect, useState } from 'react'
 import { AnimatePresence } from 'framer-motion'
 import { Link, useNavigate } from 'react-router-dom'
-import { CheckCircle2, Database, FileText, ListChecks, LogOut, Mail, ShieldAlert, Lock, Bell } from 'lucide-react'
+import { CheckCircle2, Database, FileText, ListChecks, LogOut, Mail, ShieldAlert, Lock, Bell, Trash2 } from 'lucide-react'
 import { supabase } from '@/services/supabase'
 import { AuthVaultPrompt } from '@/components/auth/AuthVaultPrompt'
 import { VaultActivationTransition } from '@/components/auth/VaultActivationTransition'
 import { useAuthSession } from '@/hooks/useAuthSession'
+import { api } from '@/services/api'
 
 const VAULT_ITEMS = [
   { icon: Database, title: 'Saved scans', detail: 'Keep exposure maps and source links tied to your account.' },
@@ -36,6 +37,24 @@ export function Account() {
 
   useEffect(() => {
     if (!isReady || !sessionEmail) return
+    const consentSyncKey = `vindica-consent-synced:${sessionEmail}`
+    const consent = window.localStorage.getItem('vindica-consent:v1')
+    if (consent && !window.localStorage.getItem(consentSyncKey)) {
+      try {
+        const payload = JSON.parse(consent) as Record<string, unknown>
+        void api.command.create({
+          feature: 'legal-consent',
+          title: 'Terms, privacy, and authorized-use consent',
+          status: 'accepted',
+          payload,
+        })
+          .then(() => window.localStorage.setItem(consentSyncKey, 'true'))
+          .catch(() => undefined)
+      } catch {
+        // A malformed local record is ignored; the consent notice will be shown again.
+        window.localStorage.removeItem('vindica-consent:v1')
+      }
+    }
     const activationKey = `vindica-vault-welcome:${sessionEmail}`
     if (window.sessionStorage.getItem(activationKey)) return
 
@@ -71,6 +90,23 @@ export function Account() {
 
   const signOut = async () => {
     await supabase?.auth.signOut()
+  }
+
+  const deleteVaultData = async () => {
+    const confirmed = window.confirm(
+      'Permanently delete every saved scan and its linked breach, broker, sentinel, compliance, and removal records from your Vindica vault? This cannot be undone.'
+    )
+    if (!confirmed) return
+    setLoading(true)
+    setMessage(null)
+    try {
+      const result = await api.scan.deleteAll()
+      setMessage(`${result.deleted} saved scan${result.deleted === 1 ? '' : 's'} permanently deleted from your vault.`)
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : 'Vault deletion failed')
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -151,6 +187,15 @@ export function Account() {
               >
                 <LogOut className="h-4 w-4" />
                 Sign out
+              </button>
+              <button
+                type="button"
+                onClick={deleteVaultData}
+                disabled={loading}
+                className="ml-3 mt-4 inline-flex items-center gap-2 rounded-xl border border-red-500/35 bg-red-950/20 px-4 py-3 text-sm font-bold text-red-200 transition-colors hover:border-red-400 hover:text-white disabled:opacity-50"
+              >
+                <Trash2 className="h-4 w-4" />
+                Delete saved vault data
               </button>
             </div>
           ) : (

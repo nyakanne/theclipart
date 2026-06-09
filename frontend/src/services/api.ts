@@ -42,6 +42,9 @@ export const api = {
 
     list: () =>
       http.get<ScanJob[]>('/scans').then(r => r.data),
+
+    deleteAll: () =>
+      http.delete<{ deleted: number; status: string }>('/scans').then(r => r.data),
   },
 
   dsar: {
@@ -64,6 +67,9 @@ export const api = {
   },
 
   optOut: {
+    readiness: (scanId: string) =>
+      http.get<{ enabled: boolean; delivery_provider: string; from_address_configured: boolean; eligible_broker_ids: string[]; eligible_count: number; unavailable_count: number; message: string }>(`/scans/${scanId}/opt-out/readiness`).then(r => r.data),
+
     initiate: (scanId: string, brokerId: string) =>
       http.post(`/scans/${scanId}/opt-out/${brokerId}`, { confirmed: true }).then(r => r.data),
 

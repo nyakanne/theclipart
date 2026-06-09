@@ -135,6 +135,16 @@ class OptOutQueueOut(BaseModel):
     message: str
 
 
+class OptOutReadinessOut(BaseModel):
+    enabled: bool
+    delivery_provider: str
+    from_address_configured: bool
+    eligible_broker_ids: list[str] = Field(default_factory=list)
+    eligible_count: int = 0
+    unavailable_count: int = 0
+    message: str
+
+
 class EvidenceItemOut(BaseModel):
     id: str
     kind: Literal['breach', 'broker_listing', 'honey_token', 'ip_enrichment', 'search_result', 'manual_capture']

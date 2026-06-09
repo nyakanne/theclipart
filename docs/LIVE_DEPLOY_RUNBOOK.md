@@ -90,6 +90,7 @@ Or from the server:
 
 ```bash
 curl -s https://vindica.me/health
+curl -s https://vindica.me/ready
 curl -I https://vindica.me/osint
 curl -I https://vindica.me/image-search
 curl -i https://vindica.me/api/v1/lookups/username/github
@@ -106,3 +107,16 @@ location /api/ {
 ```
 
 Do not use a trailing slash on `proxy_pass` here, or `/api/v1/...` can become `/v1/...`.
+
+## 9. Production Capability Gate
+
+`/health` proves the API process is alive. `/ready` proves the production safety
+gate and reports which optional capabilities are configured.
+
+Before declaring the release successful:
+
+- `/ready` must return `"status":"ready"`.
+- `/api/v1/lookups/username/github` must return `200`, `401`, or `403`, never `404`.
+- Signed-in scans must return `"vault_saved":true`.
+- `real_opt_out_email` must be `true` before promising automated broker emails.
+- `BROKER_PRIVACY_EMAILS` must contain only verified contacts; never guessed addresses.
