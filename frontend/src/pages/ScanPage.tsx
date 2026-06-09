@@ -16,6 +16,7 @@ import { ExposureLookupPanel } from '@/components/Investigation/ExposureLookupPa
 import { ReverseImageSearchPanel } from '@/components/Investigation/ReverseImageSearchPanel'
 import { EvidencePanel } from '@/components/Investigation/EvidencePanel'
 import { totalSourcesFromScanResult } from './home/utils'
+import { summarizeProviderCoverage } from '@/utils/providerCoverage'
 
 const TABS = [
   { id: 'lookup', label: 'Find Yourself', icon: Search },
@@ -41,6 +42,7 @@ export function ScanPage() {
 
   const isScanning = statusData && statusData.status !== 'completed' && statusData.status !== 'failed'
   const totalSources = result ? totalSourcesFromScanResult(result) : 0
+  const providerCoverage = summarizeProviderCoverage(result?.provider_status ?? [])
 
   const refresh = () => {
     qc.invalidateQueries({ queryKey: ['scan-result', scanId] })
@@ -79,12 +81,12 @@ export function ScanPage() {
               footer={result.risk_score >= 75 ? 'High Risk' : result.risk_score >= 40 ? 'Moderate Risk' : 'Low Risk'}
             />
             <DashboardCard
-              label="Total Sources Found"
+              label="Confirmed Sources"
               value={`${totalSources}`}
-              sub={`Across ${Math.max(1, result.evidence_items.length || result.breaches.length + result.broker_listings.length + result.honey_token_hits.length)} evidence points`}
+              sub={`Across ${result.evidence_items.length + result.breaches.length + result.broker_listings.length + result.honey_token_hits.length} evidence points`}
               tone="white"
               icon={<Database className="h-8 w-8" />}
-              footer={`${result.broker_listings.length} broker listings pending review`}
+              footer={`${providerCoverage.successful}/${providerCoverage.attempted} providers returned definitive responses`}
             />
           </div>
 
@@ -106,9 +108,15 @@ export function ScanPage() {
                 <ShieldAlert className="h-7 w-7" />
               </div>
               <div>
-                <h2 className="text-xl font-black text-[#fff7e8]">Your data is widely exposed</h2>
+                <h2 className="text-xl font-black text-[#fff7e8]">
+                  {totalSources > 0 ? 'Confirmed exposure evidence found' : 'No confirmed exposure evidence returned'}
+                </h2>
                 <p className="mt-1 text-gray-400">
-                  Personal information was found across {totalSources} sources. Use the broker queue, compliance analysis, and regulator pack below to remove and document it.
+                  {totalSources > 0
+                    ? `Personal information was confirmed across ${totalSources} sources. Use the evidence and broker queues below to review and act.`
+                    : providerCoverage.limited
+                      ? 'Some providers were unavailable or failed, so this limited scan cannot prove that no exposure exists.'
+                      : 'Every attempted provider returned a definitive response, but no linked exposure evidence was confirmed.'}
                 </p>
               </div>
             </div>

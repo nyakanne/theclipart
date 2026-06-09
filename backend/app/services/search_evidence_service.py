@@ -18,6 +18,10 @@ log = logging.getLogger(__name__)
 settings = get_settings()
 
 
+class BraveSearchError(RuntimeError):
+    """Raised when Brave could not complete a search request."""
+
+
 @dataclass(frozen=True)
 class SearchPlan:
     query: str
@@ -131,14 +135,18 @@ async def _brave_search(plan: SearchPlan) -> list[dict]:
         'country': settings.BRAVE_SEARCH_COUNTRY,
         'search_lang': settings.BRAVE_SEARCH_SEARCH_LANG,
         'safesearch': settings.BRAVE_SEARCH_SAFESEARCH,
-        'extra_snippets': 'true',
     }
 
     async with httpx.AsyncClient(timeout=settings.BRAVE_SEARCH_TIMEOUT_SECONDS) as client:
         response = await client.get(settings.BRAVE_SEARCH_BASE_URL, headers=headers, params=params)
         if response.status_code in {401, 403, 429}:
             log.warning('Brave Search request failed with %s for query fingerprint %s', response.status_code, hashlib.sha256(plan.query.encode()).hexdigest()[:12])
-            return []
+            reason = {
+                401: 'authentication failed',
+                403: 'access was denied',
+                429: 'the request quota or rate limit was reached',
+            }[response.status_code]
+            raise BraveSearchError(f'Brave Search {reason}.')
         response.raise_for_status()
         payload = response.json()
 
@@ -200,12 +208,12 @@ async def build_search_evidence(query: dict) -> SearchEvidenceBundle:
     evidence_items: list[dict] = []
     seen_urls: set[str] = set()
     exposed_fields = _exposed_fields(kind, query)
-    had_failure = False
+    failures: list[str] = []
 
     for plan, search_results in zip(plans, gathered):
         if isinstance(search_results, Exception):
             log.warning('Search evidence query failed for fingerprint %s: %s', hashlib.sha256(plan.query.encode()).hexdigest()[:12], search_results)
-            had_failure = True
+            failures.append(str(search_results) or type(search_results).__name__)
             continue
         for result in search_results:
             url = str(result.get('url') or '').strip()
@@ -238,16 +246,21 @@ async def build_search_evidence(query: dict) -> SearchEvidenceBundle:
             'provider': 'brave_search',
             'label': 'Brave Search',
             'status': 'completed',
-            'message': f'Indexed {len(evidence_items)} source-backed web results for this query.',
-            'fallback_available': False,
+            'message': (
+                f'Indexed {len(evidence_items)} source-backed web results; '
+                f'{len(failures)} additional search request(s) failed.'
+                if failures
+                else f'Indexed {len(evidence_items)} source-backed web results for this query.'
+            ),
+            'fallback_available': bool(failures),
             'item_count': len(evidence_items),
         }
-    elif had_failure:
+    elif failures:
         status = {
             'provider': 'brave_search',
             'label': 'Brave Search',
             'status': 'failed',
-            'message': 'Brave Search did not return results cleanly. Capture the source manually to preserve it in the vault.',
+            'message': f'Brave Search failed: {failures[0]} Check provider access or capture a source manually.',
             'fallback_available': True,
             'item_count': 0,
         }

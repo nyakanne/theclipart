@@ -26,6 +26,7 @@ import type {
 } from '@/types'
 import { EvidencePanel } from '@/components/Investigation/EvidencePanel'
 import { AuthVaultPrompt } from '@/components/auth/AuthVaultPrompt'
+import { summarizeProviderCoverage } from '@/utils/providerCoverage'
 
 type ExposureLookupPanelProps = {
   compact?: boolean
@@ -87,7 +88,8 @@ export function ExposureLookupPanel({
       : status?.status ?? (isPending ? 'queued' : initialResult ? 'completed' : 'ready')
   const progress = Math.max(0, Math.min(100, Math.round(status?.progress ?? (result ? 100 : 0))))
   const evidenceCount = explicitEvidence.length
-  const providerCount = result?.provider_status.filter(item => item.status !== 'skipped').length ?? 0
+  const providerCoverage = summarizeProviderCoverage(result?.provider_status ?? [])
+  const providerCount = providerCoverage.attempted
   const isWorking = isPending || (!!liveScanId && !result && status?.status !== 'failed')
   const unavailableProviders = result?.provider_status.filter(item => item.status === 'unavailable') ?? []
   const showLimitedResultWarning = Boolean(
@@ -345,9 +347,20 @@ export function ExposureLookupPanel({
                 <LookupMetric label="Evidence rows" value={`${explicitEvidence.length}`} />
                 <LookupMetric label="Breach rows" value={`${result?.breaches.length ?? 0}`} />
                 <LookupMetric label="Broker listings" value={`${result?.broker_listings.length ?? 0}`} />
-                <LookupMetric label="Providers" value={`${providerCount}`} />
+                <LookupMetric label="Provider coverage" value={`${providerCoverage.successful}/${providerCount}`} />
                 <LookupMetric label="Risk score" value={`${Math.round(result?.risk_score ?? 0)}`} />
               </div>
+              {result && (
+                <p className="mt-4 text-xs leading-5 text-gray-500">
+                  {providerCoverage.confirmedItems > 0
+                    ? `${providerCoverage.confirmedItems} provider-confirmed item(s).`
+                    : 'No provider-confirmed items were returned.'}
+                  {` ${providerCoverage.noMatch} source(s) returned no match, ${providerCoverage.unavailable} unavailable, and ${providerCoverage.failed} failed.`}
+                  {providerCoverage.limited
+                    ? ' This is a limited-coverage result, not proof that no exposure exists.'
+                    : ' All attempted sources returned a definitive response.'}
+                </p>
+              )}
             </div>
 
             <div className="glass-panel rounded-xl p-5">
