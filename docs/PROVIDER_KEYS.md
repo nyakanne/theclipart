@@ -2,6 +2,20 @@
 
 Vindica now exposes setup links in-browser for missing providers. This file is the repo-side source of truth for what each key unlocks and where to get it.
 
+## Safe server installation
+
+After purchasing or creating both keys, run this from `/var/www/vindica` on
+the server. The prompts are hidden, both keys are validated with their
+providers, and containers restart only after validation succeeds:
+
+```bash
+python3 scripts/configure-core-providers.py --env-file .env --restart
+curl -s https://vindica.me/ready
+```
+
+Do not paste keys into chat, GitHub, shell history, or frontend environment
+files. They belong only in the server-side `.env`.
+
 ## Core search and breach providers
 
 ### `BRAVE_API_KEY`

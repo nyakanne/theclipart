@@ -102,7 +102,7 @@ def _provider_risk_score(items: list[dict]) -> float:
     return min(100.0, sum(weights.get(str(item.get('risk_level')), 0.0) for item in items))
 
 
-def _hibp_status(query: dict, breaches: list[dict]) -> dict | None:
+def _hibp_status(query: dict, breaches: list[dict], status: str | None = None, message: str | None = None) -> dict | None:
     if not query.get('email'):
         return None
     if not settings.HIBP_API_KEY:
@@ -117,9 +117,9 @@ def _hibp_status(query: dict, breaches: list[dict]) -> dict | None:
     return {
         'provider': 'hibp',
         'label': 'Have I Been Pwned',
-        'status': 'completed' if breaches else 'no_match',
-        'message': f'Found {len(breaches)} breach or paste records.' if breaches else 'No breach or paste records were returned.',
-        'fallback_available': False,
+        'status': status or ('completed' if breaches else 'no_match'),
+        'message': message or (f'Found {len(breaches)} breach or paste records.' if breaches else 'No breach or paste records were returned.'),
+        'fallback_available': status == 'failed',
         'item_count': len(breaches),
     }
 
@@ -155,7 +155,8 @@ def execute_scan(scan_id: str):
 
         _update_scan(db, scan_id, status='scanning', current_stage='breach_db — checking HIBP', progress=5.0, estimated_seconds=85)
 
-        breaches = asyncio.run(run_breach_checks(query))
+        breach_bundle = asyncio.run(run_breach_checks(query))
+        breaches = breach_bundle.items
         for b in breaches:
             db.add(BreachRecord(scan_id=scan_id, **b))
         db.commit()
@@ -163,7 +164,7 @@ def execute_scan(scan_id: str):
         _update_scan(db, scan_id, current_stage='source_intel — capturing provider evidence', progress=20.0, estimated_seconds=70)
         provider_bundle = asyncio.run(build_provider_evidence(query))
         provider_status = list(provider_bundle.statuses)
-        hibp_status = _hibp_status(query, breaches)
+        hibp_status = _hibp_status(query, breaches, breach_bundle.hibp_status, breach_bundle.hibp_message)
         if hibp_status:
             provider_status.append(hibp_status)
         _update_scan(
