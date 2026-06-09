@@ -42,7 +42,8 @@ services:
       APP_ENV: ${APP_ENV:-development}
       DEMO_MODE: ${DEMO_MODE:-false}
       SECRET_KEY: ${SECRET_KEY:-change-me-32-chars-minimum-please}
-      CORS_ORIGINS: ${CORS_ORIGINS:-https://vindica.me,https://www.vindica.me,http://localhost:3000}
+      CORS_ORIGINS: '${CORS_ORIGINS:-["https://vindica.me","https://www.vindica.me","http://localhost:3000"]}'
+      ALLOWED_HOSTS: '${ALLOWED_HOSTS:-["vindica.me","www.vindica.me","localhost","127.0.0.1"]}'
       PUBLIC_APP_URL: ${PUBLIC_APP_URL:-https://vindica.me}
       REQUIRE_AUTH: ${REQUIRE_AUTH:-false}
       SUPABASE_URL: ${SUPABASE_URL:-}
@@ -57,6 +58,8 @@ services:
       AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
       S3_BUCKET: ${S3_BUCKET:-dataguard-artefacts}
       KMS_KEY_ID: ${KMS_KEY_ID:-}
+      REQUIRE_KMS_IN_PRODUCTION: ${REQUIRE_KMS_IN_PRODUCTION:-true}
+      METRICS_TOKEN: ${METRICS_TOKEN:-}
       REPORT_STORAGE_DIR: ${REPORT_STORAGE_DIR:-/tmp/vindica-reports}
       SES_FROM_EMAIL: ${SES_FROM_EMAIL:-noreply@vindica.me}
       ALLOW_REAL_OPT_OUTS: ${ALLOW_REAL_OPT_OUTS:-false}
@@ -95,6 +98,13 @@ services:
       BRAVE_SEARCH_TIMEOUT_SECONDS: ${BRAVE_SEARCH_TIMEOUT_SECONDS:-12}
       BRAVE_SEARCH_MAX_RESULTS: ${BRAVE_SEARCH_MAX_RESULTS:-5}
       BRAVE_SEARCH_MAX_BROKER_QUERIES: ${BRAVE_SEARCH_MAX_BROKER_QUERIES:-3}
+      MAX_ACTIVE_SCANS_PER_USER: ${MAX_ACTIVE_SCANS_PER_USER:-2}
+      API_REQUESTS_PER_5_MINUTES: ${API_REQUESTS_PER_5_MINUTES:-300}
+      SCANS_PER_DAY: ${SCANS_PER_DAY:-10}
+      EXPENSIVE_LOOKUPS_PER_HOUR: ${EXPENSIVE_LOOKUPS_PER_HOUR:-30}
+      IMAGE_ANALYSES_PER_DAY: ${IMAGE_ANALYSES_PER_DAY:-10}
+      MAX_REMOTE_IMAGE_BYTES: ${MAX_REMOTE_IMAGE_BYTES:-5242880}
+      MAX_REQUEST_BODY_BYTES: ${MAX_REQUEST_BODY_BYTES:-10485760}
       VIRUSTOTAL_API_KEY: ${VIRUSTOTAL_API_KEY:-}
       SHODAN_API_KEY: ${SHODAN_API_KEY:-}
       HONEY_DOMAIN: ${HONEY_DOMAIN:-honey.vindica.me}
@@ -102,7 +112,9 @@ services:
     volumes:
       - ./backend/data:/app/data:ro
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"
+    security_opt:
+      - no-new-privileges:true
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 10s
@@ -132,6 +144,7 @@ services:
       AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
       S3_BUCKET: ${S3_BUCKET:-dataguard-artefacts}
       KMS_KEY_ID: ${KMS_KEY_ID:-}
+      REQUIRE_KMS_IN_PRODUCTION: ${REQUIRE_KMS_IN_PRODUCTION:-true}
       REPORT_STORAGE_DIR: ${REPORT_STORAGE_DIR:-/tmp/vindica-reports}
       SES_FROM_EMAIL: ${SES_FROM_EMAIL:-noreply@vindica.me}
       ALLOW_REAL_OPT_OUTS: ${ALLOW_REAL_OPT_OUTS:-false}
@@ -156,7 +169,7 @@ services:
       - ./backend/data:/app/data:ro
     shm_size: '1gb'
     security_opt:
-      - seccomp:unconfined
+      - no-new-privileges:true
     deploy:
       resources:
         limits:
@@ -180,6 +193,11 @@ services:
       DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://dataguard:secret@postgres:5432/dataguard}
       SYNC_DATABASE_URL: ${SYNC_DATABASE_URL:-postgresql://dataguard:secret@postgres:5432/dataguard}
       REDIS_URL: redis://redis:6379/0
+      AWS_REGION: ${AWS_REGION:-us-east-1}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
+      KMS_KEY_ID: ${KMS_KEY_ID:-}
+      REQUIRE_KMS_IN_PRODUCTION: ${REQUIRE_KMS_IN_PRODUCTION:-true}
       HONEY_DOMAIN: ${HONEY_DOMAIN:-honey.vindica.me}
       MAILGUN_API_KEY: ${MAILGUN_API_KEY:-}
 
@@ -193,7 +211,13 @@ services:
       redis:
         condition: service_healthy
     environment:
+      APP_ENV: ${APP_ENV:-development}
+      SECRET_KEY: ${SECRET_KEY:-change-me-32-chars-minimum-please}
+      DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://dataguard:secret@postgres:5432/dataguard}
+      SYNC_DATABASE_URL: ${SYNC_DATABASE_URL:-postgresql://dataguard:secret@postgres:5432/dataguard}
       REDIS_URL: redis://redis:6379/0
+      KMS_KEY_ID: ${KMS_KEY_ID:-}
+      REQUIRE_KMS_IN_PRODUCTION: ${REQUIRE_KMS_IN_PRODUCTION:-true}
 
   flower:
     image: mher/flower:2.0
@@ -204,7 +228,7 @@ services:
       CELERY_BROKER_URL: redis://redis:6379/0
       FLOWER_PORT: 5555
     ports:
-      - "5555:5555"
+      - "127.0.0.1:5555:5555"
 
   frontend:
     build:
@@ -218,7 +242,7 @@ services:
     depends_on:
       - backend
     ports:
-      - "3000:80"
+      - "127.0.0.1:3000:80"
 
   nginx:
     image: nginx:1.25-alpine

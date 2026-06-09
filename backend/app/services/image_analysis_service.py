@@ -1,15 +1,19 @@
 from __future__ import annotations
 
 import asyncio
-from urllib.parse import urlparse
+from urllib.parse import urljoin
 
 import httpx
 
+from app.core.config import get_settings
+from app.core.network_safety import validate_public_http_url
 from app.services.azure_image_service import analyze_image_bytes as analyze_azure_image_bytes
 from app.services.azure_image_service import analyze_image_url as analyze_azure_image_url
 from app.services.google_vision_service import analyze_google_image_bytes, analyze_google_image_url
 from app.services.huggingface_image_service import analyze_huggingface_image_bytes
 from app.services.huggingface_image_service import huggingface_available
+
+settings = get_settings()
 
 PROVIDER_PRECEDENCE = [
     'huggingface_inference',
@@ -114,18 +118,34 @@ def _aggregate(provider_results: list[dict]) -> dict:
 
 
 async def _download_image_bytes(image_url: str) -> tuple[bytes, str]:
-    async with httpx.AsyncClient(timeout=20.0, follow_redirects=True) as client:
-        response = await client.get(image_url)
-        response.raise_for_status()
-        content_type = str(response.headers.get('content-type') or 'application/octet-stream').split(';', 1)[0].strip()
-        return response.content, content_type or 'application/octet-stream'
+    current = await validate_public_http_url(image_url)
+    async with httpx.AsyncClient(timeout=20.0, follow_redirects=False) as client:
+        for _ in range(4):
+            async with client.stream('GET', current) as response:
+                if response.is_redirect:
+                    location = response.headers.get('location')
+                    if not location:
+                        raise ValueError('Image URL returned an invalid redirect.')
+                    current = await validate_public_http_url(urljoin(current, location))
+                    continue
+                response.raise_for_status()
+                content_type = str(response.headers.get('content-type') or '').split(';', 1)[0].strip().lower()
+                if not content_type.startswith('image/'):
+                    raise ValueError('The remote URL did not return an image.')
+                content_length = int(response.headers.get('content-length') or 0)
+                if content_length > settings.MAX_REMOTE_IMAGE_BYTES:
+                    raise ValueError('The remote image exceeds the download size limit.')
+                payload = bytearray()
+                async for chunk in response.aiter_bytes():
+                    payload.extend(chunk)
+                    if len(payload) > settings.MAX_REMOTE_IMAGE_BYTES:
+                        raise ValueError('The remote image exceeds the download size limit.')
+                return bytes(payload), content_type
+    raise ValueError('The image URL redirected too many times.')
 
 
 async def analyze_image_url(image_url: str) -> dict:
-    candidate = image_url.strip()
-    parsed = urlparse(candidate)
-    if parsed.scheme not in {'http', 'https'} or not parsed.netloc:
-        raise ValueError('Enter a valid image URL.')
+    candidate = await validate_public_http_url(image_url)
 
     downloaded_bytes: bytes | None = None
     downloaded_content_type = 'application/octet-stream'
@@ -136,7 +156,7 @@ async def analyze_image_url(image_url: str) -> dict:
     else:
         try:
             downloaded_bytes, downloaded_content_type = await _download_image_bytes(candidate)
-        except httpx.HTTPError as exc:
+        except (httpx.HTTPError, ValueError) as exc:
             hf_result = {
                 'provider': 'huggingface_inference',
                 'status': 'failed',

@@ -2,7 +2,8 @@ FROM python:3.12-slim-bookworm AS base
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    PIP_NO_CACHE_DIR=1
+    PIP_NO_CACHE_DIR=1 \
+    PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
 
 WORKDIR /app
 
@@ -17,6 +18,10 @@ RUN pip install --upgrade pip && pip install -r requirements.txt
 RUN playwright install chromium --with-deps
 
 COPY . .
+
+RUN useradd --create-home --uid 10001 vindica \
+    && chown -R vindica:vindica /app /ms-playwright
+USER vindica
 
 EXPOSE 8000
 

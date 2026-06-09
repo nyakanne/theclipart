@@ -44,7 +44,7 @@ export const api = {
       http.get<ScanJob[]>('/scans').then(r => r.data),
 
     deleteAll: () =>
-      http.delete<{ deleted: number; status: string }>('/scans').then(r => r.data),
+      http.delete<{ deleted: number; actions_deleted: number; status: string }>('/scans').then(r => r.data),
   },
 
   dsar: {

@@ -56,7 +56,7 @@ async def record_hit(alias: str, source: str, context: str | None, db: AsyncSess
     )
     db.add(hit)
     await db.flush()
-    log.warning('Honey-token hit! alias=%s source=%s', alias, source)
+    log.warning('Honey-token hit recorded (alias_fp=%s source_fp=%s)', hash_identifier(alias)[:12], hash_identifier(source)[:12])
     return hit
 
 

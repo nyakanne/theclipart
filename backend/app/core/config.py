@@ -11,6 +11,7 @@ class Settings(BaseSettings):
     DEMO_MODE: bool = False
     SECRET_KEY: str = 'dev-secret-change-me'
     CORS_ORIGINS: list[str] = ['http://localhost:3000']
+    ALLOWED_HOSTS: list[str] = ['localhost', '127.0.0.1', 'testserver']
 
     DATABASE_URL: str = 'postgresql+asyncpg://dataguard:secret@postgres:5432/dataguard'
     SYNC_DATABASE_URL: str = 'postgresql://dataguard:secret@postgres:5432/dataguard'
@@ -22,6 +23,8 @@ class Settings(BaseSettings):
     AWS_SECRET_ACCESS_KEY: str = ''
     S3_BUCKET: str = 'dataguard-artefacts'
     KMS_KEY_ID: str = ''
+    REQUIRE_KMS_IN_PRODUCTION: bool = True
+    METRICS_TOKEN: str = ''
     REPORT_STORAGE_DIR: str = '/tmp/vindica-reports'
     SES_FROM_EMAIL: str = 'noreply@vindica.me'
     PUBLIC_APP_URL: str = 'http://localhost:3000'
@@ -76,11 +79,18 @@ class Settings(BaseSettings):
 
     MAX_CONCURRENT_PLAYWRIGHT: int = 5
     SCAN_TIMEOUT_SECONDS: int = 300
+    MAX_ACTIVE_SCANS_PER_USER: int = 2
+    API_REQUESTS_PER_5_MINUTES: int = 300
+    SCANS_PER_DAY: int = 10
+    EXPENSIVE_LOOKUPS_PER_HOUR: int = 30
+    IMAGE_ANALYSES_PER_DAY: int = 10
+    MAX_REMOTE_IMAGE_BYTES: int = 5242880
+    MAX_REQUEST_BODY_BYTES: int = 10485760
     BROKER_LIST_PATH: str = '/app/data/brokers.json'
 
-    @field_validator('CORS_ORIGINS', mode='before')
+    @field_validator('CORS_ORIGINS', 'ALLOWED_HOSTS', mode='before')
     @classmethod
-    def parse_cors_origins(cls, value):
+    def parse_string_list(cls, value):
         if isinstance(value, str):
             try:
                 parsed = json.loads(value)
@@ -109,18 +119,25 @@ class Settings(BaseSettings):
     def validate_runtime_safety(self) -> None:
         if self.is_production and self.DEMO_MODE:
             raise RuntimeError('DEMO_MODE cannot be enabled in production.')
-        if self.is_production and self.SECRET_KEY in {'dev-secret-change-me', 'change-me-32-chars-minimum-please'}:
-            raise RuntimeError('Set a strong SECRET_KEY before running in production.')
-        if self.is_production and (':secret@' in self.DATABASE_URL or ':secret@' in self.SYNC_DATABASE_URL):
-            raise RuntimeError('Replace the default database password before running in production.')
+        self.validate_storage_safety()
         if self.is_production and not self.REQUIRE_AUTH:
             raise RuntimeError('REQUIRE_AUTH must be enabled in production.')
+        if self.is_production and ('*' in self.CORS_ORIGINS or '*' in self.ALLOWED_HOSTS):
+            raise RuntimeError('Wildcard CORS origins and allowed hosts are forbidden in production.')
         if self.is_production and self.REQUIRE_AUTH and not (self.SUPABASE_JWT_SECRET or self.supabase_jwks_url):
             raise RuntimeError('Set SUPABASE_JWT_SECRET or SUPABASE_JWKS_URL when REQUIRE_AUTH=true.')
         if self.ALLOW_REAL_OPT_OUTS and not self.SES_FROM_EMAIL:
             raise RuntimeError('SES_FROM_EMAIL is required when ALLOW_REAL_OPT_OUTS=true.')
         if self.ALLOW_REAL_OPT_OUTS and not self.BROKER_PRIVACY_EMAILS:
             raise RuntimeError('BROKER_PRIVACY_EMAILS with verified broker contacts is required when ALLOW_REAL_OPT_OUTS=true.')
+
+    def validate_storage_safety(self) -> None:
+        if self.is_production and self.SECRET_KEY in {'dev-secret-change-me', 'change-me-32-chars-minimum-please'}:
+            raise RuntimeError('Set a strong SECRET_KEY before running in production.')
+        if self.is_production and (':secret@' in self.DATABASE_URL or ':secret@' in self.SYNC_DATABASE_URL):
+            raise RuntimeError('Replace the default database password before running in production.')
+        if self.is_production and self.REQUIRE_KMS_IN_PRODUCTION and not self.KMS_KEY_ID:
+            raise RuntimeError('KMS_KEY_ID is required in production to isolate vault encryption keys.')
 
     @property
     def azure_cv_endpoint(self) -> str:

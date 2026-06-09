@@ -28,19 +28,21 @@ def _verify_mailgun(token: str, timestamp: str, signature: str) -> bool:
 
 @router.post('/mailgun/inbound')
 async def mailgun_inbound(request: Request):
+    if not settings.MAILGUN_API_KEY:
+        raise HTTPException(503, 'Inbound email verification is not configured.')
     form = await request.form()
     token     = form.get('token', '')
     timestamp = form.get('timestamp', '')
     signature = form.get('signature', '')
 
-    if settings.MAILGUN_API_KEY and not _verify_mailgun(str(token), str(timestamp), str(signature)):
+    if not _verify_mailgun(str(token), str(timestamp), str(signature)):
         raise HTTPException(403, 'Invalid Mailgun signature')
 
     recipient = str(form.get('recipient', ''))
     sender    = str(form.get('sender', ''))
     subject   = str(form.get('subject', ''))
 
-    log.info('Mailgun inbound: recipient=%s sender=%s', recipient, sender)
+    log.info('Mailgun inbound received (recipient_fp=%s sender_fp=%s)', hashlib.sha256(recipient.encode()).hexdigest()[:12], hashlib.sha256(sender.encode()).hexdigest()[:12])
 
     from app.core.database import AsyncSessionLocal
     from app.models.scan import HoneyToken, HoneyTokenHit
@@ -56,6 +58,6 @@ async def mailgun_inbound(request: Request):
             )
             db.add(hit)
             await db.commit()
-            log.warning('HONEY TOKEN HIT: alias=%s from=%s', recipient, sender)
+            log.warning('HONEY TOKEN HIT recorded (recipient_fp=%s sender_fp=%s)', hashlib.sha256(recipient.encode()).hexdigest()[:12], hashlib.sha256(sender.encode()).hexdigest()[:12])
 
     return {'status': 'ok'}

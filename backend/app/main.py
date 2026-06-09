@@ -5,9 +5,12 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
 from prometheus_fastapi_instrumentator import Instrumentator
+from sqlalchemy import text
+from starlette.middleware.trustedhost import TrustedHostMiddleware
 import structlog
 
 from app.core.config import get_settings
+from app.core.http_security import SecurityHeadersMiddleware
 
 settings = get_settings()
 settings.validate_runtime_safety()
@@ -32,7 +35,10 @@ async def lifespan(_: FastAPI):
     from app.core.database import engine, Base
 
     async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+        if settings.is_production:
+            await conn.execute(text('SELECT 1'))
+        else:
+            await conn.run_sync(Base.metadata.create_all)
     log.info('Vindica started (env=%s)', settings.APP_ENV)
     yield
 
@@ -41,8 +47,9 @@ app = FastAPI(
     title='Vindica API',
     version='1.0.0',
     description='Personal-data exposure detection, broker removal, and compliance reporting platform.',
-    docs_url='/api/docs',
-    openapi_url='/api/openapi.json',
+    docs_url=None if settings.is_production else '/api/docs',
+    redoc_url=None,
+    openapi_url=None if settings.is_production else '/api/openapi.json',
     lifespan=lifespan,
 )
 
@@ -53,6 +60,8 @@ app.add_middleware(
     allow_methods=['*'],
     allow_headers=['*'],
 )
+app.add_middleware(TrustedHostMiddleware, allowed_hosts=settings.ALLOWED_HOSTS)
+app.add_middleware(SecurityHeadersMiddleware)
 
 Instrumentator().instrument(app).expose(app, endpoint='/metrics')
 
@@ -94,6 +103,8 @@ async def readiness():
     blockers = []
     if settings.is_production and not capabilities['account_vault_auth']:
         blockers.append('Account vault authentication is not configured.')
+    if settings.is_production and not capabilities['kms_envelope_encryption']:
+        blockers.append('KMS envelope encryption is not configured.')
     if settings.is_production and settings.PUBLIC_APP_URL.startswith('http://'):
         blockers.append('PUBLIC_APP_URL must use HTTPS in production.')
     return {

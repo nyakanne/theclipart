@@ -2,6 +2,7 @@ from celery import Celery
 from app.core.config import get_settings
 
 settings = get_settings()
+settings.validate_storage_safety()
 
 celery_app = Celery(
     'dataguard',

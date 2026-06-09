@@ -101,7 +101,7 @@ export function Account() {
     setMessage(null)
     try {
       const result = await api.scan.deleteAll()
-      setMessage(`${result.deleted} saved scan${result.deleted === 1 ? '' : 's'} permanently deleted from your vault.`)
+      setMessage(`${result.deleted} saved scan${result.deleted === 1 ? '' : 's'} and ${result.actions_deleted} saved action${result.actions_deleted === 1 ? '' : 's'} permanently deleted from your vault.`)
     } catch (err) {
       setMessage(err instanceof Error ? err.message : 'Vault deletion failed')
     } finally {

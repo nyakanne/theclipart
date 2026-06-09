@@ -22,9 +22,10 @@ from app.schemas.scan import (
 )
 from app.services.image_analysis_service import analyze_image_bytes, analyze_image_url
 from app.services.ipinfo_service import lookup_ipinfo
+from app.core.rate_limit import enforce_api_rate_limit, enforce_expensive_lookup_rate_limit, enforce_image_rate_limit
 
 log = logging.getLogger(__name__)
-router = APIRouter(prefix='/lookups', tags=['lookups'])
+router = APIRouter(prefix='/lookups', tags=['lookups'], dependencies=[Depends(enforce_api_rate_limit)])
 settings = get_settings()
 
 
@@ -79,6 +80,15 @@ _LINE_TYPE_LABELS: dict[PhoneNumberType, str] = {
 }
 
 
+async def _read_upload_limited(file: UploadFile) -> bytes:
+    payload = bytearray()
+    while chunk := await file.read(1024 * 1024):
+        payload.extend(chunk)
+        if len(payload) > settings.AZURE_COMPUTER_VISION_MAX_UPLOAD_BYTES:
+            raise HTTPException(413, f'Image exceeds {settings.AZURE_COMPUTER_VISION_MAX_UPLOAD_BYTES // (1024 * 1024)} MB upload limit.')
+    return bytes(payload)
+
+
 def _clean_domain(value: str) -> str:
     clean = value.strip()
     clean = clean.removeprefix('https://').removeprefix('http://')
@@ -112,7 +122,7 @@ async def _probe(client: httpx.AsyncClient, platform: dict, username: str) -> di
     }
 
 
-@router.get('/username/{username}', response_model=list[UsernamePlatformOut])
+@router.get('/username/{username}', response_model=list[UsernamePlatformOut], dependencies=[Depends(enforce_expensive_lookup_rate_limit)])
 async def lookup_username(
     username: str,
     _: str | None = Depends(get_current_user_id),
@@ -233,7 +243,7 @@ async def lookup_domain(
     }
 
 
-@router.get('/domain-intel/{value:path}', response_model=DomainIntelOut)
+@router.get('/domain-intel/{value:path}', response_model=DomainIntelOut, dependencies=[Depends(enforce_expensive_lookup_rate_limit)])
 async def lookup_domain_intel(
     value: str,
     _: str | None = Depends(get_current_user_id),
@@ -362,7 +372,7 @@ async def lookup_domain_intel(
     }
 
 
-@router.post('/image/url', response_model=ImageAnalysisOut)
+@router.post('/image/url', response_model=ImageAnalysisOut, dependencies=[Depends(enforce_image_rate_limit)])
 async def lookup_image_url(
     body: ImageLookupUrlIn,
     _: str | None = Depends(get_current_user_id),
@@ -373,7 +383,7 @@ async def lookup_image_url(
         raise HTTPException(400, str(exc))
 
 
-@router.post('/image/upload', response_model=ImageAnalysisOut)
+@router.post('/image/upload', response_model=ImageAnalysisOut, dependencies=[Depends(enforce_image_rate_limit)])
 async def lookup_image_upload(
     file: UploadFile = File(...),
     _: str | None = Depends(get_current_user_id),
@@ -381,9 +391,7 @@ async def lookup_image_upload(
     if not file.content_type or not file.content_type.startswith('image/'):
         raise HTTPException(400, 'Upload a valid image file.')
 
-    payload = await file.read()
-    if len(payload) > settings.AZURE_COMPUTER_VISION_MAX_UPLOAD_BYTES:
-        raise HTTPException(413, f'Image exceeds {settings.AZURE_COMPUTER_VISION_MAX_UPLOAD_BYTES // (1024 * 1024)} MB upload limit.')
+    payload = await _read_upload_limited(file)
 
     try:
         return await analyze_image_bytes(payload, file.content_type)
@@ -391,7 +399,7 @@ async def lookup_image_upload(
         raise HTTPException(400, str(exc))
 
 
-@router.post('/analyze-image', response_model=ImageAnalysisOut)
+@router.post('/analyze-image', response_model=ImageAnalysisOut, dependencies=[Depends(enforce_image_rate_limit)])
 async def analyze_image(
     image_url: str = Form(''),
     file: UploadFile | None = File(None),
@@ -400,9 +408,7 @@ async def analyze_image(
     if file is not None:
         if not file.content_type or not file.content_type.startswith('image/'):
             raise HTTPException(400, 'Upload a valid image file.')
-        payload = await file.read()
-        if len(payload) > settings.AZURE_COMPUTER_VISION_MAX_UPLOAD_BYTES:
-            raise HTTPException(413, f'Image exceeds {settings.AZURE_COMPUTER_VISION_MAX_UPLOAD_BYTES // (1024 * 1024)} MB upload limit.')
+        payload = await _read_upload_limited(file)
         try:
             return await analyze_image_bytes(payload, file.content_type)
         except ValueError as exc:

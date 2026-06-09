@@ -120,3 +120,6 @@ Before declaring the release successful:
 - Signed-in scans must return `"vault_saved":true`.
 - `real_opt_out_email` must be `true` before promising automated broker emails.
 - `BROKER_PRIVACY_EMAILS` must contain only verified contacts; never guessed addresses.
+- `scripts/production-proof.sh` must pass on a Docker-capable release host.
+- Direct public access to ports `3000`, `5555`, and `8000` must fail.
+- Paid-provider billing alerts and hard monthly budgets must be enabled.

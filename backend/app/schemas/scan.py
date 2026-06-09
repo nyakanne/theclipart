@@ -13,8 +13,8 @@ class ScanRequest(BaseModel):
     email: Optional[EmailStr] = None
     phone: Optional[str] = None
     ip_address: Optional[str] = None
-    username: Optional[str] = None
-    full_name: Optional[str] = None
+    username: Optional[str] = Field(default=None, max_length=64)
+    full_name: Optional[str] = Field(default=None, max_length=256)
     notify_email: Optional[EmailStr] = None
 
     @field_validator('phone')
@@ -170,16 +170,16 @@ class ProviderStatusOut(BaseModel):
 
 
 class ManualEvidenceIn(BaseModel):
-    title: str
-    source_name: str
-    source_url: str
-    detail: str
+    title: str = Field(min_length=1, max_length=256)
+    source_name: str = Field(min_length=1, max_length=256)
+    source_url: str = Field(max_length=2048)
+    detail: str = Field(max_length=10000)
     risk_level: SeverityLevel = 'medium'
-    source_category: str = 'manual_capture'
-    confidence: str = 'manual_capture'
-    captured_at: Optional[str] = None
-    exposed_fields: list[str] = []
-    action_label: str = 'Open source page'
+    source_category: str = Field(default='manual_capture', max_length=64)
+    confidence: str = Field(default='manual_capture', max_length=64)
+    captured_at: Optional[str] = Field(default=None, max_length=64)
+    exposed_fields: list[str] = Field(default_factory=list, max_length=64)
+    action_label: str = Field(default='Open source page', max_length=128)
 
 
 class IpLookupOut(BaseModel):
@@ -199,7 +199,7 @@ class IpLookupOut(BaseModel):
 
 
 class ImageLookupUrlIn(BaseModel):
-    image_url: str
+    image_url: str = Field(min_length=1, max_length=2048)
 
 
 class ImageAnalysisTagOut(BaseModel):

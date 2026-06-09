@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
 
 from app.models.scan import CommandAction
+from app.core.security import decrypt_json_payload
 
 
 MANUAL_EVIDENCE_FEATURE = 'manual-evidence-capture'
@@ -19,11 +20,11 @@ def _action_visible_to_user(action: CommandAction, user_id: str | None) -> bool:
 
 
 def _payload_matches_scan(action: CommandAction, scan_id: str) -> bool:
-    return str((action.payload or {}).get('scan_id') or '') == scan_id
+    return str(decrypt_json_payload(action.payload).get('scan_id') or '') == scan_id
 
 
 def manual_evidence_action_to_item(action: CommandAction) -> dict:
-    payload = action.payload or {}
+    payload = decrypt_json_payload(action.payload)
     evidence = payload.get('evidence') or {}
     captured_at = str(evidence.get('captured_at') or action.created_at.isoformat() or datetime.now(timezone.utc).isoformat())
     source_category = str(evidence.get('source_category') or 'manual_capture')

@@ -6,8 +6,29 @@ from app.core.auth import get_current_user_id
 from app.core.database import get_db
 from app.models.scan import CommandAction
 from app.schemas.command import CommandActionIn, CommandActionOut, CommandActionUpdate
+from app.core.rate_limit import enforce_api_rate_limit
+from app.core.security import decrypt_json_payload, encrypt_json_payload
 
-router = APIRouter(prefix='/command/actions', tags=['command'])
+router = APIRouter(prefix='/command/actions', tags=['command'], dependencies=[Depends(enforce_api_rate_limit)])
+RESERVED_FEATURES = {'manual-evidence-capture', 'report-package'}
+
+
+def _assert_user_managed_feature(feature: str) -> None:
+    if feature in RESERVED_FEATURES:
+        raise HTTPException(403, 'This action type is managed by a dedicated protected workflow.')
+
+
+def _action_out(action: CommandAction) -> dict:
+    return {
+        'id': action.id,
+        'user_id': action.user_id,
+        'feature': action.feature,
+        'title': action.title,
+        'status': action.status,
+        'payload': decrypt_json_payload(action.payload),
+        'created_at': action.created_at,
+        'updated_at': action.updated_at,
+    }
 
 
 @router.get('', response_model=list[CommandActionOut])
@@ -24,7 +45,7 @@ async def list_actions(
     if feature:
         stmt = stmt.where(CommandAction.feature == feature)
     result = await db.execute(stmt)
-    return result.scalars().all()
+    return [_action_out(action) for action in result.scalars().all()]
 
 
 @router.post('', response_model=CommandActionOut, status_code=201)
@@ -33,18 +54,19 @@ async def create_action(
     db: AsyncSession = Depends(get_db),
     user_id: str | None = Depends(get_current_user_id),
 ):
+    _assert_user_managed_feature(body.feature)
     action = CommandAction(
         user_id=user_id,
         feature=body.feature,
         title=body.title,
         status=body.status,
-        payload=body.payload,
+        payload=encrypt_json_payload(body.payload),
     )
     db.add(action)
     await db.flush()
     await db.commit()
     await db.refresh(action)
-    return action
+    return _action_out(action)
 
 
 @router.patch('/{action_id}', response_model=CommandActionOut)
@@ -58,6 +80,7 @@ async def update_action(
     action = result.scalar_one_or_none()
     if not action:
         raise HTTPException(404, 'Command action not found')
+    _assert_user_managed_feature(action.feature)
     if action.user_id is not None and user_id is None:
         raise HTTPException(404, 'Command action not found')
     if user_id is not None and action.user_id != user_id:
@@ -65,8 +88,8 @@ async def update_action(
     if body.status is not None:
         action.status = body.status
     if body.payload is not None:
-        action.payload = body.payload
+        action.payload = encrypt_json_payload(body.payload)
     await db.flush()
     await db.commit()
     await db.refresh(action)
-    return action
+    return _action_out(action)

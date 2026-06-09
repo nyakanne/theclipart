@@ -12,7 +12,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
-from app.core.security import decrypt_pii, encrypt_pii
+from app.core.security import decrypt_json_payload, decrypt_pii, encrypt_json_payload, encrypt_pii
 from app.workers.celery_app import celery_app
 
 log = logging.getLogger(__name__)
@@ -363,20 +363,20 @@ def generate_report_for_action(action_id: str, scan_id: str, fmt: str = 'pdf'):
         pkg = _gen(scan_id, scan_data, fmt)
         if action:
             action.status = 'completed'
-            action.payload = {
-                **(action.payload or {}),
+            action.payload = encrypt_json_payload({
+                **decrypt_json_payload(action.payload),
                 **_json_safe(pkg),
-            }
+            })
             db.commit()
         return pkg
     except Exception as exc:
         action = db.query(CommandAction).filter(CommandAction.id == action_id).first()
         if action:
             action.status = 'failed'
-            action.payload = {
-                **(action.payload or {}),
+            action.payload = encrypt_json_payload({
+                **decrypt_json_payload(action.payload),
                 'error': str(exc),
-            }
+            })
             db.commit()
         raise
     finally:

@@ -69,6 +69,22 @@ def _store_local_report(key: str, data: bytes) -> str:
     return key
 
 
+def delete_report_artifact(payload: dict) -> None:
+    storage_kind = str(payload.get('storage_kind') or '')
+    storage_key = str(payload.get('storage_key') or '')
+    if not storage_key:
+        return
+    if storage_kind == 'local':
+        path = _local_report_path(storage_key)
+        path.unlink(missing_ok=True)
+        return
+    if storage_kind == 's3':
+        boto3.client('s3', region_name=settings.AWS_REGION).delete_object(
+            Bucket=settings.S3_BUCKET,
+            Key=storage_key,
+        )
+
+
 def _build_pdf(scan_id: str, data: dict) -> bytes:
     buf = io.BytesIO()
     doc = SimpleDocTemplate(buf, pagesize=A4, topMargin=20 * mm, bottomMargin=20 * mm)

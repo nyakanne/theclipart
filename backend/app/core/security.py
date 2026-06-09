@@ -1,5 +1,6 @@
 import hashlib
 import hmac
+import json
 import secrets
 import boto3
 from base64 import b64encode, b64decode, urlsafe_b64encode
@@ -49,6 +50,19 @@ def decrypt_pii(token: str) -> str:
     plaintext_key = resp['Plaintext']
     f = Fernet(b64encode(plaintext_key[:32]))
     return f.decrypt(ciphertext.encode()).decode()
+
+
+def encrypt_json_payload(value: dict) -> dict:
+    return {'_vindica_encrypted': encrypt_pii(json.dumps(value))}
+
+
+def decrypt_json_payload(value: dict | None) -> dict:
+    payload = value or {}
+    token = payload.get('_vindica_encrypted')
+    if not isinstance(token, str):
+        return payload
+    decoded = json.loads(decrypt_pii(token))
+    return decoded if isinstance(decoded, dict) else {}
 
 
 def hash_identifier(value: str) -> str:

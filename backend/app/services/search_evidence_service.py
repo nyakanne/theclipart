@@ -137,7 +137,7 @@ async def _brave_search(plan: SearchPlan) -> list[dict]:
     async with httpx.AsyncClient(timeout=settings.BRAVE_SEARCH_TIMEOUT_SECONDS) as client:
         response = await client.get(settings.BRAVE_SEARCH_BASE_URL, headers=headers, params=params)
         if response.status_code in {401, 403, 429}:
-            log.warning('Brave Search request failed with %s for query %r', response.status_code, plan.query)
+            log.warning('Brave Search request failed with %s for query fingerprint %s', response.status_code, hashlib.sha256(plan.query.encode()).hexdigest()[:12])
             return []
         response.raise_for_status()
         payload = response.json()
@@ -204,7 +204,7 @@ async def build_search_evidence(query: dict) -> SearchEvidenceBundle:
 
     for plan, search_results in zip(plans, gathered):
         if isinstance(search_results, Exception):
-            log.warning('Search evidence query failed for %r: %s', plan.query, search_results)
+            log.warning('Search evidence query failed for fingerprint %s: %s', hashlib.sha256(plan.query.encode()).hexdigest()[:12], search_results)
             had_failure = True
             continue
         for result in search_results:

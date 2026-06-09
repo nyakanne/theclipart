@@ -5,12 +5,12 @@ from pathlib import Path
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from fastapi.responses import FileResponse, RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import selectinload
 
 from app.core.auth import get_current_user_id
 from app.core.database import get_db
-from app.core.security import encrypt_pii, generate_scan_id
+from app.core.security import decrypt_json_payload, encrypt_json_payload, encrypt_pii, generate_scan_id
 from app.models.scan import Scan, BreachRecord, BrokerListing, HoneyToken, HoneyTokenHit, DsarRequest, ComplianceResult, CommandAction
 from app.schemas.scan import ScanRequest, ScanJobOut, ScanResultOut, DsarRequestOut, ReportJobOut, OptOutConfirmIn, OptOutQueueOut, OptOutReadinessOut, ManualEvidenceIn, EvidenceItemOut
 from app.workers.tasks import execute_scan, run_scan, send_dsar, generate_report, generate_report_for_action
@@ -20,9 +20,11 @@ from app.services.evidence_service import build_scan_evidence
 from app.services.provider_evidence_service import build_provider_evidence
 from app.services.manual_evidence_service import MANUAL_EVIDENCE_FEATURE, list_manual_evidence_for_scan, manual_evidence_action_to_item
 from app.services.email_service import resolve_broker_privacy_email
+from app.services.report_service import delete_report_artifact
+from app.core.rate_limit import enforce_api_rate_limit, enforce_scan_rate_limit
 
 log = logging.getLogger(__name__)
-router = APIRouter(prefix='/scans', tags=['scans'])
+router = APIRouter(prefix='/scans', tags=['scans'], dependencies=[Depends(enforce_api_rate_limit)])
 settings = get_settings()
 
 
@@ -69,7 +71,7 @@ def _scan_job_out(scan: Scan) -> ScanJobOut:
     )
 
 
-@router.post('', response_model=ScanJobOut, status_code=201)
+@router.post('', response_model=ScanJobOut, status_code=201, dependencies=[Depends(enforce_scan_rate_limit)])
 async def create_scan(
     body: ScanRequest,
     background_tasks: BackgroundTasks,
@@ -78,6 +80,15 @@ async def create_scan(
 ):
     if not body.has_any_identifier():
         raise HTTPException(400, 'Provide at least one identifier (email, phone, ip_address, username, or full_name)')
+    if user_id is not None:
+        active_result = await db.execute(
+            select(func.count(Scan.id)).where(
+                Scan.user_id == user_id,
+                Scan.status.in_(['queued', 'scanning']),
+            )
+        )
+        if int(active_result.scalar_one()) >= settings.MAX_ACTIVE_SCANS_PER_USER:
+            raise HTTPException(429, 'Too many active scans. Wait for an existing scan to finish.')
 
     query = body.model_dump(exclude_none=True, exclude={'notify_email'})
     scan_id = generate_scan_id()
@@ -125,10 +136,29 @@ async def delete_vault_scans(
         raise HTTPException(401, 'Sign in before deleting vault data.')
     result = await db.execute(select(Scan).where(Scan.user_id == user_id))
     scans = result.scalars().all()
+    owned_scan_ids = {scan.id for scan in scans}
+    action_result = await db.execute(select(CommandAction).where(CommandAction.user_id == user_id))
+    actions = action_result.scalars().all()
+    for action in actions:
+        if action.feature != 'report-package':
+            continue
+        payload = decrypt_json_payload(action.payload)
+        payload_scan_id = str(payload.get('scan_id') or '')
+        storage_key = str(payload.get('storage_key') or '')
+        if payload_scan_id not in owned_scan_ids or (storage_key and not storage_key.startswith(f'reports/{payload_scan_id}/')):
+            log.error('Refusing unsafe report artifact deletion for action %s', action.id)
+            raise HTTPException(409, 'Vault contains an invalid report artifact reference. Contact support before deletion.')
+        try:
+            delete_report_artifact(payload)
+        except Exception:
+            log.exception('Could not delete report artifact for action %s', action.id)
+            raise HTTPException(503, 'Vault artifact deletion failed. No database records were deleted; try again.')
     for scan in scans:
         await db.delete(scan)
+    for action in actions:
+        await db.delete(action)
     await db.commit()
-    return {'deleted': len(scans), 'status': 'deleted'}
+    return {'deleted': len(scans), 'actions_deleted': len(actions), 'status': 'deleted'}
 
 
 @router.get('/{scan_id}/status', response_model=ScanJobOut)
@@ -254,10 +284,10 @@ async def capture_manual_evidence(
         feature=MANUAL_EVIDENCE_FEATURE,
         title=body.title,
         status='captured',
-        payload={
+        payload=encrypt_json_payload({
             'scan_id': scan_id,
             'evidence': evidence,
-        },
+        }),
     )
     db.add(action)
     await db.flush()
@@ -444,7 +474,7 @@ async def create_report(
         feature='report-package',
         title=f'Report package: {scan_id}',
         status='queued',
-        payload={'scan_id': scan_id, 'format': fmt},
+        payload=encrypt_json_payload({'scan_id': scan_id, 'format': fmt}),
     )
     db.add(action)
     await db.flush()
@@ -478,7 +508,7 @@ async def download_report_job(
     user_id: str | None = Depends(get_current_user_id),
 ):
     action = await _get_report_action(scan_id, action_id, db, user_id)
-    payload = action.payload or {}
+    payload = decrypt_json_payload(action.payload)
     storage_kind = str(payload.get('storage_kind') or '')
     download_url = payload.get('download_url')
     if storage_kind == 's3' and download_url:
@@ -536,7 +566,7 @@ async def _get_report_action(
         raise HTTPException(404, 'Report job not found')
     if user_id is not None and action.user_id != user_id:
         raise HTTPException(404, 'Report job not found')
-    payload_scan_id = str((action.payload or {}).get('scan_id') or '')
+    payload_scan_id = str(decrypt_json_payload(action.payload).get('scan_id') or '')
     if payload_scan_id != scan_id:
         raise HTTPException(404, 'Report job not found')
     return action
@@ -551,7 +581,7 @@ def _local_report_path(storage_key: str) -> Path:
 
 
 def _report_job_from_action(action: CommandAction) -> ReportJobOut:
-    payload = action.payload or {}
+    payload = decrypt_json_payload(action.payload)
     download_url = payload.get('download_url')
     if not download_url and payload.get('storage_kind') == 'local':
         download_url = (

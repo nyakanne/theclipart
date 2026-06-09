@@ -1,6 +1,6 @@
 # Vindica Production Readiness
 
-Updated: June 7, 2026
+Updated: June 9, 2026
 
 ## Implemented And Verified
 
@@ -15,6 +15,11 @@ Updated: June 7, 2026
 - Bulk opt-out queues only explicitly verified broker privacy contacts.
 - Brokers without verified email contacts remain available through official opt-out portals.
 - `/ready` reports production blockers and configured capabilities without exposing secrets.
+- Redis-backed quotas cap scans and paid/provider-heavy lookups across API instances.
+- Remote image URLs reject private networks, unsafe ports, redirect pivots, non-images, and oversized downloads.
+- Saved command, consent, report, and manual-evidence payloads are encrypted at rest.
+- Production requires KMS envelope encryption and runs backend workers as a non-root user.
+- Backend, frontend, and Flower host ports bind to localhost to prevent edge-proxy bypass.
 
 ## Required Before Live Release
 
@@ -32,10 +37,30 @@ SUPABASE_JWKS_URL=<project JWKS URL, or derive from SUPABASE_URL>
 VITE_SUPABASE_URL=<project URL>
 VITE_SUPABASE_PUBLISHABLE_KEY=<publishable key>
 PUBLIC_APP_URL=https://vindica.me
+CORS_ORIGINS=["https://vindica.me","https://www.vindica.me"]
+ALLOWED_HOSTS=["vindica.me","www.vindica.me","localhost","127.0.0.1"]
+KMS_KEY_ID=<production KMS key ARN>
+REQUIRE_KMS_IN_PRODUCTION=true
+METRICS_TOKEN=<strong monitoring-only bearer token>
 ```
 
 Run all Alembic migrations and verify signed-in scans return `vault_saved: true`.
 Production startup intentionally refuses the development database password `secret`.
+Production startup does not create tables; migrations must complete before the API starts.
+
+### Cost And Abuse Controls
+
+```dotenv
+MAX_ACTIVE_SCANS_PER_USER=2
+API_REQUESTS_PER_5_MINUTES=300
+SCANS_PER_DAY=10
+EXPENSIVE_LOOKUPS_PER_HOUR=30
+IMAGE_ANALYSES_PER_DAY=10
+MAX_REMOTE_IMAGE_BYTES=5242880
+```
+
+Redis is required in production. If Redis is unavailable, cost-sensitive endpoints fail closed.
+Configure billing alerts and hard monthly budgets in every paid provider dashboard.
 
 ### Live API Routing
 
@@ -83,6 +108,7 @@ refuses to guess `privacy@domain` addresses.
 - Verify broker privacy contacts and SES delivery outside the sandbox.
 - Complete legal-counsel review of Terms, Privacy Policy, retention, subprocessors, and jurisdictional obligations.
 - Decide and document retention periods; current self-service deletion is immediate and user initiated.
-- Configure KMS envelope encryption for stronger production key isolation.
 - Run authenticated end-to-end tests against the deployed Supabase and production database.
+- Run `scripts/production-proof.sh` in CI and on the release host.
+- Run a third-party penetration test before handling high-risk customer investigations.
 - Fix host nginx and deploy the current branch before live scans will work.
