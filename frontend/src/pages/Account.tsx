@@ -122,18 +122,18 @@ export function Account() {
           />
         ) : null}
       </AnimatePresence>
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_18%,rgba(186,24,27,0.16),transparent_26rem),radial-gradient(circle_at_84%_14%,rgba(212,175,55,0.11),transparent_20rem)]" />
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_12%,rgba(255,255,255,0.055),transparent_28rem),radial-gradient(circle_at_84%_14%,rgba(212,175,55,0.08),transparent_22rem)]" />
       <div className="mx-auto max-w-5xl px-4 py-12 sm:px-6 lg:px-8">
-        <div className="premium-panel rounded-[28px] p-6 sm:p-8">
+        <div className="account-vault-panel rounded-[28px] p-6 sm:p-8">
           <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
             <div>
               <div className="flex items-start gap-4">
-                <div className="rounded-[22px] border border-[#d4af37]/20 bg-[radial-gradient(circle_at_50%_30%,rgba(212,175,55,0.18),rgba(186,24,27,0.16),rgba(0,0,0,0.88))] p-4 text-[#f5d7a1]">
+                <div className="rounded-[18px] border border-[#d4af37]/25 bg-[linear-gradient(145deg,rgba(212,175,55,0.12),rgba(255,255,255,0.025))] p-4 text-[#f5d7a1] shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
                   <ShieldAlert className="h-8 w-8" />
                 </div>
                 <div>
                   <p className="text-xs font-bold uppercase tracking-[0.22em] text-[#f5d7a1]">Secure account</p>
-                  <h1 className="mt-2 text-3xl font-black text-white sm:text-4xl">Your Vindica vault</h1>
+                  <h1 className="mt-2 text-3xl font-black text-[#f7f7f5] sm:text-4xl">Your Vindica vault</h1>
                   <p className="mt-3 max-w-xl text-sm leading-7 text-gray-300">
                     Sign in to preserve scans, removals, reports, evidence receipts, and alert history inside a private vault scoped to your account.
                   </p>
@@ -156,7 +156,7 @@ export function Account() {
                 { icon: Lock, title: 'Vault security', detail: 'Magic-link access, account-scoped storage, and retained case history.' },
                 { icon: Bell, title: 'Signal continuity', detail: 'Return to live alerts, unresolved removals, and evidence chains.' },
               ].map(({ icon: Icon, title, detail }) => (
-                <div key={title} className="tilt-card premium-panel rounded-2xl p-5">
+                <div key={title} className="tilt-card account-vault-card rounded-2xl p-5">
                   <Icon className="h-5 w-5 text-[#f5d7a1]" />
                   <div className="mt-3 text-lg font-black text-[#fff7e8]">{title}</div>
                   <p className="mt-2 text-sm leading-6 text-gray-400">{detail}</p>
@@ -202,6 +202,7 @@ export function Account() {
             <form onSubmit={signIn} className="mt-6 max-w-2xl space-y-4">
               <AuthVaultPrompt
                 compact
+                tone="neutral"
                 title="Create private vault access before you leave the page"
                 body="One secure magic link signs you in or creates your private vault. After that, scans, removals, reports, and evidence history stay account-scoped instead of evaporating with the browser session."
                 ctaLabel="Create vault access"

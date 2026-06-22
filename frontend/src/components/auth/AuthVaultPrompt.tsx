@@ -16,30 +16,43 @@ export function AuthVaultPrompt({
   compact = false,
   className,
   ctaLabel = 'Sign in or create vault',
+  tone = 'alert',
 }: {
   title?: string
   body?: string
   compact?: boolean
   className?: string
   ctaLabel?: string
+  tone?: 'alert' | 'neutral'
 }) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       className={clsx(
-        'relative overflow-hidden rounded-[24px] border border-red-500/35 bg-[linear-gradient(145deg,rgba(80,8,14,0.86),rgba(10,10,12,0.94))] shadow-[0_0_40px_rgba(186,24,27,0.14)]',
+        'relative overflow-hidden rounded-[24px] border',
+        tone === 'neutral'
+          ? 'border-white/10 bg-[linear-gradient(145deg,rgba(20,21,24,0.96),rgba(7,8,10,0.96))] shadow-[0_18px_50px_rgba(0,0,0,0.28)]'
+          : 'border-red-500/35 bg-[linear-gradient(145deg,rgba(80,8,14,0.86),rgba(10,10,12,0.94))] shadow-[0_0_40px_rgba(186,24,27,0.14)]',
         compact ? 'p-4' : 'p-5 sm:p-6',
         className
       )}
     >
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_24%,rgba(186,24,27,0.28),transparent_15rem),radial-gradient(circle_at_84%_18%,rgba(212,175,55,0.16),transparent_14rem)]" />
+      <div className={clsx(
+        'pointer-events-none absolute inset-0',
+        tone === 'neutral'
+          ? 'bg-[radial-gradient(circle_at_18%_24%,rgba(255,255,255,0.055),transparent_15rem),radial-gradient(circle_at_84%_18%,rgba(212,175,55,0.1),transparent_14rem)]'
+          : 'bg-[radial-gradient(circle_at_18%_24%,rgba(186,24,27,0.28),transparent_15rem),radial-gradient(circle_at_84%_18%,rgba(212,175,55,0.16),transparent_14rem)]'
+      )} />
       <div className="relative flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div className="flex items-start gap-4">
-          <div className="relative mt-1 flex h-14 w-14 shrink-0 items-center justify-center rounded-full border border-red-400/45 bg-black/55 text-[#f5d7a1]">
+          <div className={clsx(
+            'relative mt-1 flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-black/55 text-[#f5d7a1]',
+            tone === 'neutral' ? 'border border-[#d4af37]/30' : 'border border-red-400/45'
+          )}>
             <motion.span
               aria-hidden
-              className="absolute inset-0 rounded-full border border-red-400/45"
+              className={clsx('absolute inset-0 rounded-full border', tone === 'neutral' ? 'border-[#d4af37]/35' : 'border-red-400/45')}
               animate={{ scale: [1, 1.45], opacity: [0.55, 0] }}
               transition={{ duration: 1.8, ease: 'easeOut', repeat: Infinity }}
             />
@@ -61,7 +74,12 @@ export function AuthVaultPrompt({
         <div className="flex shrink-0 flex-col items-start gap-3 lg:items-end">
           <Link
             to="/account"
-            className="red-button-glow inline-flex items-center gap-2 rounded-xl border border-red-400/55 bg-[linear-gradient(180deg,rgba(186,24,27,0.42),rgba(60,5,9,0.92))] px-4 py-3 text-sm font-bold text-[#fff7e8] transition-colors hover:border-[#d4af37]/45 hover:text-white"
+            className={clsx(
+              'inline-flex items-center gap-2 rounded-xl border px-4 py-3 text-sm font-bold text-[#fff7e8] transition-colors hover:text-white',
+              tone === 'neutral'
+                ? 'border-[#d4af37]/30 bg-[linear-gradient(180deg,rgba(212,175,55,0.14),rgba(20,21,24,0.94))] hover:border-[#d4af37]/55'
+                : 'red-button-glow border-red-400/55 bg-[linear-gradient(180deg,rgba(186,24,27,0.42),rgba(60,5,9,0.92))] hover:border-[#d4af37]/45'
+            )}
           >
             {ctaLabel}
             <ArrowRight className="h-4 w-4" />
