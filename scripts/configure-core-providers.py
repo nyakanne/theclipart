@@ -24,10 +24,14 @@ def request_json(url: str, headers: dict[str, str]) -> tuple[int, object]:
 
 
 def validate_brave(key: str) -> None:
-    query = urllib.parse.urlencode({'q': 'site:vindica.me', 'count': 1})
+    query = urllib.parse.urlencode({'q': 'Vindica privacy', 'count': 1, 'search_lang': 'en'})
     status, _ = request_json(
         f'https://api.search.brave.com/res/v1/web/search?{query}',
-        {'Accept': 'application/json', 'X-Subscription-Token': key},
+        {
+            'Accept': 'application/json',
+            'User-Agent': 'Vindica/1.0',
+            'X-Subscription-Token': key,
+        },
     )
     if status != 200:
         raise RuntimeError(f'Brave Search rejected the key with HTTP {status}.')
