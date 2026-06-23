@@ -166,14 +166,14 @@ export function Account() {
           </div>
 
           {!isConfigured && (
-            <div className="mt-6 rounded-xl border border-red-500/30 bg-red-950/15 p-4 text-sm leading-6 text-red-100/85">
-              Supabase is not configured in this frontend build. Set `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` before hosting.
+            <div className="mt-6 rounded-xl border border-[#d4af37]/25 bg-[#d4af37]/[0.07] p-4 text-sm leading-6 text-[#fff2cf]">
+              Vault sign-in is waiting on Supabase configuration for this build. Set `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` before hosting.
             </div>
           )}
 
           {sessionEmail ? (
-            <div className="mt-6 rounded-[24px] border border-red-500/30 bg-red-950/15 p-5">
-              <div className="flex items-center gap-3 text-red-100">
+            <div className="mt-6 rounded-[24px] border border-[#d4af37]/25 bg-[#d4af37]/[0.06] p-5">
+              <div className="flex items-center gap-3 text-[#fff2cf]">
                 <CheckCircle2 className="h-5 w-5" />
                 <span className="font-bold">Signed in as {sessionEmail}</span>
               </div>
@@ -183,7 +183,7 @@ export function Account() {
               <button
                 type="button"
                 onClick={signOut}
-                className="mt-4 inline-flex items-center gap-2 rounded-xl border border-white/10 bg-black/55 px-4 py-3 text-sm font-bold text-gray-200 transition-colors hover:border-red-500/50 hover:text-white"
+                className="mt-4 inline-flex items-center gap-2 rounded-xl border border-white/10 bg-black/55 px-4 py-3 text-sm font-bold text-gray-200 transition-colors hover:border-[#d4af37]/45 hover:text-white"
               >
                 <LogOut className="h-4 w-4" />
                 Sign out
@@ -192,7 +192,7 @@ export function Account() {
                 type="button"
                 onClick={deleteVaultData}
                 disabled={loading}
-                className="ml-3 mt-4 inline-flex items-center gap-2 rounded-xl border border-red-500/35 bg-red-950/20 px-4 py-3 text-sm font-bold text-red-200 transition-colors hover:border-red-400 hover:text-white disabled:opacity-50"
+                className="ml-3 mt-4 inline-flex items-center gap-2 rounded-xl border border-white/10 bg-black/35 px-4 py-3 text-sm font-bold text-gray-300 transition-colors hover:border-[#d4af37]/45 hover:text-white disabled:opacity-50"
               >
                 <Trash2 className="h-4 w-4" />
                 Delete saved vault data
@@ -228,7 +228,7 @@ export function Account() {
                   checked={accepted}
                   onChange={event => setAccepted(event.target.checked)}
                   required
-                  className="mt-1 h-4 w-4 accent-red-600"
+                  className="mt-1 h-4 w-4 accent-[#d4af37]"
                 />
                 <span>
                   I agree to the <Link to="/terms" className="font-semibold text-white underline decoration-white/25 underline-offset-4">Terms of Use</Link> and acknowledge the <Link to="/privacy" className="font-semibold text-white underline decoration-white/25 underline-offset-4">Privacy Policy</Link>. I will use Vindica only for myself or authorized safety work.
@@ -237,7 +237,7 @@ export function Account() {
               <button
                 type="submit"
                 disabled={!isConfigured || loading || !accepted}
-                className="red-button-glow inline-flex w-full items-center justify-center gap-2 rounded-xl bg-red-600 px-4 py-3 font-bold text-white disabled:opacity-50"
+                className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-[#d4af37]/35 bg-[linear-gradient(135deg,#d4af37,#8f6f1f)] px-4 py-3 font-bold text-[#160f05] shadow-[0_18px_42px_rgba(212,175,55,0.18)] transition-transform hover:-translate-y-0.5 disabled:opacity-50 disabled:hover:translate-y-0"
               >
                 <Mail className="h-4 w-4" />
                 {loading ? 'Sending link...' : 'Send secure sign-in / vault link'}
