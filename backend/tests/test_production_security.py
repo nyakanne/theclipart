@@ -36,6 +36,23 @@ def test_production_rejects_missing_kms():
         _production_settings(KMS_KEY_ID='').validate_runtime_safety()
 
 
+def test_production_rejects_missing_auth_enforcement():
+    with pytest.raises(RuntimeError, match='REQUIRE_AUTH'):
+        _production_settings(REQUIRE_AUTH=False).validate_runtime_safety()
+
+
+def test_production_rejects_missing_auth_verifier():
+    with pytest.raises(RuntimeError, match='SUPABASE_JWT_SECRET|SUPABASE_JWKS_URL'):
+        _production_settings(SUPABASE_JWKS_URL='', SUPABASE_URL='', SUPABASE_JWT_SECRET='').validate_runtime_safety()
+
+
+def test_production_rejects_default_database_password():
+    with pytest.raises(RuntimeError, match='default database password'):
+        _production_settings(
+            DATABASE_URL='postgresql+asyncpg://dataguard:secret@postgres:5432/dataguard',
+        ).validate_runtime_safety()
+
+
 def test_production_rejects_wildcard_hosts():
     with pytest.raises(RuntimeError, match='Wildcard'):
         _production_settings(ALLOWED_HOSTS=['*']).validate_runtime_safety()

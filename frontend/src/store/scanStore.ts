@@ -36,6 +36,13 @@ export const useScanStore = create<ScanStore>()(
 
       clearHistory: () => set({ recentScans: [], activeScanId: null, currentResult: null }),
     }),
-    { name: 'dataguard-scans' }
+    {
+      name: 'dataguard-scans',
+      partialize: state => ({
+        activeScanId: state.activeScanId,
+        recentScans: [],
+        currentResult: null,
+      }),
+    }
   )
 )
