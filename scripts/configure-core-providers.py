@@ -89,6 +89,19 @@ def update_env(path: Path, values: dict[str, str]) -> None:
     path.chmod(0o600)
 
 
+def read_env_file(path: Path) -> dict[str, str]:
+    if not path.exists():
+        return {}
+    values: dict[str, str] = {}
+    for raw_line in path.read_text().splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith('#') or '=' not in line:
+            continue
+        key, value = line.split('=', 1)
+        values[key.strip()] = value.strip().strip('"').strip("'")
+    return values
+
+
 def get_secret(name: str, prompt: str, arg_value: str | None) -> str:
     if arg_value:
         return arg_value.strip()
@@ -130,6 +143,11 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument('--env-file', default='.env')
     parser.add_argument('--backend-env-file', default='backend/.env')
+    parser.add_argument(
+        '--from-env-file',
+        action='store_true',
+        help='Reuse provider keys that already exist in --env-file instead of prompting for them.',
+    )
     parser.add_argument('--restart', action='store_true')
     parser.add_argument('--copy-backend-env', action='store_true', default=True)
     parser.add_argument('--no-copy-backend-env', action='store_false', dest='copy_backend_env')
@@ -146,12 +164,15 @@ def main() -> int:
     )
     args = parser.parse_args()
 
-    brave = get_secret('BRAVE_SEARCH_API_KEY', 'Brave Search API key (blank to keep current): ', args.brave_key)
-    hibp = get_secret('HIBP_API_KEY', 'HIBP API key (blank to keep current): ', args.hibp_key)
-    ipinfo = get_secret('IPINFO_TOKEN', 'IPinfo token (blank to keep current): ', args.ipinfo_token)
-    hf = get_secret('HF_TOKEN', 'Hugging Face token (blank to keep current): ', args.hf_token)
-    virustotal = get_secret('VIRUSTOTAL_API_KEY', 'VirusTotal API key (blank to keep current): ', args.virustotal_key)
-    shodan = get_secret('SHODAN_API_KEY', 'Shodan API key (blank to keep current): ', args.shodan_key)
+    env_path = Path(args.env_file).resolve()
+    existing = read_env_file(env_path) if args.from_env_file else {}
+
+    brave = existing.get('BRAVE_SEARCH_API_KEY', '').strip() or get_secret('BRAVE_SEARCH_API_KEY', 'Brave Search API key (blank to keep current): ', args.brave_key)
+    hibp = existing.get('HIBP_API_KEY', '').strip() or get_secret('HIBP_API_KEY', 'HIBP API key (blank to keep current): ', args.hibp_key)
+    ipinfo = existing.get('IPINFO_TOKEN', '').strip() or get_secret('IPINFO_TOKEN', 'IPinfo token (blank to keep current): ', args.ipinfo_token)
+    hf = existing.get('HF_TOKEN', '').strip() or get_secret('HF_TOKEN', 'Hugging Face token (blank to keep current): ', args.hf_token)
+    virustotal = existing.get('VIRUSTOTAL_API_KEY', '').strip() or get_secret('VIRUSTOTAL_API_KEY', 'VirusTotal API key (blank to keep current): ', args.virustotal_key)
+    shodan = existing.get('SHODAN_API_KEY', '').strip() or get_secret('SHODAN_API_KEY', 'Shodan API key (blank to keep current): ', args.shodan_key)
     if not any([brave, hibp, ipinfo, hf, virustotal, shodan]):
         print('Enter at least one provider key.', file=sys.stderr)
         return 2
@@ -182,7 +203,6 @@ def main() -> int:
     if shodan:
         values['SHODAN_API_KEY'] = shodan
 
-    env_path = Path(args.env_file).resolve()
     update_env(env_path, values)
     print(f'Installed validated keys into {env_path}.')
 
