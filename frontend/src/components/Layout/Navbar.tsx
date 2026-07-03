@@ -3,6 +3,7 @@ import { Link, useLocation } from 'react-router-dom'
 import { ArrowRight, ChevronDown, Menu, ShieldAlert, X } from 'lucide-react'
 import { clsx } from 'clsx'
 import { useAuthSession } from '@/hooks/useAuthSession'
+import { AppInstallButton } from '@/components/Layout/AppInstallButton'
 
 const navItems = [
   { label: 'Command Center', href: '/#command-center' },
@@ -58,6 +59,7 @@ export function Navbar() {
           </div>
 
           <div className="flex items-center gap-2 sm:gap-4">
+            <AppInstallButton />
             <Link
               to="/account"
               className="hidden items-center gap-2 rounded-full border border-white/10 bg-black/40 px-3 py-2 text-xs font-semibold text-gray-300 transition-colors hover:border-red-500/40 hover:text-white sm:inline-flex sm:text-sm"

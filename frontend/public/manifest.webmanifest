@@ -1,0 +1,51 @@
+{
+  "name": "Vindica",
+  "short_name": "Vindica",
+  "description": "Detect, remove, and defend your personal data exposure.",
+  "id": "/",
+  "start_url": "/?source=pwa",
+  "scope": "/",
+  "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone", "browser"],
+  "background_color": "#050507",
+  "theme_color": "#050507",
+  "orientation": "portrait-primary",
+  "categories": ["security", "utilities", "productivity"],
+  "icons": [
+    {
+      "src": "/shield.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-1024.png",
+      "sizes": "1024x1024",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Start Scan",
+      "short_name": "Scan",
+      "description": "Open the exposure scan workspace.",
+      "url": "/scan-yourself",
+      "icons": [{ "src": "/shield.svg", "sizes": "any", "type": "image/svg+xml" }]
+    },
+    {
+      "name": "Lookup",
+      "short_name": "Lookup",
+      "description": "Open the investigation lookup workspace.",
+      "url": "/lookup",
+      "icons": [{ "src": "/shield.svg", "sizes": "any", "type": "image/svg+xml" }]
+    },
+    {
+      "name": "Dashboard",
+      "short_name": "Vault",
+      "description": "Open saved scan results and vault status.",
+      "url": "/dashboard",
+      "icons": [{ "src": "/shield.svg", "sizes": "any", "type": "image/svg+xml" }]
+    }
+  ]
+}

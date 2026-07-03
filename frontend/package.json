@@ -10,7 +10,9 @@
     "mobile:build": "tsc && node scripts/vite.mjs build --mode mobile",
     "mobile:sync": "npm run mobile:build && cap sync",
     "mobile:ios": "npm run mobile:sync && cap open ios",
-    "mobile:android": "npm run mobile:sync && cap open android"
+    "mobile:android": "npm run mobile:sync && cap open android",
+    "desktop:build": "npm run build",
+    "desktop:package": "npm run desktop:build && mkdir -p ../dist-desktop && tar -czf ../dist-desktop/vindica-desktop-pwa.tar.gz -C dist ."
   },
   "dependencies": {
     "@hookform/resolvers": "^3.3.4",
