@@ -10,14 +10,32 @@
     --vindica-red: #ba181b;
     --vindica-red-deep: #5e0b11;
     --vindica-ivory: #fff7e8;
+    --vindica-mobile-bottom-nav: calc(4.85rem + env(safe-area-inset-bottom));
+  }
+  html {
+    min-height: 100%;
+    background: #030305;
+    color-scheme: dark;
+    -webkit-text-size-adjust: 100%;
   }
   body {
     @apply bg-black text-gray-100;
+    min-height: 100%;
+    overflow-x: hidden;
+    padding-bottom: env(safe-area-inset-bottom);
+    -webkit-font-smoothing: antialiased;
     background:
       radial-gradient(circle at 70% 30%, rgba(190, 18, 60, 0.14), transparent 36rem),
       radial-gradient(circle at 12% 72%, rgba(127, 29, 29, 0.16), transparent 30rem),
       radial-gradient(circle at 82% 18%, rgba(212, 175, 55, 0.1), transparent 22rem),
       #030305;
+  }
+  button,
+  a,
+  input,
+  select,
+  textarea {
+    -webkit-tap-highlight-color: rgba(212, 175, 55, 0.16);
   }
   ::selection { @apply bg-red-600/40; }
   ::-webkit-scrollbar { @apply w-1.5 h-1.5; }
@@ -31,6 +49,21 @@
            text-sm text-gray-100 placeholder-gray-600
            focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent
            transition-colors;
+    min-height: 44px;
+  }
+}
+
+@media (max-width: 1023px) {
+  body {
+    padding-bottom: var(--vindica-mobile-bottom-nav);
+  }
+
+  main {
+    padding-bottom: 1rem;
+  }
+
+  .mobile-tabbar {
+    transform: translateZ(0);
   }
 }
 

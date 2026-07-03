@@ -9,6 +9,8 @@ Vindica can ship as a Capacitor mobile app that reuses the existing React fronte
 - Android application id: `me.vindica.app`
 - Web build output: `frontend/dist`
 - API base for mobile builds: `VITE_API_BASE_URL`
+- Mobile primary navigation: fixed bottom command bar for Scan, Lookup, OSINT, Vault, and Account
+- Safe-area support: enabled through `viewport-fit=cover` and CSS safe-area padding
 
 The web app can keep using relative API calls (`/api/v1`). Mobile builds must use a full HTTPS API URL because the app runs inside a native WebView, not on `vindica.me`.
 
@@ -60,6 +62,21 @@ curl -i https://vindica.me/ready
 ```
 
 If those fail, repair the VPS, DNS, firewall, nginx, Docker, or backend stack before testing mobile scan flows.
+
+## Feature Parity Standard
+
+The mobile build should preserve the same product surfaces as the web app:
+
+- Scan yourself flow
+- Lookup workspace
+- OSINT tools
+- Image analysis/search
+- Account vault
+- Dashboard and saved scans
+- Privacy and Terms
+- Opt-out/reporting flows
+
+Mobile-specific changes should improve reachability and ergonomics without removing provider-backed results, vault scoping, source evidence, or legal consent surfaces.
 
 ## Store Readiness Checklist
 
