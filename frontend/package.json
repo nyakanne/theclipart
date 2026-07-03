@@ -6,7 +6,11 @@
     "dev": "node scripts/vite.mjs dev",
     "build": "tsc && node scripts/vite.mjs build",
     "preview": "node scripts/vite.mjs preview",
-    "lint": "eslint . --ext ts,tsx"
+    "lint": "eslint . --ext ts,tsx",
+    "mobile:build": "tsc && node scripts/vite.mjs build --mode mobile",
+    "mobile:sync": "npm run mobile:build && cap sync",
+    "mobile:ios": "npm run mobile:sync && cap open ios",
+    "mobile:android": "npm run mobile:sync && cap open android"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.3.4",
@@ -25,6 +29,10 @@
     "zustand": "^4.5.2"
   },
   "devDependencies": {
+    "@capacitor/android": "^8.4.1",
+    "@capacitor/cli": "^8.4.1",
+    "@capacitor/core": "^8.4.1",
+    "@capacitor/ios": "^8.4.1",
     "@types/react": "^18.2.66",
     "@types/react-dom": "^18.2.22",
     "@typescript-eslint/eslint-plugin": "^7.2.0",

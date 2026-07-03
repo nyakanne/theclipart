@@ -2,7 +2,9 @@ import { resolve } from 'node:path'
 import { build, createServer, loadEnv, preview } from 'vite'
 
 const command = process.argv[2] ?? 'dev'
-const mode = command === 'build' ? 'production' : 'development'
+const modeFlagIndex = process.argv.indexOf('--mode')
+const explicitMode = modeFlagIndex >= 0 ? process.argv[modeFlagIndex + 1] : undefined
+const mode = explicitMode || (command === 'build' ? 'production' : 'development')
 const root = process.cwd()
 const loadedEnv = loadEnv(mode, root, '')
 for (const [key, value] of Object.entries(loadedEnv)) {

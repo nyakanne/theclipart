@@ -4,8 +4,10 @@ import type {
 } from '@/types'
 import { getSupabaseAccessToken } from '@/services/supabase'
 
+const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || (import.meta.env.MODE === 'mobile' ? 'https://vindica.me/api/v1' : '/api/v1')
+
 const http = axios.create({
-  baseURL: '/api/v1',
+  baseURL: apiBaseUrl,
   timeout: 30_000,
   headers: { 'Content-Type': 'application/json' },
 })
