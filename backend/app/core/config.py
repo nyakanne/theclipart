@@ -17,16 +17,23 @@ class Settings(BaseSettings):
     SYNC_DATABASE_URL: str = 'postgresql://dataguard:secret@postgres:5432/dataguard'
 
     REDIS_URL: str = 'redis://redis:6379/0'
+    SERVERLESS_PLATFORM: str = ''
+    QUEUE_BACKEND: str = 'redis'
+    OBJECT_STORAGE_BACKEND: str = 'local'
 
     AWS_REGION: str = 'us-east-1'
     AWS_ACCESS_KEY_ID: str = ''
     AWS_SECRET_ACCESS_KEY: str = ''
     S3_BUCKET: str = 'dataguard-artefacts'
+    BLOB_READ_WRITE_TOKEN: str = ''
+    OBJECT_STORAGE_BUCKET: str = ''
+    OBJECT_STORAGE_ENDPOINT: str = ''
     KMS_KEY_ID: str = ''
     REQUIRE_KMS_IN_PRODUCTION: bool = True
     METRICS_TOKEN: str = ''
     REPORT_STORAGE_DIR: str = '/tmp/vindica-reports'
     SES_FROM_EMAIL: str = 'noreply@vindica.me'
+    EMAIL_PROVIDER: str = 'ses'
     PUBLIC_APP_URL: str = 'http://localhost:3000'
     ALLOW_REAL_OPT_OUTS: bool = False
     BROKER_PRIVACY_EMAILS: dict[str, str] = Field(default_factory=dict)
@@ -76,6 +83,7 @@ class Settings(BaseSettings):
 
     HONEY_DOMAIN: str = 'honey.vindica.me'
     MAILGUN_API_KEY: str = ''
+    RESEND_API_KEY: str = ''
 
     MAX_CONCURRENT_PLAYWRIGHT: int = 5
     SCAN_TIMEOUT_SECONDS: int = 300
@@ -154,6 +162,33 @@ class Settings(BaseSettings):
     @property
     def brave_search_key(self) -> str:
         return self.BRAVE_SEARCH_API_KEY or self.BRAVE_API_KEY
+
+    @property
+    def object_storage_configured(self) -> bool:
+        backend = self.OBJECT_STORAGE_BACKEND.lower().strip()
+        if backend in {'s3', 'r2'}:
+            return bool(self.S3_BUCKET or self.OBJECT_STORAGE_BUCKET)
+        if backend in {'vercel_blob', 'blob'}:
+            return bool(self.BLOB_READ_WRITE_TOKEN)
+        if backend == 'local':
+            return bool(self.REPORT_STORAGE_DIR)
+        return False
+
+    @property
+    def durable_object_storage_configured(self) -> bool:
+        backend = self.OBJECT_STORAGE_BACKEND.lower().strip()
+        return backend != 'local' and self.object_storage_configured
+
+    @property
+    def outbound_email_configured(self) -> bool:
+        provider = self.EMAIL_PROVIDER.lower().strip()
+        if provider == 'ses':
+            return bool(self.SES_FROM_EMAIL)
+        if provider == 'mailgun':
+            return bool(self.MAILGUN_API_KEY)
+        if provider == 'resend':
+            return bool(self.RESEND_API_KEY)
+        return False
 
     @property
     def supabase_jwks_url(self) -> str:

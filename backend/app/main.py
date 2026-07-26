@@ -153,6 +153,13 @@ async def readiness():
     capabilities = {
         'database': database_ok,
         'redis_queue': redis_ok,
+        'serverless_platform': bool(settings.SERVERLESS_PLATFORM),
+        'external_queue_backend': settings.QUEUE_BACKEND,
+        'object_storage': settings.object_storage_configured,
+        'object_storage_backend': settings.OBJECT_STORAGE_BACKEND,
+        'durable_object_storage': settings.durable_object_storage_configured,
+        'outbound_email': settings.outbound_email_configured,
+        'email_provider': settings.EMAIL_PROVIDER,
         'account_vault_auth': bool(settings.SUPABASE_JWT_SECRET or settings.supabase_jwks_url),
         'kms_envelope_encryption': bool(settings.KMS_KEY_ID),
         'hibp_breach_results': bool(settings.HIBP_API_KEY),
@@ -173,9 +180,19 @@ async def readiness():
         blockers.append('KMS envelope encryption is not configured.')
     if settings.is_production and settings.PUBLIC_APP_URL.startswith('http://'):
         blockers.append('PUBLIC_APP_URL must use HTTPS in production.')
+    if settings.is_production and not capabilities['object_storage']:
+        blockers.append('Object storage is not configured for production report/evidence artifacts.')
+    if settings.is_production and settings.SERVERLESS_PLATFORM and not capabilities['durable_object_storage']:
+        blockers.append('Serverless deployments must use durable object storage, not local report storage.')
     return {
         'status': 'ready' if not blockers else 'blocked',
         'env': settings.APP_ENV,
+        'serverless': {
+            'platform': settings.SERVERLESS_PLATFORM or None,
+            'queue_backend': settings.QUEUE_BACKEND,
+            'object_storage_backend': settings.OBJECT_STORAGE_BACKEND,
+            'email_provider': settings.EMAIL_PROVIDER,
+        },
         'blockers': blockers,
         'capabilities': capabilities,
     }
