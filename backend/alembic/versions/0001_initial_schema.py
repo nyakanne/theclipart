@@ -6,6 +6,7 @@ Create Date: 2026-04-23
 """
 from alembic import op
 import sqlalchemy as sa
+from sqlalchemy.dialects import postgresql
 
 revision = '0001'
 down_revision = None
@@ -19,7 +20,7 @@ def upgrade():
     op.create_table(
         'scans',
         sa.Column('id', sa.String(32), primary_key=True),
-        sa.Column('status', sa.Enum('idle', 'queued', 'scanning', 'completed', 'failed', name='scan_status'), nullable=False, server_default='queued'),
+        sa.Column('status', postgresql.ENUM('idle', 'queued', 'scanning', 'completed', 'failed', name='scan_status', create_type=False), nullable=False, server_default='queued'),
         sa.Column('progress', sa.Float, nullable=False, server_default='0'),
         sa.Column('current_stage', sa.String(128), nullable=False, server_default='queued'),
         sa.Column('estimated_seconds', sa.Integer, nullable=True),
