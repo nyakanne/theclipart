@@ -52,7 +52,7 @@ services:
       SUPABASE_JWT_AUDIENCE: ${SUPABASE_JWT_AUDIENCE:-authenticated}
       DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://dataguard:secret@postgres:5432/dataguard}
       SYNC_DATABASE_URL: ${SYNC_DATABASE_URL:-postgresql://dataguard:secret@postgres:5432/dataguard}
-      REDIS_URL: redis://redis:6379/0
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
       AWS_REGION: ${AWS_REGION:-us-east-1}
       AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
       AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
@@ -138,7 +138,7 @@ services:
       SECRET_KEY: ${SECRET_KEY:-change-me-32-chars-minimum-please}
       DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://dataguard:secret@postgres:5432/dataguard}
       SYNC_DATABASE_URL: ${SYNC_DATABASE_URL:-postgresql://dataguard:secret@postgres:5432/dataguard}
-      REDIS_URL: redis://redis:6379/0
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
       AWS_REGION: ${AWS_REGION:-us-east-1}
       AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
       AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
@@ -192,7 +192,7 @@ services:
       SECRET_KEY: ${SECRET_KEY:-change-me-32-chars-minimum-please}
       DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://dataguard:secret@postgres:5432/dataguard}
       SYNC_DATABASE_URL: ${SYNC_DATABASE_URL:-postgresql://dataguard:secret@postgres:5432/dataguard}
-      REDIS_URL: redis://redis:6379/0
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
       AWS_REGION: ${AWS_REGION:-us-east-1}
       AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
       AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
@@ -215,7 +215,7 @@ services:
       SECRET_KEY: ${SECRET_KEY:-change-me-32-chars-minimum-please}
       DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://dataguard:secret@postgres:5432/dataguard}
       SYNC_DATABASE_URL: ${SYNC_DATABASE_URL:-postgresql://dataguard:secret@postgres:5432/dataguard}
-      REDIS_URL: redis://redis:6379/0
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
       KMS_KEY_ID: ${KMS_KEY_ID:-}
       REQUIRE_KMS_IN_PRODUCTION: ${REQUIRE_KMS_IN_PRODUCTION:-true}
 

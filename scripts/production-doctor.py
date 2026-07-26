@@ -18,9 +18,11 @@ SECRET_NAMES = {
     'AWS_SECRET_ACCESS_KEY',
     'BRAVE_API_KEY',
     'BRAVE_SEARCH_API_KEY',
+    'BLOB_READ_WRITE_TOKEN',
     'HIBP_API_KEY',
     'IPINFO_TOKEN',
     'KMS_KEY_ID',
+    'RESEND_API_KEY',
     'SECRET_KEY',
     'SHODAN_API_KEY',
     'SUPABASE_JWT_SECRET',
@@ -67,6 +69,28 @@ def masked_status(env: dict[str, str], key: str) -> str:
     return value
 
 
+def object_storage_configured(env: dict[str, str]) -> bool:
+    backend = env.get('OBJECT_STORAGE_BACKEND', 'local').strip().lower()
+    if backend in {'s3', 'r2'}:
+        return bool(env.get('S3_BUCKET') or env.get('OBJECT_STORAGE_BUCKET'))
+    if backend in {'vercel_blob', 'blob'}:
+        return bool(env.get('BLOB_READ_WRITE_TOKEN'))
+    if backend == 'local':
+        return bool(env.get('REPORT_STORAGE_DIR'))
+    return False
+
+
+def outbound_email_configured(env: dict[str, str]) -> bool:
+    provider = env.get('EMAIL_PROVIDER', 'ses').strip().lower()
+    if provider == 'ses':
+        return bool(env.get('SES_FROM_EMAIL'))
+    if provider == 'mailgun':
+        return bool(env.get('MAILGUN_API_KEY'))
+    if provider == 'resend':
+        return bool(env.get('RESEND_API_KEY'))
+    return False
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument('--env-file', default='.env')
@@ -85,6 +109,8 @@ def main() -> int:
     is_production = app_env == 'production'
     require_auth = parse_bool(env.get('REQUIRE_AUTH'))
     require_kms = parse_bool(env.get('REQUIRE_KMS_IN_PRODUCTION'), True)
+    serverless_platform = env.get('SERVERLESS_PLATFORM', '').strip()
+    object_backend = env.get('OBJECT_STORAGE_BACKEND', 'local').strip().lower()
     supabase_configured = bool(env.get('SUPABASE_JWT_SECRET') or env.get('SUPABASE_JWKS_URL') or env.get('SUPABASE_URL'))
 
     if is_production and not require_auth:
@@ -101,6 +127,12 @@ def main() -> int:
         errors.append('SYNC_DATABASE_URL still contains the default database password.')
     if is_production and env.get('PUBLIC_APP_URL', '').startswith('http://'):
         errors.append('PUBLIC_APP_URL must use HTTPS in production.')
+    if is_production and not object_storage_configured(env):
+        errors.append('Object storage is required for production report/evidence artifacts.')
+    if is_production and serverless_platform and object_backend == 'local':
+        errors.append('Serverless production cannot use local report/evidence storage.')
+    if is_production and serverless_platform and env.get('REDIS_URL', '').startswith('redis://redis:'):
+        errors.append('Serverless production must use managed Redis, not the Docker Compose redis hostname.')
     if '*' in parse_list(env.get('CORS_ORIGINS')):
         errors.append('CORS_ORIGINS cannot contain *.')
     if '*' in parse_list(env.get('ALLOWED_HOSTS')):
@@ -117,6 +149,8 @@ def main() -> int:
 
     if parse_bool(env.get('ALLOW_REAL_OPT_OUTS')) and not env.get('BROKER_PRIVACY_EMAILS'):
         errors.append('BROKER_PRIVACY_EMAILS is required when ALLOW_REAL_OPT_OUTS=true.')
+    if not outbound_email_configured(env):
+        warnings.append('Outbound email is not fully configured; opt-out delivery and transactional mail may be unavailable.')
 
     print('Vindica production doctor')
     print(f'env_file={env_path}')
@@ -131,6 +165,13 @@ def main() -> int:
         'DATABASE_URL',
         'SYNC_DATABASE_URL',
         'REDIS_URL',
+        'SERVERLESS_PLATFORM',
+        'QUEUE_BACKEND',
+        'OBJECT_STORAGE_BACKEND',
+        'OBJECT_STORAGE_BUCKET',
+        'S3_BUCKET',
+        'BLOB_READ_WRITE_TOKEN',
+        'EMAIL_PROVIDER',
         'HIBP_API_KEY',
         'BRAVE_SEARCH_API_KEY',
         'IPINFO_TOKEN',

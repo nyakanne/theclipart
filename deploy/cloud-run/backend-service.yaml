@@ -1,0 +1,144 @@
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: vindica-backend
+  labels:
+    app: vindica
+    component: backend
+  annotations:
+    run.googleapis.com/launch-stage: GA
+spec:
+  template:
+    metadata:
+      annotations:
+        autoscaling.knative.dev/minScale: "0"
+        autoscaling.knative.dev/maxScale: "3"
+        run.googleapis.com/cpu-throttling: "true"
+        run.googleapis.com/startup-cpu-boost: "true"
+    spec:
+      containerConcurrency: 20
+      timeoutSeconds: 300
+      containers:
+        - image: REGION-docker.pkg.dev/PROJECT_ID/vindica/backend:latest
+          ports:
+            - name: http1
+              containerPort: 8000
+          resources:
+            limits:
+              cpu: "1"
+              memory: 1Gi
+          env:
+            - name: APP_ENV
+              value: production
+            - name: DEMO_MODE
+              value: "false"
+            - name: SERVERLESS_PLATFORM
+              value: cloud-run
+            - name: PUBLIC_APP_URL
+              value: https://vindica.me
+            - name: REQUIRE_AUTH
+              value: "true"
+            - name: CORS_ORIGINS
+              value: '["https://vindica.me","https://www.vindica.me"]'
+            - name: ALLOWED_HOSTS
+              value: '["vindica.me","www.vindica.me","api.vindica.me"]'
+            - name: QUEUE_BACKEND
+              value: upstash-redis
+            - name: OBJECT_STORAGE_BACKEND
+              value: s3
+            - name: EMAIL_PROVIDER
+              value: resend
+            - name: REQUIRE_KMS_IN_PRODUCTION
+              value: "true"
+            - name: RUN_SCANS_INLINE
+              value: "false"
+            - name: SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: vindica-secret-key
+                  key: latest
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: vindica-database-url
+                  key: latest
+            - name: SYNC_DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: vindica-sync-database-url
+                  key: latest
+            - name: REDIS_URL
+              valueFrom:
+                secretKeyRef:
+                  name: vindica-redis-url
+                  key: latest
+            - name: SUPABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: vindica-supabase-url
+                  key: latest
+            - name: SUPABASE_JWKS_URL
+              valueFrom:
+                secretKeyRef:
+                  name: vindica-supabase-jwks-url
+                  key: latest
+            - name: SUPABASE_JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: vindica-supabase-jwt-secret
+                  key: latest
+            - name: KMS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: vindica-kms-key-id
+                  key: latest
+            - name: OBJECT_STORAGE_BUCKET
+              valueFrom:
+                secretKeyRef:
+                  name: vindica-object-storage-bucket
+                  key: latest
+            - name: S3_BUCKET
+              valueFrom:
+                secretKeyRef:
+                  name: vindica-object-storage-bucket
+                  key: latest
+            - name: AWS_REGION
+              valueFrom:
+                secretKeyRef:
+                  name: vindica-aws-region
+                  key: latest
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: vindica-aws-access-key-id
+                  key: latest
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: vindica-aws-secret-access-key
+                  key: latest
+            - name: RESEND_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: vindica-resend-api-key
+                  key: latest
+            - name: BRAVE_SEARCH_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: vindica-brave-search-api-key
+                  key: latest
+            - name: HIBP_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: vindica-hibp-api-key
+                  key: latest
+            - name: IPINFO_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: vindica-ipinfo-token
+                  key: latest
+            - name: HF_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: vindica-hf-token
+                  key: latest

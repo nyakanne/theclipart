@@ -15,22 +15,24 @@ Then read these supporting docs:
 
 - docs/VINDICA_MASTER_ROADMAP_2026.md
 - docs/VINDICA_SERVERLESS_MIGRATION_PLAN.md
+- docs/SERVERLESS_FREE_TIER_RUNBOOK.md
 - docs/PRODUCTION_READINESS.md
 - docs/PROVIDER_KEYS.md
 - docs/MOBILE_APP_RUNBOOK.md
 - docs/DESKTOP_APP_RUNBOOK.md
 - docs/LIVE_DEPLOY_RUNBOOK.md
 
-Your next challenge is to move Vindica toward a serverless, production-operable product without breaking the existing web/mobile/PWA app.
+Your next challenge is to continue moving Vindica toward a serverless, production-operable product without breaking the existing web/mobile/PWA app.
 
-Start by auditing the current codebase, then implement the first safe serverless readiness slice:
+The first serverless readiness slices are already present:
 
-1. Add serverless environment examples for frontend and backend.
-2. Add a serverless smoke-test script.
-3. Ensure the backend can clearly report external database/Redis/provider readiness through /ready.
-4. Preserve all existing Docker/VPS behavior.
-5. Do not commit secrets or provider keys.
-6. Do not touch unrelated untracked files unless explicitly asked.
+1. Serverless environment examples for frontend and backend.
+2. Serverless smoke and proof scripts.
+3. Backend `/ready` reporting for database, Redis, auth, providers, object storage, email, and serverless mode.
+4. Vercel static frontend config.
+5. Cloud Run backend service template with min scale 0.
+
+Next, audit provider execution and storage writes, then move any local filesystem report/evidence paths behind durable object storage. Preserve existing Docker/VPS behavior while doing this. Do not commit secrets or provider keys. Do not touch unrelated untracked files unless explicitly asked.
 
 Before editing, inspect git status and current branch. After editing, run the most relevant build/tests, commit, and push the branch if credentials allow.
 ```
@@ -39,8 +41,10 @@ Before editing, inspect git status and current branch. After editing, run the mo
 
 - Repository: `nyakanne/theclipart`
 - Active branch: `codex/vindica-hardening-and-audit`
-- Current head at last Codex handoff: `e70930a`
+- Current head at last Codex handoff: `14f5b72`
 - Latest pushed commits:
+  - `14f5b72 Add serverless readiness scaffolding`
+  - `3d14f97 Add Claude continuation handoff`
   - `e70930a Add serverless migration plan`
   - `b79f4af Add Vindica master roadmap`
   - `adc4f70 Make Vindica installable as desktop app`
@@ -101,6 +105,24 @@ Preferred near-term migration:
 This is intentionally a hybrid serverless path. A full Vercel Functions rewrite is possible later but is not the fastest safe route.
 
 ## What Was Recently Built
+
+### Serverless Readiness
+
+Files include:
+
+- `frontend/.env.serverless.example`
+- `backend/.env.serverless.example`
+- `deploy/cloud-run/backend-service.yaml`
+- `docs/SERVERLESS_FREE_TIER_RUNBOOK.md`
+- `scripts/serverless-smoke-test.sh`
+- `scripts/serverless-proof.sh`
+
+Key behavior:
+
+- Vercel can build and host the Vite frontend from `frontend/dist`.
+- Cloud Run can run the existing FastAPI container and scale to zero.
+- `/ready` exposes serverless platform, queue backend, object storage, email, and provider capability status.
+- Docker Compose still works locally and can optionally point at managed Redis through `REDIS_URL`.
 
 ### Mobile App Scaffold
 
@@ -277,51 +299,41 @@ The user has repeatedly emphasized:
 - production readiness, not just demo UI
 - a roadmap/pitch that makes the product credible
 
-## Next Challenge: Serverless Readiness Slice
+## Next Challenge: Durable Serverless Storage Slice
 
-Recommended first implementation slice:
+The first serverless readiness work is already complete. Recommended next implementation slice:
 
-### 1. Add serverless env examples
+### 1. Audit local file writes
 
-Create:
+Find every report, evidence, screenshot, and export path that writes to local disk. Any user-owned artifact must move behind an object storage abstraction before serverless cutover.
 
-```text
-frontend/.env.serverless.example
-backend/.env.serverless.example
+Start with:
+
+```bash
+rg -n "REPORT_STORAGE_DIR|open\\(|write_bytes|write_text|/tmp|NamedTemporaryFile|SpooledTemporaryFile|UploadFile" backend/app
 ```
 
-Include:
+### 2. Add a storage adapter
 
-- frontend API URL
-- Supabase frontend keys
-- external Postgres URL placeholders
-- external Redis URL placeholders
-- provider key placeholders
-- object storage placeholders
-- email provider placeholders
-- production safety flags
+Create a small service boundary for:
 
-Do not include real keys.
+- saving private artifacts
+- loading private artifacts
+- deleting artifacts when vault data is deleted
+- generating expiring download URLs
 
-### 2. Add serverless smoke test
+Support local storage only for development. Production serverless should use `OBJECT_STORAGE_BACKEND=s3`, `r2`, or `vercel_blob`.
 
-Create:
+### 3. Add tests
 
-```text
-scripts/serverless-smoke-test.sh
-```
+Test that:
 
-It should accept a base URL and test:
+- local storage still works in development
+- production serverless refuses local storage
+- user A cannot load user B's artifact metadata
+- deleting a scan deletes or tombstones linked artifacts
 
-- `/health`
-- `/ready`
-- frontend root if same-origin
-- `/api/v1/lookups/username/github` or equivalent endpoint
-- provider readiness output without exposing secrets
-
-It should fail clearly and print actionable output.
-
-### 3. Keep Docker behavior intact
+### 4. Keep Docker behavior intact
 
 Do not delete:
 
@@ -332,24 +344,12 @@ Do not delete:
 
 The migration is additive until serverless passes.
 
-### 4. Improve readiness if needed
-
-If `/ready` does not clearly distinguish:
-
-- database connected
-- queue/rate-limit connected
-- auth configured
-- provider capabilities
-- object storage configured
-- email configured
-
-then add fields carefully.
-
 ### 5. Verify
 
 Run:
 
 ```bash
+scripts/serverless-proof.sh
 cd frontend
 npm run build
 cd ..
@@ -407,4 +407,3 @@ Static app + managed auth + managed Postgres + managed Redis + managed serverles
 ```
 
 without breaking the current app shell.
-
