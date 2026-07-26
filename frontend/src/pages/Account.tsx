@@ -128,11 +128,11 @@ export function Account() {
           <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
             <div>
               <div className="flex items-start gap-4">
-                <div className="rounded-[18px] border border-[#d4af37]/25 bg-[linear-gradient(145deg,rgba(212,175,55,0.12),rgba(255,255,255,0.025))] p-4 text-[#f5d7a1] shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
+                <div className="rounded-[18px] border border-gold-500/25 bg-[linear-gradient(145deg,rgba(212,175,55,0.12),rgba(255,255,255,0.025))] p-4 text-gold-400 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
                   <ShieldAlert className="h-8 w-8" />
                 </div>
                 <div>
-                  <p className="text-xs font-bold uppercase tracking-[0.22em] text-[#f5d7a1]">Secure account</p>
+                  <p className="text-xs font-bold uppercase tracking-[0.22em] text-gold-400">Secure account</p>
                   <h1 className="mt-2 text-3xl font-black text-[#f7f7f5] sm:text-4xl">Your Vindica vault</h1>
                   <p className="mt-3 max-w-xl text-sm leading-7 text-gray-300">
                     Sign in to preserve scans, removals, reports, evidence receipts, and alert history inside a private vault scoped to your account.
@@ -143,7 +143,7 @@ export function Account() {
               <div className="mt-6 grid gap-4 border-y border-white/10 py-5 sm:grid-cols-3">
                 {VAULT_ITEMS.map(({ icon: Icon, title, detail }) => (
                   <div key={title} className="rounded-2xl border border-white/8 bg-black/30 p-4">
-                    <Icon className="h-4 w-4 text-[#f5d7a1]" />
+                    <Icon className="h-4 w-4 text-gold-400" />
                     <div className="mt-3 text-sm font-bold text-white">{title}</div>
                     <p className="mt-1 text-xs leading-5 text-gray-500">{detail}</p>
                   </div>
@@ -157,8 +157,8 @@ export function Account() {
                 { icon: Bell, title: 'Signal continuity', detail: 'Return to live alerts, unresolved removals, and evidence chains.' },
               ].map(({ icon: Icon, title, detail }) => (
                 <div key={title} className="tilt-card account-vault-card rounded-2xl p-5">
-                  <Icon className="h-5 w-5 text-[#f5d7a1]" />
-                  <div className="mt-3 text-lg font-black text-[#fff7e8]">{title}</div>
+                  <Icon className="h-5 w-5 text-gold-400" />
+                  <div className="mt-3 text-lg font-black text-ivory">{title}</div>
                   <p className="mt-2 text-sm leading-6 text-gray-400">{detail}</p>
                 </div>
               ))}
@@ -166,13 +166,13 @@ export function Account() {
           </div>
 
           {!isConfigured && (
-            <div className="mt-6 rounded-xl border border-[#d4af37]/25 bg-[#d4af37]/[0.07] p-4 text-sm leading-6 text-[#fff2cf]">
+            <div className="mt-6 rounded-xl border border-gold-500/25 bg-gold-500/[0.07] p-4 text-sm leading-6 text-[#fff2cf]">
               Vault sign-in is waiting on Supabase configuration for this build. Set `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` before hosting.
             </div>
           )}
 
           {sessionEmail ? (
-            <div className="mt-6 rounded-[24px] border border-[#d4af37]/25 bg-[#d4af37]/[0.06] p-5">
+            <div className="mt-6 rounded-[24px] border border-gold-500/25 bg-gold-500/[0.06] p-5">
               <div className="flex items-center gap-3 text-[#fff2cf]">
                 <CheckCircle2 className="h-5 w-5" />
                 <span className="font-bold">Signed in as {sessionEmail}</span>
@@ -183,7 +183,7 @@ export function Account() {
               <button
                 type="button"
                 onClick={signOut}
-                className="mt-4 inline-flex items-center gap-2 rounded-xl border border-white/10 bg-black/55 px-4 py-3 text-sm font-bold text-gray-200 transition-colors hover:border-[#d4af37]/45 hover:text-white"
+                className="mt-4 inline-flex items-center gap-2 rounded-xl border border-white/10 bg-black/55 px-4 py-3 text-sm font-bold text-gray-200 transition-colors hover:border-gold-500/45 hover:text-white"
               >
                 <LogOut className="h-4 w-4" />
                 Sign out
@@ -192,7 +192,7 @@ export function Account() {
                 type="button"
                 onClick={deleteVaultData}
                 disabled={loading}
-                className="ml-3 mt-4 inline-flex items-center gap-2 rounded-xl border border-white/10 bg-black/35 px-4 py-3 text-sm font-bold text-gray-300 transition-colors hover:border-[#d4af37]/45 hover:text-white disabled:opacity-50"
+                className="ml-3 mt-4 inline-flex items-center gap-2 rounded-xl border border-white/10 bg-black/35 px-4 py-3 text-sm font-bold text-gray-300 transition-colors hover:border-gold-500/45 hover:text-white disabled:opacity-50"
               >
                 <Trash2 className="h-4 w-4" />
                 Delete saved vault data
@@ -222,13 +222,13 @@ export function Account() {
                   className="input-field"
                 />
               </label>
-              <label className="flex items-start gap-3 border-l-2 border-[#d4af37]/40 bg-[#d4af37]/[0.04] px-4 py-3 text-xs leading-6 text-gray-400">
+              <label className="flex items-start gap-3 border-l-2 border-gold-500/40 bg-gold-500/[0.04] px-4 py-3 text-xs leading-6 text-gray-400">
                 <input
                   type="checkbox"
                   checked={accepted}
                   onChange={event => setAccepted(event.target.checked)}
                   required
-                  className="mt-1 h-4 w-4 accent-[#d4af37]"
+                  className="mt-1 h-4 w-4 accent-gold-500"
                 />
                 <span>
                   I agree to the <Link to="/terms" className="font-semibold text-white underline decoration-white/25 underline-offset-4">Terms of Use</Link> and acknowledge the <Link to="/privacy" className="font-semibold text-white underline decoration-white/25 underline-offset-4">Privacy Policy</Link>. I will use Vindica only for myself or authorized safety work.
@@ -237,7 +237,7 @@ export function Account() {
               <button
                 type="submit"
                 disabled={!isConfigured || loading || !accepted}
-                className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-[#d4af37]/35 bg-[linear-gradient(135deg,#d4af37,#8f6f1f)] px-4 py-3 font-bold text-[#160f05] shadow-[0_18px_42px_rgba(212,175,55,0.18)] transition-transform hover:-translate-y-0.5 disabled:opacity-50 disabled:hover:translate-y-0"
+                className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-gold-500/35 bg-[linear-gradient(135deg,#d4af37,#8f6f1f)] px-4 py-3 font-bold text-[#160f05] shadow-[0_18px_42px_rgba(212,175,55,0.18)] transition-transform hover:-translate-y-0.5 disabled:opacity-50 disabled:hover:translate-y-0"
               >
                 <Mail className="h-4 w-4" />
                 {loading ? 'Sending link...' : 'Send secure sign-in / vault link'}

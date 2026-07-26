@@ -183,7 +183,7 @@ export function EvidencePanel({
       {shouldShowManualCapture && (
         <form onSubmit={handleManualCapture} className="glass-panel rounded-xl p-4">
           <div className="flex items-start gap-3">
-            <div className="rounded-full border border-[#d4af37]/35 bg-[#d4af37]/10 p-2 text-[#d4af37]">
+            <div className="rounded-full border border-gold-500/35 bg-gold-500/10 p-2 text-gold-500">
               <Vault className="h-4 w-4" />
             </div>
             <div>
@@ -264,7 +264,7 @@ export function EvidencePanel({
             <button
               type="submit"
               disabled={manualCaptureMutation.isPending}
-              className="inline-flex items-center justify-center gap-2 rounded-lg border border-[#d4af37]/35 bg-[#d4af37]/10 px-4 py-2 text-sm font-bold text-[#f4d889] transition-colors hover:border-[#d4af37]/50 hover:bg-[#d4af37]/15 disabled:cursor-not-allowed disabled:opacity-70"
+              className="inline-flex items-center justify-center gap-2 rounded-lg border border-gold-500/35 bg-gold-500/10 px-4 py-2 text-sm font-bold text-[#f4d889] transition-colors hover:border-gold-500/50 hover:bg-gold-500/15 disabled:cursor-not-allowed disabled:opacity-70"
             >
               {manualCaptureMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Vault className="h-4 w-4" />}
               Capture evidence into scan
@@ -323,7 +323,7 @@ export function EvidencePanel({
                 type="button"
                 onClick={() => saveMutation.mutate(item)}
                 disabled={Boolean(savedIds[item.id]) || saveMutation.isPending}
-                className="inline-flex items-center justify-center gap-2 rounded-lg border border-white/10 bg-black/45 px-4 py-2 text-sm font-bold text-gray-200 transition-colors hover:border-[#d4af37]/45 hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
+                className="inline-flex items-center justify-center gap-2 rounded-lg border border-white/10 bg-black/45 px-4 py-2 text-sm font-bold text-gray-200 transition-colors hover:border-gold-500/45 hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {saveMutation.isPending && saveMutation.variables?.id === item.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Vault className="h-4 w-4" />}
                 {savedIds[item.id] ? 'Saved to vault' : 'Save to vault'}

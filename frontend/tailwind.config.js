@@ -4,30 +4,34 @@ export default {
   theme: {
     extend: {
       colors: {
-        brand: {
-          50:  '#f0f4ff',
-          100: '#dce6ff',
-          200: '#b9ccff',
-          300: '#86a8ff',
-          400: '#4d7bff',
-          500: '#1a4fff',
-          600: '#0030f5',
-          700: '#0024c2',
-          800: '#001e9e',
-          900: '#001880',
+        // Single source of truth for Vindica's black/red/gold identity.
+        // Values are read from the CSS custom properties in src/index.css
+        // so there is exactly one place that defines each color.
+        ink: {
+          950: 'rgb(var(--vindica-ink-950) / <alpha-value>)',
+          900: 'rgb(var(--vindica-ink-900) / <alpha-value>)',
+          800: 'rgb(var(--vindica-ink-800) / <alpha-value>)',
+          700: 'rgb(var(--vindica-ink-700) / <alpha-value>)',
+          600: 'rgb(var(--vindica-ink-600) / <alpha-value>)',
         },
-        danger: {
-          50:  '#fff1f1',
-          100: '#ffd7d7',
-          400: '#ff4d4d',
-          500: '#e71d1d',
-          600: '#c41717',
+        gold: {
+          400: 'rgb(var(--vindica-gold-soft) / <alpha-value>)',
+          500: 'rgb(var(--vindica-gold) / <alpha-value>)',
+          600: 'rgb(148 118 32 / <alpha-value>)',
         },
-        safe: {
-          50:  '#f0fdf4',
-          400: '#4ade80',
-          500: '#22c55e',
-          600: '#16a34a',
+        ivory: {
+          DEFAULT: 'rgb(var(--vindica-ivory) / <alpha-value>)',
+        },
+        // Overriding only the shades actually used across the app means
+        // every existing `red-400`/`border-red-800`/`bg-red-900` className
+        // resolves to the canonical Vindica reds with no template changes.
+        red: {
+          400: 'rgb(var(--vindica-red-glow) / <alpha-value>)',
+          500: 'rgb(var(--vindica-red-glow) / <alpha-value>)',
+          600: 'rgb(var(--vindica-red-glow) / <alpha-value>)',
+          700: 'rgb(var(--vindica-red) / <alpha-value>)',
+          800: 'rgb(var(--vindica-red) / <alpha-value>)',
+          900: 'rgb(var(--vindica-red-deep) / <alpha-value>)',
         },
       },
       fontFamily: {

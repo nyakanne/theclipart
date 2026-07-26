@@ -47,25 +47,25 @@ export function AuthVaultPrompt({
       <div className="relative flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div className="flex items-start gap-4">
           <div className={clsx(
-            'relative mt-1 flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-black/55 text-[#f5d7a1]',
-            tone === 'neutral' ? 'border border-[#d4af37]/30' : 'border border-red-400/45'
+            'relative mt-1 flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-black/55 text-gold-400',
+            tone === 'neutral' ? 'border border-gold-500/30' : 'border border-red-400/45'
           )}>
             <motion.span
               aria-hidden
-              className={clsx('absolute inset-0 rounded-full border', tone === 'neutral' ? 'border-[#d4af37]/35' : 'border-red-400/45')}
+              className={clsx('absolute inset-0 rounded-full border', tone === 'neutral' ? 'border-gold-500/35' : 'border-red-400/45')}
               animate={{ scale: [1, 1.45], opacity: [0.55, 0] }}
               transition={{ duration: 1.8, ease: 'easeOut', repeat: Infinity }}
             />
             <motion.span
               aria-hidden
-              className="absolute inset-1 rounded-full border border-[#d4af37]/30"
+              className="absolute inset-1 rounded-full border border-gold-500/30"
               animate={{ scale: [1, 1.22], opacity: [0.45, 0] }}
               transition={{ duration: 1.8, ease: 'easeOut', repeat: Infinity, delay: 0.35 }}
             />
             <Lock className="h-6 w-6" />
           </div>
           <div>
-            <div className="text-[11px] font-bold uppercase tracking-[0.22em] text-[#f5d7a1]">Privacy lock</div>
+            <div className="text-[11px] font-bold uppercase tracking-[0.22em] text-gold-400">Privacy lock</div>
             <h3 className={clsx('mt-1 font-black text-white', compact ? 'text-lg' : 'text-2xl')}>{title}</h3>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-gray-300">{body}</p>
           </div>
@@ -75,10 +75,10 @@ export function AuthVaultPrompt({
           <Link
             to="/account"
             className={clsx(
-              'inline-flex items-center gap-2 rounded-xl border px-4 py-3 text-sm font-bold text-[#fff7e8] transition-colors hover:text-white',
+              'inline-flex items-center gap-2 rounded-xl border px-4 py-3 text-sm font-bold text-ivory transition-colors hover:text-white',
               tone === 'neutral'
-                ? 'border-[#d4af37]/30 bg-[linear-gradient(180deg,rgba(212,175,55,0.14),rgba(20,21,24,0.94))] hover:border-[#d4af37]/55'
-                : 'red-button-glow border-red-400/55 bg-[linear-gradient(180deg,rgba(186,24,27,0.42),rgba(60,5,9,0.92))] hover:border-[#d4af37]/45'
+                ? 'border-gold-500/30 bg-[linear-gradient(180deg,rgba(212,175,55,0.14),rgba(20,21,24,0.94))] hover:border-gold-500/55'
+                : 'red-button-glow border-red-400/55 bg-[linear-gradient(180deg,rgba(186,24,27,0.42),rgba(60,5,9,0.92))] hover:border-gold-500/45'
             )}
           >
             {ctaLabel}
@@ -90,7 +90,7 @@ export function AuthVaultPrompt({
                 key={signal}
                 className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-black/40 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.12em] text-gray-300"
               >
-                {signal === 'Return alerts and removals' ? <BellRing className="h-3 w-3 text-red-300" /> : <ShieldCheck className="h-3 w-3 text-[#f5d7a1]" />}
+                {signal === 'Return alerts and removals' ? <BellRing className="h-3 w-3 text-red-300" /> : <ShieldCheck className="h-3 w-3 text-gold-400" />}
                 {signal}
               </span>
             ))}

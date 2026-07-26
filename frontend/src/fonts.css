@@ -1,0 +1,15 @@
+/* Self-hosted fonts, bundled as static assets by Vite.
+   Replaces the Google Fonts <link> in index.html so the app has no
+   external font-CDN dependency at runtime -- required for a static
+   serverless deploy, and confirmed necessary: fonts.googleapis.com
+   fails outright under restricted network egress, silently falling
+   back to system fonts. Weights match what the old Google Fonts URL
+   requested, nothing added. */
+@import '@fontsource/inter/300.css';
+@import '@fontsource/inter/400.css';
+@import '@fontsource/inter/500.css';
+@import '@fontsource/inter/600.css';
+@import '@fontsource/inter/700.css';
+@import '@fontsource/inter/800.css';
+@import '@fontsource/jetbrains-mono/400.css';
+@import '@fontsource/jetbrains-mono/500.css';

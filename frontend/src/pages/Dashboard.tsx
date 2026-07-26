@@ -1,10 +1,13 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
+import { motion } from 'framer-motion'
 import { Clock, CheckCircle, XCircle, Loader, Plus, ShieldAlert, Bell, Hash, ExternalLink, Vault, Database, Search, ShieldCheck, ChevronRight } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '@/services/api'
 import { Card, CardHeader, CardBody } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
+import { EmptyState } from '@/components/ui/EmptyState'
+import { LoadingState } from '@/components/ui/LoadingState'
 import type { CommandAction, ScanJob } from '@/types'
 import { useAuthSession } from '@/hooks/useAuthSession'
 import { AuthVaultPrompt } from '@/components/auth/AuthVaultPrompt'
@@ -12,7 +15,7 @@ import { AuthVaultPrompt } from '@/components/auth/AuthVaultPrompt'
 const statusIcon = {
   idle:      <Clock className="h-4 w-4 text-gray-500" />,
   queued:    <Clock className="h-4 w-4 text-red-200" />,
-  scanning:  <Loader className="h-4 w-4 text-brand-400 animate-spin" />,
+  scanning:  <Loader className="h-4 w-4 text-gold-400 animate-spin" />,
   completed: <CheckCircle className="h-4 w-4 text-gray-200" />,
   failed:    <XCircle className="h-4 w-4 text-red-400" />,
 }
@@ -45,11 +48,16 @@ export function Dashboard() {
   const vaultArtifacts = savedArtifacts.filter(action => action.feature !== 'evidence-item').slice(0, 6)
 
   return (
-    <div className="mx-auto max-w-6xl space-y-6 px-4 py-8 sm:px-6">
-      <div className="premium-panel rounded-[28px] p-6 sm:p-8">
+    <div className="mx-auto max-w-6xl space-y-6 px-4 py-10 sm:px-6">
+      <motion.div
+        initial={{ opacity: 0, y: 14 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+        className="premium-panel rounded-[28px] p-6 sm:p-8"
+      >
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <p className="text-xs font-bold uppercase tracking-[0.24em] text-[#f5d7a1]">Command vault</p>
+            <p className="text-xs font-bold uppercase tracking-[0.24em] text-gold-400">Command vault</p>
             <h1 className="mt-2 text-3xl font-black text-white sm:text-4xl">Saved scans and live defenses</h1>
             <p className="mt-3 max-w-2xl text-sm leading-7 text-gray-300">
               Review active investigations, reopen saved exposure maps, and keep your removals, alerts, and evidence trails in one retained operating surface.
@@ -67,14 +75,14 @@ export function Dashboard() {
             { icon: Hash, label: 'Failed or interrupted', value: `${scans.filter(scan => scan.status === 'failed').length}`, detail: 'Needs rerun or review' },
           ].map(({ icon: Icon, label, value, detail }) => (
             <div key={label} className="rounded-2xl border border-white/8 bg-black/35 p-4">
-              <Icon className="h-5 w-5 text-[#f5d7a1]" />
+              <Icon className="h-5 w-5 text-gold-400" />
               <div className="mt-3 text-[10px] font-bold uppercase tracking-[0.18em] text-gray-500">{label}</div>
               <div className="mt-1 text-3xl font-black text-white">{value}</div>
               <div className="mt-1 text-xs text-gray-500">{detail}</div>
             </div>
           ))}
         </div>
-      </div>
+      </motion.div>
 
       {!isAuthenticated && (
         <AuthVaultPrompt
@@ -84,30 +92,40 @@ export function Dashboard() {
       )}
 
       {isAuthenticated && (
-        <section className="space-y-4">
+        <motion.section
+          initial={{ opacity: 0, y: 14 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.08, ease: [0.22, 1, 0.36, 1] }}
+          className="space-y-4"
+        >
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div>
-              <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#f5d7a1]">Result windows</p>
-              <h2 className="mt-1 text-xl font-black text-[#fff7e8]">Your saved investigations</h2>
+              <p className="text-xs font-bold uppercase tracking-[0.2em] text-gold-400">Result windows</p>
+              <h2 className="mt-1 text-xl font-black text-ivory">Your saved investigations</h2>
             </div>
             <p className="text-xs text-gray-500">Each window is scoped to your signed-in vault.</p>
           </div>
 
           {!scans.length && !isLoading ? (
-            <div className="rounded-xl border border-white/10 bg-black/30 px-5 py-8 text-center text-sm text-gray-500">
-              Your first completed scan will open here with its exposure and risk values.
-            </div>
+            <EmptyState
+              icon={<Search className="h-6 w-6" />}
+              title="No investigations yet"
+              description="Your first completed scan will open here with its exposure and risk values."
+            />
           ) : (
             <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-              {scans.slice(0, 6).map(scan => {
+              {scans.slice(0, 6).map((scan, i) => {
                 const isSelected = selectedCompletedScanId === scan.scan_id
                 const privacyScore = Math.max(0, Math.round(100 - scan.risk_score))
                 return (
-                  <button
+                  <motion.button
                     key={scan.scan_id}
                     type="button"
                     disabled={scan.status !== 'completed'}
                     onClick={() => setSelectedScanId(scan.scan_id)}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.4, delay: 0.04 * i, ease: [0.22, 1, 0.36, 1] }}
                     className={`min-h-44 border p-4 text-left transition-colors ${
                       isSelected
                         ? 'border-red-400/60 bg-red-950/25'
@@ -128,8 +146,8 @@ export function Dashboard() {
                         <div className="text-2xl font-black text-red-200">{scan.total_exposures}</div>
                         <div className="text-[10px] uppercase tracking-[0.14em] text-gray-500">Exposures</div>
                       </div>
-                      <div className="border-l border-[#f5d7a1]/40 pl-3">
-                        <div className="text-2xl font-black text-[#fff7e8]">{privacyScore}</div>
+                      <div className="border-l border-gold-400/40 pl-3">
+                        <div className="text-2xl font-black text-ivory">{privacyScore}</div>
                         <div className="text-[10px] uppercase tracking-[0.14em] text-gray-500">Privacy score</div>
                       </div>
                     </div>
@@ -139,18 +157,16 @@ export function Dashboard() {
                       </span>
                       <span className="capitalize text-gray-500">{scan.status}</span>
                     </div>
-                  </button>
+                  </motion.button>
                 )
               })}
             </div>
           )}
 
           {selectedCompletedScanId && (
-            <div className="border border-white/10 bg-[#070708] p-5 sm:p-6">
+            <div className="border border-white/10 bg-ink-800 p-5 sm:p-6">
               {isResultLoading || !selectedResult ? (
-                <div className="flex min-h-36 items-center justify-center text-gray-500">
-                  <Loader className="h-5 w-5 animate-spin" />
-                </div>
+                <LoadingState message="Loading scan result…" />
               ) : (
                 <>
                   <div className="flex flex-wrap items-start justify-between gap-4">
@@ -225,11 +241,11 @@ export function Dashboard() {
               )}
             </div>
           )}
-        </section>
+        </motion.section>
       )}
 
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-black text-[#fff7e8]">Recent scans</h2>
+        <h2 className="text-xl font-black text-ivory">Recent scans</h2>
         <Link to="/">
           <Button icon={<Plus className="h-4 w-4" />}>New Scan</Button>
         </Link>
@@ -241,15 +257,13 @@ export function Dashboard() {
         </CardHeader>
         <CardBody className="space-y-3">
           {!savedEvidence.length && (
-            <div className="py-8 text-center text-gray-500">
-              <Vault className="mx-auto mb-3 h-6 w-6 opacity-50" />
-              <p className="text-sm">{isAuthenticated ? 'No evidence items saved yet.' : 'No private evidence visible until you sign in.'}</p>
-              <p className="mt-1 text-xs text-gray-600">
-                {isAuthenticated
-                  ? 'Save source-backed findings from a scan to keep them in your vault.'
-                  : 'Source-backed findings, timestamps, and vault actions appear here after the account gate is active.'}
-              </p>
-            </div>
+            <EmptyState
+              icon={<Vault className="h-6 w-6" />}
+              title={isAuthenticated ? 'No evidence items saved yet.' : 'No private evidence visible until you sign in.'}
+              description={isAuthenticated
+                ? 'Save source-backed findings from a scan to keep them in your vault.'
+                : 'Source-backed findings, timestamps, and vault actions appear here after the account gate is active.'}
+            />
           )}
           {savedEvidence.slice(0, 6).map((action: CommandAction) => {
             const payload = action.payload as Record<string, unknown>
@@ -262,7 +276,7 @@ export function Dashboard() {
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0 flex-1">
                     <div className="text-sm font-semibold text-white">{action.title}</div>
-                    <div className="mt-1 text-xs uppercase tracking-[0.14em] text-[#f5d7a1]">{sourceName}</div>
+                    <div className="mt-1 text-xs uppercase tracking-[0.14em] text-gold-400">{sourceName}</div>
                     {detail && <p className="mt-2 text-sm text-gray-400">{detail}</p>}
                     <p className="mt-2 text-xs text-gray-500">
                       Saved {new Date(action.created_at).toLocaleString()}
@@ -292,15 +306,13 @@ export function Dashboard() {
         </CardHeader>
         <CardBody className="space-y-3">
           {!vaultArtifacts.length && (
-            <div className="py-8 text-center text-gray-500">
-              <Vault className="mx-auto mb-3 h-6 w-6 opacity-50" />
-              <p className="text-sm">{isAuthenticated ? 'No saved packets yet.' : 'No private packets visible until you sign in.'}</p>
-              <p className="mt-1 text-xs text-gray-600">
-                {isAuthenticated
-                  ? 'Image receipts, authority packets, trackers, removals, and email blasts will land here once saved.'
-                  : 'Account-scoped packets stay hidden until the private vault is unlocked.'}
-              </p>
-            </div>
+            <EmptyState
+              icon={<Vault className="h-6 w-6" />}
+              title={isAuthenticated ? 'No saved packets yet.' : 'No private packets visible until you sign in.'}
+              description={isAuthenticated
+                ? 'Image receipts, authority packets, trackers, removals, and email blasts will land here once saved.'
+                : 'Account-scoped packets stay hidden until the private vault is unlocked.'}
+            />
           )}
           {vaultArtifacts.map((action: CommandAction) => {
             const payload = action.payload as Record<string, unknown>
@@ -340,18 +352,18 @@ export function Dashboard() {
           <span className="font-semibold text-white">Vault timeline</span>
         </CardHeader>
         <CardBody className="p-0">
-          {isLoading && (
-            <div className="py-12 text-center text-gray-500">
-              <Loader className="mx-auto h-6 w-6 animate-spin" />
-            </div>
-          )}
+          {isLoading && <LoadingState message="Loading scan history…" className="py-12" />}
           {!isLoading && !scans.length && (
-            <div className="py-12 text-center text-gray-500">
-              <p className="text-sm">{isAuthenticated ? 'No scans stored yet.' : 'No private scan history is visible yet.'}</p>
-              <Link to={isAuthenticated ? '/' : '/account'} className="mt-2 inline-block text-sm text-red-300 hover:text-white">
-                {isAuthenticated ? 'Start your first scan →' : 'Sign in or create vault access →'}
-              </Link>
-            </div>
+            <EmptyState
+              icon={<Clock className="h-6 w-6" />}
+              title={isAuthenticated ? 'No scans stored yet.' : 'No private scan history is visible yet.'}
+              description="Every scan you run gets a place here, scoped to your signed-in vault."
+              action={{
+                label: isAuthenticated ? 'Start your first scan' : 'Sign in or create vault access',
+                to: isAuthenticated ? '/' : '/account',
+              }}
+              className="py-12"
+            />
           )}
           {scans.map((scan: ScanJob) => (
             <Link
@@ -379,7 +391,7 @@ export function Dashboard() {
               <span className={`text-xs capitalize ${
                 scan.status === 'completed' ? 'text-gray-200' :
                 scan.status === 'failed'    ? 'text-red-400' :
-                scan.status === 'scanning'  ? 'text-[#f5d7a1]' : 'text-gray-500'
+                scan.status === 'scanning'  ? 'text-gold-400' : 'text-gray-500'
               }`}>
                 {scan.status}
               </span>

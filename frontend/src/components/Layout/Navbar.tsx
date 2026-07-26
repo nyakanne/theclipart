@@ -26,16 +26,16 @@ export function Navbar() {
   const [menuOpen, setMenuOpen] = useState(false)
 
   return (
-    <nav className="sticky top-0 z-40 border-b border-[#d4af37]/12 bg-black/88 backdrop-blur-xl">
+    <nav className="sticky top-0 z-40 border-b border-gold-500/12 bg-black/88 backdrop-blur-xl">
       <div className="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-[linear-gradient(90deg,transparent,rgba(212,175,55,0.42),rgba(186,24,27,0.4),transparent)]" />
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="flex h-20 items-center justify-between gap-3">
           <Link to="/" className="flex items-center gap-3">
-            <div className="grid h-11 w-11 place-items-center rounded-2xl border border-[#d4af37]/25 bg-[radial-gradient(circle_at_50%_30%,rgba(212,175,55,0.22),rgba(186,24,27,0.16),rgba(0,0,0,0.9))] shadow-[0_0_34px_rgba(186,24,27,0.22)]">
-              <ShieldAlert className="h-6 w-6 fill-red-600 text-[#f5d7a1]" />
+            <div className="grid h-11 w-11 place-items-center rounded-2xl border border-gold-500/25 bg-[radial-gradient(circle_at_50%_30%,rgba(212,175,55,0.22),rgba(186,24,27,0.16),rgba(0,0,0,0.9))] shadow-[0_0_34px_rgba(186,24,27,0.22)]">
+              <ShieldAlert className="h-6 w-6 fill-red-600 text-gold-400" />
             </div>
             <div>
-              <div className="text-[10px] font-bold uppercase tracking-[0.24em] text-[#f5d7a1]">Detect. Remove. Defend.</div>
+              <div className="text-[10px] font-bold uppercase tracking-[0.24em] text-gold-400">Detect. Remove. Defend.</div>
               <span className="text-2xl font-black tracking-tight text-white">Vindica</span>
             </div>
           </Link>
@@ -48,7 +48,7 @@ export function Navbar() {
                 className={clsx(
                   'flex items-center gap-1.5 text-xs font-semibold tracking-[0.04em] transition-colors xl:text-sm',
                   pathname === href || (href !== '/' && pathname.startsWith(href.split('#')[0]))
-                    ? 'text-[#f5d7a1]'
+                    ? 'text-gold-400'
                     : 'text-gray-300 hover:text-white'
                 )}
               >
@@ -81,7 +81,7 @@ export function Navbar() {
             </Link>
             <Link
               to="/#scan"
-              className="hidden items-center gap-2 rounded-lg border border-red-500/70 bg-[linear-gradient(180deg,rgba(186,24,27,0.32),rgba(60,5,9,0.88))] px-5 py-3 text-sm font-bold text-[#fff7e8] transition-colors hover:border-[#d4af37]/45 hover:text-white sm:inline-flex"
+              className="hidden items-center gap-2 rounded-lg border border-red-500/70 bg-[linear-gradient(180deg,rgba(186,24,27,0.32),rgba(60,5,9,0.88))] px-5 py-3 text-sm font-bold text-ivory transition-colors hover:border-gold-500/45 hover:text-white sm:inline-flex"
             >
               Get Started
               <ArrowRight className="h-4 w-4" />
@@ -98,7 +98,7 @@ export function Navbar() {
         </div>
       </div>
       {menuOpen ? (
-        <div className="border-t border-white/10 bg-[#050507] px-4 py-4 lg:hidden">
+        <div className="border-t border-white/10 bg-ink-900 px-4 py-4 lg:hidden">
           <div className="mx-auto grid max-w-7xl gap-1">
             {visibleNavItems.map(({ label, href }) => (
               <Link
@@ -108,7 +108,7 @@ export function Navbar() {
                 className={clsx(
                   'border-l-2 px-4 py-3 text-sm font-semibold transition-colors',
                   pathname === href || (href !== '/' && pathname.startsWith(href.split('#')[0]))
-                    ? 'border-[#d4af37] bg-[#d4af37]/[0.05] text-white'
+                    ? 'border-gold-500 bg-gold-500/[0.05] text-white'
                     : 'border-white/10 text-gray-400 hover:border-red-500 hover:text-white'
                 )}
               >
