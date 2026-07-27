@@ -167,7 +167,7 @@ async def readiness():
         'brave_web_evidence': bool(settings.brave_search_key),
         'image_analysis': bool(settings.azure_cv_key or settings.GOOGLE_CLOUD_VISION_API_KEY or settings.huggingface_token),
         'domain_threat_intel': bool(settings.VIRUSTOTAL_API_KEY or settings.SHODAN_API_KEY),
-        'real_opt_out_email': bool(settings.ALLOW_REAL_OPT_OUTS and settings.SES_FROM_EMAIL and settings.BROKER_PRIVACY_EMAILS),
+        'real_opt_out_email': bool(settings.ALLOW_REAL_OPT_OUTS and settings.outbound_email_configured and settings.BROKER_PRIVACY_EMAILS),
     }
     blockers = []
     if not database_ok:
@@ -178,6 +178,8 @@ async def readiness():
         blockers.append('Account vault authentication is not configured.')
     if settings.is_production and not capabilities['kms_envelope_encryption']:
         blockers.append('KMS envelope encryption is not configured.')
+    if settings.is_production and not capabilities['outbound_email']:
+        blockers.append(f'Email delivery is not configured for provider {settings.EMAIL_PROVIDER!r}.')
     if settings.is_production and settings.PUBLIC_APP_URL.startswith('http://'):
         blockers.append('PUBLIC_APP_URL must use HTTPS in production.')
     if settings.is_production and not capabilities['object_storage']:

@@ -29,10 +29,10 @@ export function ConsentNotice() {
   }
 
   return (
-    <div className="fixed inset-x-0 bottom-0 z-[100] border-t border-[#d4af37]/25 bg-[#09090d]/[0.98] shadow-[0_-20px_70px_rgba(0,0,0,0.65)] backdrop-blur-xl">
+    <div className="fixed inset-x-0 bottom-0 z-[100] border-t border-gold-500/25 bg-[#09090d]/[0.98] shadow-[0_-20px_70px_rgba(0,0,0,0.65)] backdrop-blur-xl">
       <div className="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-5 sm:px-6 lg:flex-row lg:items-center lg:justify-between lg:px-8">
         <div className="flex max-w-4xl items-start gap-3">
-          <div className="mt-0.5 border border-[#d4af37]/25 bg-[#d4af37]/[0.06] p-2 text-[#f5d7a1]">
+          <div className="mt-0.5 border border-gold-500/25 bg-gold-500/[0.06] p-2 text-gold-400">
             <LockKeyhole className="h-4 w-4" />
           </div>
           <div>

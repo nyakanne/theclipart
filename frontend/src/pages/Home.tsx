@@ -549,7 +549,7 @@ export function Home({ initialTab = 'scan' }: { initialTab?: 'scan' | 'scanSelf'
       />
 
 
-      <section id="product" className="border-y border-white/10 bg-[#050506]/92">
+      <section id="product" className="border-y border-white/10 bg-ink-900/92">
         <div className="mx-auto grid max-w-7xl gap-4 px-4 py-5 sm:px-6 lg:grid-cols-5 lg:px-8">
           {[
             ['Operator OSINT Workbench', Network],
@@ -894,8 +894,8 @@ function HeroCommandDeck({
             transition={{ duration: 0.6, delay: 0.2 + index * 0.12 }}
             style={{ animationDelay: `${index * 0.3}s` }}
           >
-            <div className="text-[10px] font-bold uppercase tracking-[0.22em] text-[#f5d7a1]">{card.title}</div>
-            <div className="mt-3 text-2xl font-black text-[#fff7e8]">{card.value}</div>
+            <div className="text-[10px] font-bold uppercase tracking-[0.22em] text-gold-400">{card.title}</div>
+            <div className="mt-3 text-2xl font-black text-ivory">{card.value}</div>
             <div className="mt-2 text-xs leading-5 text-gray-400">{card.detail}</div>
           </motion.div>
         ))}
@@ -931,8 +931,8 @@ function LiveResolutionSection({
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_10%,rgba(186,24,27,0.18),transparent_32rem),radial-gradient(circle_at_88%_55%,rgba(212,175,55,0.12),transparent_26rem)]" />
       <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:grid lg:grid-cols-[0.85fr_1.15fr] lg:gap-10 lg:px-8">
         <div className="max-w-xl">
-          <p className="text-xs font-bold uppercase tracking-[0.28em] text-[#f5d7a1]">Live Scan Resolution</p>
-          <h2 className="mt-3 text-4xl font-black tracking-tight text-[#fff7e8] sm:text-5xl">
+          <p className="text-xs font-bold uppercase tracking-[0.28em] text-gold-400">Live Scan Resolution</p>
+          <h2 className="mt-3 text-4xl font-black tracking-tight text-ivory sm:text-5xl">
             Real scan output should stay visible in the browser.
           </h2>
           <p className="mt-5 text-lg leading-8 text-gray-300">
@@ -940,12 +940,12 @@ function LiveResolutionSection({
           </p>
           <div className="mt-8 grid gap-4 sm:grid-cols-2">
             <div className="premium-panel p-4">
-              <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#f5d7a1]">Active subject</div>
+              <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-gold-400">Active subject</div>
               <div className="mt-2 text-2xl font-black text-white">{subject}</div>
               <div className="mt-1 text-xs text-gray-500">{liveScan ? formatScanKind(liveScan.kind) : 'Run a scan to populate the graph'}</div>
             </div>
             <div className="premium-panel p-4">
-              <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#f5d7a1]">Exposure total</div>
+              <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-gold-400">Exposure total</div>
               <div className="mt-2 text-2xl font-black text-white">{hasMeasuredSignals ? liveTotal : '--'}</div>
               <div className="mt-1 text-xs text-gray-500">{hasMeasuredSignals ? 'linked public, broker, and social signals' : 'Shown after real evidence returns'}</div>
             </div>
@@ -966,8 +966,8 @@ function LiveResolutionSection({
               transition={{ duration: 0.5, delay: index * 0.08 }}
             >
                 <div className="flex items-center justify-between gap-3">
-                  <div className="text-sm font-bold text-[#fff7e8]">{row.label}</div>
-                  <div className={clsx('text-sm font-black', count > Math.round(maxCount * 0.6) ? 'text-red-300' : 'text-[#f5d7a1]')}>{hasMeasuredSignals ? count : '--'}</div>
+                  <div className="text-sm font-bold text-ivory">{row.label}</div>
+                  <div className={clsx('text-sm font-black', count > Math.round(maxCount * 0.6) ? 'text-red-300' : 'text-gold-400')}>{hasMeasuredSignals ? count : '--'}</div>
                 </div>
                 <p className="mt-3 text-sm leading-6 text-gray-400">{row.detail}</p>
                 <div className="mt-4 h-1.5 overflow-hidden rounded-full bg-white/8">
@@ -1000,8 +1000,8 @@ function DigitalSecondBrainSection({
     <section className="relative overflow-hidden bg-black py-18">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="mb-8 max-w-3xl">
-          <p className="text-xs font-bold uppercase tracking-[0.28em] text-[#f5d7a1]">Digital Second Brain</p>
-          <h2 className="mt-3 text-4xl font-black tracking-tight text-[#fff7e8] sm:text-5xl">
+          <p className="text-xs font-bold uppercase tracking-[0.28em] text-gold-400">Digital Second Brain</p>
+          <h2 className="mt-3 text-4xl font-black tracking-tight text-ivory sm:text-5xl">
             One graph. Every trace. Every defense path.
           </h2>
           <p className="mt-5 text-lg leading-8 text-gray-300">
@@ -1030,8 +1030,8 @@ function DigitalSecondBrainSection({
               <div className="second-brain__ring second-brain__ring--outer" />
               <div className="second-brain__ring second-brain__ring--inner" />
               <div className="second-brain__avatar">
-                <Shield className="h-7 w-7 text-[#fff7e8]" />
-                <div className="mt-3 text-xs font-bold uppercase tracking-[0.18em] text-[#f5d7a1]">Core identity</div>
+                <Shield className="h-7 w-7 text-ivory" />
+                <div className="mt-3 text-xs font-bold uppercase tracking-[0.18em] text-gold-400">Core identity</div>
                 <div className="mt-1 text-lg font-black text-white">{subject}</div>
               </div>
             </div>
@@ -1048,7 +1048,7 @@ function DigitalSecondBrainSection({
                   transition={{ duration: 0.45, delay: 0.1 + index * 0.05 }}
                 >
                   <div className="second-brain__pulse" />
-                  <Icon className="h-4 w-4 text-[#f5d7a1]" />
+                  <Icon className="h-4 w-4 text-gold-400" />
                   <span>{node.label}</span>
                 </motion.div>
               )
@@ -1065,10 +1065,10 @@ function DigitalSecondBrainSection({
               <div key={card.label} className="premium-panel tilt-card p-5">
                 <div className="flex items-center justify-between gap-4">
                   <div>
-                    <div className="text-sm font-bold text-[#fff7e8]">{card.label}</div>
+                    <div className="text-sm font-bold text-ivory">{card.label}</div>
                     <p className="mt-2 text-sm leading-6 text-gray-400">{card.detail}</p>
                   </div>
-                  <div className="text-3xl font-black text-[#f5d7a1]">{card.value}</div>
+                  <div className="text-3xl font-black text-gold-400">{card.value}</div>
                 </div>
               </div>
             ))}
@@ -1160,13 +1160,13 @@ function PremiumDashboardPreview({
       : []
 
   return (
-    <section className="relative overflow-hidden bg-[#050505] py-16">
+    <section className="relative overflow-hidden bg-ink-900 py-16">
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_80%_12%,rgba(212,175,55,0.12),transparent_24rem),radial-gradient(circle_at_10%_84%,rgba(186,24,27,0.18),transparent_24rem)]" />
       <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
           <div className="max-w-3xl">
-            <p className="text-xs font-bold uppercase tracking-[0.28em] text-[#f5d7a1]">Command Modules</p>
-            <h2 className="mt-3 text-4xl font-black tracking-tight text-[#fff7e8] sm:text-5xl">
+            <p className="text-xs font-bold uppercase tracking-[0.28em] text-gold-400">Command Modules</p>
+            <h2 className="mt-3 text-4xl font-black tracking-tight text-ivory sm:text-5xl">
               The dashboard should feel like power restored.
             </h2>
             <p className="mt-5 text-lg leading-8 text-gray-300">
@@ -1174,7 +1174,7 @@ function PremiumDashboardPreview({
             </p>
           </div>
           <div className="premium-panel p-4">
-            <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#f5d7a1]">Status</div>
+            <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-gold-400">Status</div>
             <div className="mt-2 text-2xl font-black text-white">{statusLabel}</div>
             <div className="mt-1 text-xs text-gray-500">{hasMeasuredSignals ? `${liveTotal} linked signals under watch` : 'Awaiting real evidence'}</div>
           </div>
@@ -1194,12 +1194,12 @@ function PremiumDashboardPreview({
                   whileHover={{ rotateX: -5, rotateY: 5, y: -5 }}
                 >
                   <div className="flex items-center justify-between gap-3">
-                    <div className="grid h-10 w-10 place-items-center rounded-full border border-[#d4af37]/35 bg-[#d4af37]/8">
-                      <Icon className="h-5 w-5 text-[#f5d7a1]" />
+                    <div className="grid h-10 w-10 place-items-center rounded-full border border-gold-500/35 bg-gold-500/8">
+                      <Icon className="h-5 w-5 text-gold-400" />
                     </div>
                     <div className="text-lg font-black text-white">{module.value}</div>
                   </div>
-                  <div className="mt-4 text-base font-bold text-[#fff7e8]">{module.title}</div>
+                  <div className="mt-4 text-base font-bold text-ivory">{module.title}</div>
                   <p className="mt-2 text-sm leading-6 text-gray-400">{module.detail}</p>
                 </motion.div>
               )
@@ -1210,8 +1210,8 @@ function PremiumDashboardPreview({
             <div className="premium-panel p-5">
               <div className="flex items-center justify-between gap-3">
                 <div>
-                  <div className="text-xs font-bold uppercase tracking-[0.18em] text-[#f5d7a1]">Live Threat Feed</div>
-                  <div className="mt-2 text-2xl font-black text-[#fff7e8]">Active defense tape</div>
+                  <div className="text-xs font-bold uppercase tracking-[0.18em] text-gold-400">Live Threat Feed</div>
+                  <div className="mt-2 text-2xl font-black text-ivory">Active defense tape</div>
                 </div>
                 <div className="rounded-full border border-red-500/30 bg-red-950/25 px-3 py-1 text-xs font-bold uppercase tracking-[0.16em] text-red-200">
                   Monitoring
@@ -1222,7 +1222,7 @@ function PremiumDashboardPreview({
                 {threatFeed.length ? threatFeed.map(item => (
                   <div key={item.key} className="vault-stack rounded-xl border border-white/10 bg-black/35 px-4 py-3">
                     <div className="flex items-center justify-between gap-4">
-                      <div className="font-mono text-xs text-[#f5d7a1]">LIVE</div>
+                      <div className="font-mono text-xs text-gold-400">LIVE</div>
                       <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-red-200">{item.label}</div>
                     </div>
                     <div className="mt-2 text-sm leading-6 text-gray-300">{item.event}</div>
@@ -1236,7 +1236,7 @@ function PremiumDashboardPreview({
             </div>
 
             <div className="premium-panel p-5">
-              <div className="text-xs font-bold uppercase tracking-[0.18em] text-[#f5d7a1]">Animated risk score</div>
+              <div className="text-xs font-bold uppercase tracking-[0.18em] text-gold-400">Animated risk score</div>
               <div className="mt-4 flex items-end justify-between gap-3">
                 <div>
                   <div className="text-5xl font-black text-white">{hasMeasuredSignals ? Math.max(22, 92 - Math.round(liveTotal / 4)) : '--'}</div>
@@ -1277,7 +1277,7 @@ function LiveBrowserResults({
   const outputTotal = result ? totalSourcesFromScanResult(result) : countExposureSources(outputCounts)
 
   return (
-    <section id="live-results" className="border-y border-white/10 bg-[#050506]">
+    <section id="live-results" className="border-y border-white/10 bg-ink-900">
       <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
         <div className="glass-panel rounded-xl p-6">
           <div className="flex flex-wrap items-start justify-between gap-4">
@@ -1516,7 +1516,7 @@ function BrowserOutputTable({
       )}
 
       {!!providerFallback.length && result?.scan_id && (
-        <div className="mt-4 rounded-xl border border-[#d4af37]/30 bg-[#d4af37]/10 p-4">
+        <div className="mt-4 rounded-xl border border-gold-500/30 bg-gold-500/10 p-4">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div className="max-w-3xl">
               <div className="text-xs font-bold uppercase tracking-[0.2em] text-[#f1c96b]">Operator fallback</div>
@@ -1527,7 +1527,7 @@ function BrowserOutputTable({
             </div>
             <Link
               to={`/scan/${result.scan_id}`}
-              className="inline-flex items-center gap-2 rounded-lg border border-[#d4af37]/35 bg-black/50 px-4 py-3 text-sm font-bold text-[#f4d889] transition-colors hover:border-[#d4af37]/55 hover:bg-black/65"
+              className="inline-flex items-center gap-2 rounded-lg border border-gold-500/35 bg-black/50 px-4 py-3 text-sm font-bold text-[#f4d889] transition-colors hover:border-gold-500/55 hover:bg-black/65"
             >
               Open evidence capture
               <ExternalLink className="h-4 w-4" />

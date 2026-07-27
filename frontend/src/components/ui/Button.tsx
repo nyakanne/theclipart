@@ -1,14 +1,17 @@
 import { forwardRef } from 'react'
 import { clsx } from 'clsx'
 
-type Variant = 'primary' | 'secondary' | 'danger' | 'ghost'
+type Variant = 'primary' | 'secondary' | 'danger' | 'ghost' | 'gold'
 type Size = 'sm' | 'md' | 'lg'
 
 const variants: Record<Variant, string> = {
   primary:   'bg-red-600 hover:bg-red-500 text-white border-red-500/40',
-  secondary: 'bg-gray-950 hover:bg-gray-900 text-gray-100 border-gray-700',
+  secondary: 'bg-ink-900 hover:bg-ink-800 text-gray-100 border-white/10',
   danger:    'bg-red-700 hover:bg-red-600 text-white border-red-500/40',
-  ghost:     'bg-transparent hover:bg-gray-900 text-gray-300 border-transparent',
+  ghost:     'bg-transparent hover:bg-ink-800 text-gray-300 border-transparent',
+  // Confirm/positive actions (vault activation, saved states) -- not every
+  // action is a risk/danger signal, so red shouldn't be the only option.
+  gold:      'bg-gold-500 hover:bg-gold-600 text-ink-950 border-gold-500/40',
 }
 
 const sizes: Record<Size, string> = {

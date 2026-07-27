@@ -17,16 +17,16 @@ const trustLinks = [
 
 export function Footer() {
   return (
-    <footer className="border-t border-white/10 bg-[#050507]">
+    <footer className="border-t border-white/10 bg-ink-900">
       <div className="mx-auto grid max-w-7xl gap-10 px-4 py-10 sm:px-6 lg:grid-cols-[1.2fr_0.8fr_0.8fr] lg:px-8">
         <div className="max-w-xl">
           <Link to="/" className="inline-flex items-center gap-3">
-            <div className="grid h-10 w-10 place-items-center rounded-lg border border-[#d4af37]/25 bg-black text-[#f5d7a1]">
+            <div className="grid h-10 w-10 place-items-center rounded-lg border border-gold-500/25 bg-black text-gold-400">
               <ShieldAlert className="h-5 w-5" />
             </div>
             <div>
               <div className="text-lg font-black text-white">Vindica</div>
-              <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#f5d7a1]">Detect. Remove. Defend.</div>
+              <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-gold-400">Detect. Remove. Defend.</div>
             </div>
           </Link>
           <p className="mt-4 text-sm leading-7 text-gray-500">
@@ -62,7 +62,7 @@ function FooterLinks({
 }) {
   return (
     <div>
-      <h2 className="text-xs font-bold uppercase tracking-[0.18em] text-[#f5d7a1]">{title}</h2>
+      <h2 className="text-xs font-bold uppercase tracking-[0.18em] text-gold-400">{title}</h2>
       <div className="mt-4 grid gap-3">
         {links.map(([label, href]) => (
           <Link key={href} to={href} className="text-sm text-gray-400 transition-colors hover:text-white">

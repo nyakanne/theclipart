@@ -1,3 +1,5 @@
+@import './fonts.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -5,16 +7,28 @@
 @layer base {
   * { box-sizing: border-box; }
   :root {
-    --vindica-gold: #d4af37;
-    --vindica-gold-soft: #f5d7a1;
-    --vindica-red: #ba181b;
-    --vindica-red-deep: #5e0b11;
-    --vindica-ivory: #fff7e8;
+    /* Ink / surface scale */
+    --vindica-ink-950: 3 3 5;         /* #030305 page background */
+    --vindica-ink-900: 5 5 7;         /* #050507 PWA chrome */
+    --vindica-ink-800: 8 8 13;        /* #08080d elevated static panel */
+    --vindica-ink-700: 16 16 26;      /* #10101a card surface */
+    --vindica-ink-600: 21 21 26;      /* #15151a hover/active surface */
+
+    /* Red -- two canonical reds, each with one job */
+    --vindica-red-glow: 239 68 68;    /* #ef4444 bright accent/glow (dominant) */
+    --vindica-red: 186 24 27;         /* #ba181b structural/border red */
+    --vindica-red-deep: 94 11 17;     /* #5e0b11 deep fill red */
+
+    /* Gold -- single value, used for positive/authority/compliance signals */
+    --vindica-gold: 212 175 55;       /* #d4af37 */
+    --vindica-gold-soft: 245 215 161; /* #f5d7a1 */
+
+    --vindica-ivory: 255 247 232;     /* #fff7e8 */
     --vindica-mobile-bottom-nav: calc(4.85rem + env(safe-area-inset-bottom));
   }
   html {
     min-height: 100%;
-    background: #030305;
+    background: rgb(var(--vindica-ink-950));
     color-scheme: dark;
     -webkit-text-size-adjust: 100%;
   }
@@ -27,20 +41,29 @@
     background:
       radial-gradient(circle at 70% 30%, rgba(190, 18, 60, 0.14), transparent 36rem),
       radial-gradient(circle at 12% 72%, rgba(127, 29, 29, 0.16), transparent 30rem),
-      radial-gradient(circle at 82% 18%, rgba(212, 175, 55, 0.1), transparent 22rem),
-      #030305;
+      radial-gradient(circle at 82% 18%, rgb(var(--vindica-gold) / 0.1), transparent 22rem),
+      rgb(var(--vindica-ink-950));
   }
   button,
   a,
   input,
   select,
   textarea {
-    -webkit-tap-highlight-color: rgba(212, 175, 55, 0.16);
+    -webkit-tap-highlight-color: rgb(var(--vindica-gold) / 0.16);
   }
   ::selection { @apply bg-red-600/40; }
   ::-webkit-scrollbar { @apply w-1.5 h-1.5; }
   ::-webkit-scrollbar-track { @apply bg-transparent; }
   ::-webkit-scrollbar-thumb { @apply rounded-full bg-gray-700; }
+
+  /* Sitewide keyboard-focus visibility. Gold (not red) keeps focus rings
+     visually distinct from error/danger red; Button.tsx's own
+     focus-visible:ring-red-500 stays as an intentional, more specific
+     override for primary actions. */
+  :focus-visible {
+    outline: 2px solid rgb(var(--vindica-gold) / 0.85);
+    outline-offset: 2px;
+  }
 }
 
 @layer components {
@@ -75,12 +98,12 @@
 
 .premium-panel {
   background:
-    linear-gradient(180deg, rgba(255, 247, 232, 0.05), transparent 40%),
+    linear-gradient(180deg, rgb(var(--vindica-ivory) / 0.05), transparent 40%),
     linear-gradient(145deg, rgba(21, 12, 10, 0.92), rgba(6, 6, 8, 0.84));
-  border: 1px solid rgba(212, 175, 55, 0.18);
+  border: 1px solid rgb(var(--vindica-gold) / 0.18);
   box-shadow:
-    inset 0 1px 0 rgba(255, 247, 232, 0.08),
-    inset 0 -1px 0 rgba(186, 24, 27, 0.15),
+    inset 0 1px 0 rgb(var(--vindica-ivory) / 0.08),
+    inset 0 -1px 0 rgb(var(--vindica-red) / 0.15),
     0 30px 90px rgba(0, 0, 0, 0.42);
   backdrop-filter: blur(18px);
 }
@@ -89,7 +112,7 @@
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.035), transparent 42%),
     linear-gradient(145deg, rgba(18, 19, 22, 0.97), rgba(5, 6, 8, 0.94));
-  border: 1px solid rgba(212, 175, 55, 0.2);
+  border: 1px solid rgb(var(--vindica-gold) / 0.2);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.07),
     0 30px 90px rgba(0, 0, 0, 0.45);
@@ -103,7 +126,239 @@
 }
 
 .red-button-glow {
-  box-shadow: 0 0 26px rgba(239, 68, 68, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.22);
+  box-shadow: 0 0 26px rgb(var(--vindica-red-glow) / 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.22);
+}
+
+/* ---------------------------------------------------------------------------
+   Obsidian shard — the fragmented mirror-glass surface.
+
+   Reads as a piece of broken volcanic glass: a near-black body with several
+   independently-angled reflective facets, bright seams where those facets
+   meet, and a specular highlight that tracks the cursor (driven by the
+   --gx/--gy custom properties from useGlassPointer).
+
+   Layer order, back to front:
+     body gradient -> facets -> seams -> moving sheen -> edge light -> content
+   --------------------------------------------------------------------------- */
+.obsidian-shard {
+  --gx: 50%;
+  --gy: 0%;
+  --gtx: 0;
+  --gty: 0;
+  --gactive: 0;
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  background:
+    /* Top light-catch: the bright band a polished edge always holds. */
+    linear-gradient(180deg, rgb(var(--vindica-ivory) / 0.1) 0%, transparent 18%),
+    linear-gradient(168deg, rgba(30, 20, 20, 0.94) 0%, rgba(11, 9, 13, 0.96) 46%, rgba(4, 4, 6, 0.98) 100%);
+  border: 1px solid rgb(var(--vindica-gold) / 0.22);
+  box-shadow:
+    inset 0 1px 0 rgb(var(--vindica-ivory) / 0.16),
+    inset 0 -1px 0 rgb(var(--vindica-red) / 0.18),
+    0 30px 90px rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(18px);
+  transform-style: preserve-3d;
+  transition:
+    transform 380ms cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 380ms ease,
+    box-shadow 380ms ease;
+}
+
+/* The moving specular. Sits above the facets so it sweeps across all of them
+   as one light source, which is what sells the separate planes as one object. */
+.obsidian-shard::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  background:
+    radial-gradient(
+      38rem circle at var(--gx) var(--gy),
+      rgb(var(--vindica-ivory) / 0.22),
+      rgb(var(--vindica-gold) / 0.11) 24%,
+      transparent 56%
+    );
+  opacity: calc(0.6 + (var(--gactive) * 0.4));
+  transition: opacity 420ms ease;
+}
+
+/* Refraction edge — a thin bright rim that brightens on the cursor's side. */
+.obsidian-shard::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  pointer-events: none;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(
+    calc(180deg + (var(--gty) * 60deg)),
+    rgb(var(--vindica-gold) / 0.5),
+    rgb(var(--vindica-red-glow) / 0.22) 38%,
+    transparent 70%
+  );
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  opacity: calc(0.55 + (var(--gactive) * 0.45));
+  transition: opacity 420ms ease;
+}
+
+.obsidian-shard:hover {
+  border-color: rgb(var(--vindica-gold) / 0.34);
+  box-shadow:
+    inset 0 1px 0 rgb(var(--vindica-ivory) / 0.14),
+    inset 0 -1px 0 rgb(var(--vindica-red) / 0.2),
+    0 42px 120px rgba(0, 0, 0, 0.58),
+    0 0 40px rgb(var(--vindica-red-glow) / 0.12);
+}
+
+/* Parallax lean toward the cursor. Small on purpose — this is a command
+   surface, not a novelty card. */
+.obsidian-shard--tilt:hover {
+  transform:
+    perspective(1200px)
+    rotateX(calc(var(--gtx) * 2.4deg))
+    rotateY(calc(var(--gty) * 2.4deg))
+    translate3d(0, -2px, 0);
+}
+
+/* Facets — each is an independently clipped plane carrying its own gradient
+   angle, so they catch the light differently the way real shards do. */
+.shard-facet {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  mix-blend-mode: screen;
+  opacity: calc(0.82 + (var(--gactive) * 0.18));
+  transition: opacity 420ms ease;
+}
+
+.shard-facet--a {
+  clip-path: polygon(0 0, 46% 0, 26% 100%, 0 100%);
+  background: linear-gradient(112deg, rgb(var(--vindica-ivory) / 0.16), rgb(var(--vindica-ivory) / 0.03) 44%, transparent 72%);
+}
+
+.shard-facet--b {
+  clip-path: polygon(46% 0, 78% 0, 62% 100%, 26% 100%);
+  background: linear-gradient(196deg, rgb(var(--vindica-gold) / 0.2), rgb(var(--vindica-gold) / 0.04) 48%, transparent 76%);
+}
+
+.shard-facet--c {
+  clip-path: polygon(78% 0, 100% 0, 100% 62%, 62% 100%);
+  background: linear-gradient(58deg, rgb(var(--vindica-red-glow) / 0.18), rgb(var(--vindica-red) / 0.05) 46%, transparent 74%);
+}
+
+.shard-facet--d {
+  clip-path: polygon(100% 62%, 100% 100%, 62% 100%);
+  background: linear-gradient(24deg, rgb(var(--vindica-ivory) / 0.13), transparent 68%);
+}
+
+/* Seams — the bright fracture lines between facets. Two-tone (a hot core with
+   a softer bloom) so they read as a lit edge rather than a drawn line. */
+.shard-seam {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  opacity: calc(0.7 + (var(--gactive) * 0.3));
+  transition: opacity 420ms ease;
+  background:
+    linear-gradient(112deg, transparent calc(46% - 2.5px), rgb(var(--vindica-ivory) / 0.07) 46%, transparent calc(46% + 2.5px)),
+    linear-gradient(112deg, transparent calc(46% - 0.7px), rgb(var(--vindica-ivory) / 0.42) 46%, transparent calc(46% + 0.7px)),
+    linear-gradient(112deg, transparent calc(78% - 2.5px), rgb(var(--vindica-gold) / 0.09) 78%, transparent calc(78% + 2.5px)),
+    linear-gradient(112deg, transparent calc(78% - 0.7px), rgb(var(--vindica-gold) / 0.48) 78%, transparent calc(78% + 0.7px)),
+    linear-gradient(24deg, transparent calc(62% - 0.7px), rgb(var(--vindica-red-glow) / 0.3) 62%, transparent calc(62% + 0.7px));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .obsidian-shard,
+  .obsidian-shard::after,
+  .obsidian-shard::before,
+  .shard-facet,
+  .shard-seam {
+    transition: none;
+  }
+  .obsidian-shard--tilt:hover {
+    transform: none;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Neural field — the obsidian second-brain motif, as ambient background.
+   --------------------------------------------------------------------------- */
+.neural-field {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.neural-field__edge {
+  stroke: rgb(var(--vindica-red-glow) / 0.34);
+  stroke-width: 0.18;
+  fill: none;
+}
+
+.neural-field__pulse {
+  stroke: rgb(var(--vindica-gold) / 0.85);
+  stroke-width: 0.3;
+  stroke-linecap: round;
+  fill: none;
+  filter: drop-shadow(0 0 1.4px rgb(var(--vindica-gold) / 0.75));
+}
+
+.neural-field__node {
+  fill: rgb(var(--vindica-red-glow) / 0.85);
+  filter: drop-shadow(0 0 1.6px rgb(var(--vindica-red-glow) / 0.9));
+}
+
+.neural-field__node--key {
+  fill: rgb(var(--vindica-gold) / 0.95);
+  filter: drop-shadow(0 0 2.2px rgb(var(--vindica-gold) / 0.85));
+}
+
+@keyframes neuralBreathe {
+  0%, 100% { opacity: 0.32; transform: scale(1); }
+  50%      { opacity: 0.85; transform: scale(1.35); }
+}
+
+/* Light travelling along a connection. The range overshoots the viewBox on
+   both sides so the streak enters, crosses, and leaves — giving each edge an
+   intermittent pulse rather than a constantly-lit wire. */
+@keyframes neuralPulse {
+  0%   { stroke-dashoffset: 110; opacity: 0; }
+  12%  { opacity: 1; }
+  88%  { opacity: 1; }
+  100% { stroke-dashoffset: -110; opacity: 0; }
+}
+
+@keyframes neuralDrift {
+  0%, 100% { transform: translate3d(0, 0, 0); }
+  50%      { transform: translate3d(0, -1.2%, 0); }
+}
+
+.neural-field__nodes > circle {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: neuralBreathe 4.8s ease-in-out infinite;
+}
+
+.neural-field__layer {
+  animation: neuralDrift 18s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .neural-field__nodes > circle,
+  .neural-field__layer,
+  .neural-field__pulse {
+    animation: none !important;
+  }
 }
 
 .tilt-card {
@@ -112,11 +367,11 @@
 }
 
 .tilt-card:hover {
-  border-color: rgba(212, 175, 55, 0.32);
+  border-color: rgb(var(--vindica-gold) / 0.32);
   box-shadow:
-    inset 0 1px 0 rgba(255, 247, 232, 0.08),
+    inset 0 1px 0 rgb(var(--vindica-ivory) / 0.08),
     0 38px 110px rgba(0, 0, 0, 0.52),
-    0 0 28px rgba(212, 175, 55, 0.08);
+    0 0 28px rgb(var(--vindica-gold) / 0.08);
 }
 
 .hero-stage::after {
@@ -127,8 +382,8 @@
   height: min(58vw, 760px);
   pointer-events: none;
   background:
-    radial-gradient(circle, rgba(239, 68, 68, 0.16), transparent 52%),
-    repeating-radial-gradient(circle, rgba(239, 68, 68, 0.28) 0 1px, transparent 1px 18px);
+    radial-gradient(circle, rgb(var(--vindica-red-glow) / 0.16), transparent 52%),
+    repeating-radial-gradient(circle, rgb(var(--vindica-red-glow) / 0.28) 0 1px, transparent 1px 18px);
   border-radius: 999px;
   opacity: 0.34;
   filter: blur(0.2px);
@@ -142,8 +397,8 @@
 }
 
 .hero-title {
-  color: var(--vindica-ivory);
-  text-shadow: 0 0 34px rgba(255, 255, 255, 0.09), 0 0 54px rgba(239, 68, 68, 0.18), 0 0 16px rgba(212, 175, 55, 0.08);
+  color: rgb(var(--vindica-ivory));
+  text-shadow: 0 0 34px rgba(255, 255, 255, 0.09), 0 0 54px rgb(var(--vindica-red-glow) / 0.18), 0 0 16px rgb(var(--vindica-gold) / 0.08);
 }
 
 .signal-burst {
@@ -162,7 +417,7 @@
   transform-origin: center;
   border-radius: 42px;
   background:
-    radial-gradient(circle at 50% 50%, rgba(239, 68, 68, 0.25), transparent 18rem),
+    radial-gradient(circle at 50% 50%, rgb(var(--vindica-red-glow) / 0.25), transparent 18rem),
     radial-gradient(circle at 35% 46%, rgba(255, 255, 255, 0.09), transparent 15rem);
   mix-blend-mode: screen;
 }
@@ -172,7 +427,7 @@
   inset: 0;
   width: 100%;
   height: 100%;
-  filter: drop-shadow(0 0 10px rgba(239, 68, 68, 0.64));
+  filter: drop-shadow(0 0 10px rgb(var(--vindica-red-glow) / 0.64));
 }
 
 .signal-edge {
@@ -190,7 +445,7 @@
   border: 1px solid rgba(248, 113, 113, 0.34);
   background: linear-gradient(145deg, rgba(22, 22, 26, 0.78), rgba(4, 4, 5, 0.52));
   padding: 8px 10px;
-  box-shadow: 0 0 24px rgba(239, 68, 68, 0.24);
+  box-shadow: 0 0 24px rgb(var(--vindica-red-glow) / 0.24);
   backdrop-filter: blur(14px);
   white-space: nowrap;
 }
@@ -200,7 +455,7 @@
   height: 10px;
   border-radius: 999px;
   background: #fff;
-  box-shadow: 0 0 16px rgba(255, 255, 255, 0.95), 0 0 22px rgba(239, 68, 68, 0.9);
+  box-shadow: 0 0 16px rgba(255, 255, 255, 0.95), 0 0 22px rgb(var(--vindica-red-glow) / 0.9);
 }
 
 .signal-node strong {
@@ -227,9 +482,9 @@
   border-radius: 999px;
   border: 1px solid rgba(248, 113, 113, 0.58);
   background:
-    repeating-radial-gradient(circle, rgba(239, 68, 68, 0.7) 0 1px, transparent 1px 13px),
-    radial-gradient(circle, rgba(239, 68, 68, 0.38), rgba(0, 0, 0, 0.7) 72%);
-  box-shadow: 0 0 62px rgba(239, 68, 68, 0.42);
+    repeating-radial-gradient(circle, rgb(var(--vindica-red-glow) / 0.7) 0 1px, transparent 1px 13px),
+    radial-gradient(circle, rgb(var(--vindica-red-glow) / 0.38), rgba(0, 0, 0, 0.7) 72%);
+  box-shadow: 0 0 62px rgb(var(--vindica-red-glow) / 0.42);
 }
 
 .signal-core span {
@@ -253,12 +508,12 @@
   line-height: 0.88;
   letter-spacing: 0;
   color: white;
-  text-shadow: 0 0 34px rgba(255, 255, 255, 0.34), 0 0 80px rgba(239, 68, 68, 0.8);
+  text-shadow: 0 0 34px rgba(255, 255, 255, 0.34), 0 0 80px rgb(var(--vindica-red-glow) / 0.8);
 }
 
 .exposure-graph {
   background:
-    radial-gradient(circle at 48% 47%, rgba(239, 68, 68, 0.15), transparent 13rem),
+    radial-gradient(circle at 48% 47%, rgb(var(--vindica-red-glow) / 0.15), transparent 13rem),
     radial-gradient(circle at 65% 42%, rgba(255, 255, 255, 0.09), transparent 15rem),
     linear-gradient(90deg, rgba(0, 0, 0, 0.15), rgba(127, 29, 29, 0.05), rgba(0, 0, 0, 0.35));
 }
@@ -292,7 +547,7 @@
     radial-gradient(ellipse at 60% 38%, rgba(255, 255, 255, 0.82), transparent 12%),
     radial-gradient(ellipse at 58% 47%, rgba(255, 255, 255, 0.55), transparent 19%),
     radial-gradient(ellipse at 48% 47%, rgba(248, 113, 113, 0.32), transparent 31%),
-    radial-gradient(ellipse at 45% 56%, rgba(239, 68, 68, 0.4), transparent 24%);
+    radial-gradient(ellipse at 45% 56%, rgb(var(--vindica-red-glow) / 0.4), transparent 24%);
   clip-path: polygon(40% 12%, 57% 14%, 68% 23%, 69% 38%, 78% 43%, 66% 47%, 65% 57%, 57% 69%, 43% 72%, 31% 63%, 24% 48%, 26% 29%);
   filter: contrast(1.4) saturate(1.15);
   mix-blend-mode: screen;
@@ -302,7 +557,7 @@
 .graph-edge {
   stroke: rgba(248, 113, 113, 0.45);
   stroke-width: 0.18;
-  filter: drop-shadow(0 0 4px rgba(239, 68, 68, 0.65));
+  filter: drop-shadow(0 0 4px rgb(var(--vindica-red-glow) / 0.65));
   animation: edgePulse 2.8s ease-in-out infinite alternate;
 }
 
@@ -329,14 +584,14 @@
   border-radius: 14px;
   background: linear-gradient(145deg, rgba(22, 22, 26, 0.86), rgba(6, 6, 8, 0.72));
   padding: 12px 14px;
-  box-shadow: 0 0 28px rgba(239, 68, 68, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  box-shadow: 0 0 28px rgb(var(--vindica-red-glow) / 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.08);
   backdrop-filter: blur(16px);
   animation: graphFloat 5.2s ease-in-out infinite;
 }
 
 .graph-card.is-active {
   border-color: rgba(248, 113, 113, 0.64);
-  box-shadow: 0 0 34px rgba(239, 68, 68, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  box-shadow: 0 0 34px rgb(var(--vindica-red-glow) / 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.12);
 }
 
 .graph-card.is-scanning {
@@ -351,9 +606,9 @@
   justify-content: center;
   border-radius: 999px;
   color: white;
-  background: radial-gradient(circle at 42% 35%, rgba(255, 255, 255, 0.28), rgba(239, 68, 68, 0.2) 44%, rgba(0, 0, 0, 0.55) 70%);
+  background: radial-gradient(circle at 42% 35%, rgba(255, 255, 255, 0.28), rgb(var(--vindica-red-glow) / 0.2) 44%, rgba(0, 0, 0, 0.55) 70%);
   border: 1px solid rgba(248, 113, 113, 0.44);
-  box-shadow: 0 0 24px rgba(239, 68, 68, 0.35);
+  box-shadow: 0 0 24px rgb(var(--vindica-red-glow) / 0.35);
 }
 
 .radar-rings {
@@ -363,8 +618,8 @@
   place-items: center;
   border-radius: 999px;
   background:
-    repeating-radial-gradient(circle, rgba(239, 68, 68, 0.78) 0 1px, transparent 1px 12px),
-    radial-gradient(circle, rgba(239, 68, 68, 0.15), transparent 60%);
+    repeating-radial-gradient(circle, rgb(var(--vindica-red-glow) / 0.78) 0 1px, transparent 1px 12px),
+    radial-gradient(circle, rgb(var(--vindica-red-glow) / 0.15), transparent 60%);
   animation: ringSpin 12s linear infinite;
 }
 
@@ -376,9 +631,9 @@
   align-items: center;
   justify-content: center;
   border-radius: 999px;
-  background: radial-gradient(circle at 50% 28%, rgba(255, 255, 255, 0.16), rgba(239, 68, 68, 0.17), rgba(0, 0, 0, 0.82));
+  background: radial-gradient(circle at 50% 28%, rgba(255, 255, 255, 0.16), rgb(var(--vindica-red-glow) / 0.17), rgba(0, 0, 0, 0.82));
   border: 1px solid rgba(248, 113, 113, 0.5);
-  box-shadow: 0 0 38px rgba(239, 68, 68, 0.38);
+  box-shadow: 0 0 38px rgb(var(--vindica-red-glow) / 0.38);
   animation: counterSpin 12s linear infinite;
 }
 
@@ -392,11 +647,11 @@
   inset: 3% 0 6%;
   border-radius: 28px;
   background:
-    radial-gradient(circle at 80% 18%, rgba(212, 175, 55, 0.12), transparent 18rem),
-    radial-gradient(circle at 14% 74%, rgba(186, 24, 27, 0.2), transparent 18rem),
-    linear-gradient(180deg, rgba(255, 247, 232, 0.04), transparent 22%),
+    radial-gradient(circle at 80% 18%, rgb(var(--vindica-gold) / 0.12), transparent 18rem),
+    radial-gradient(circle at 14% 74%, rgb(var(--vindica-red) / 0.2), transparent 18rem),
+    linear-gradient(180deg, rgb(var(--vindica-ivory) / 0.04), transparent 22%),
     rgba(3, 3, 5, 0.8);
-  border: 1px solid rgba(212, 175, 55, 0.12);
+  border: 1px solid rgb(var(--vindica-gold) / 0.12);
 }
 
 .hero-command__graph {
@@ -421,8 +676,8 @@
 .gold-scan-ring {
   position: absolute;
   border-radius: 999px;
-  border: 1px solid rgba(212, 175, 55, 0.34);
-  box-shadow: 0 0 26px rgba(212, 175, 55, 0.12);
+  border: 1px solid rgb(var(--vindica-gold) / 0.34);
+  box-shadow: 0 0 26px rgb(var(--vindica-gold) / 0.12);
   animation: goldRing 6.5s ease-in-out infinite;
 }
 
@@ -443,7 +698,7 @@
 
 .heartbeat-divider {
   background:
-    linear-gradient(180deg, rgba(212, 175, 55, 0.04), transparent),
+    linear-gradient(180deg, rgb(var(--vindica-gold) / 0.04), transparent),
     rgba(5, 5, 5, 0.94);
 }
 
@@ -452,7 +707,7 @@
   background:
     url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='1600' height='72' viewBox='0 0 1600 72'%3E%3Cpath d='M0 38h210l28-16 34 36 26-52 27 32h280l21-13 22 13h170l18-10 18 10h170l32-28 24 44 34-59 30 43h256l18-11 18 11h162' fill='none' stroke='%23ba181b' stroke-width='2.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3Cpath d='M0 38h210l28-16 34 36 26-52 27 32h280l21-13 22 13h170l18-10 18 10h170l32-28 24 44 34-59 30 43h256l18-11 18 11h162' fill='none' stroke='%23d4af37' stroke-width='0.9' stroke-linecap='round' stroke-linejoin='round' opacity='0.7'/%3E%3C/svg%3E") repeat-x center;
   animation: heartbeatFlow 14s linear infinite;
-  filter: drop-shadow(0 0 14px rgba(186, 24, 27, 0.45));
+  filter: drop-shadow(0 0 14px rgb(var(--vindica-red) / 0.45));
 }
 
 .heartbeat-divider--reverse .heartbeat-line {
@@ -463,16 +718,16 @@
   position: absolute;
   inset: 0;
   background:
-    linear-gradient(rgba(212, 175, 55, 0.06) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(212, 175, 55, 0.06) 1px, transparent 1px);
+    linear-gradient(rgb(var(--vindica-gold) / 0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(var(--vindica-gold) / 0.06) 1px, transparent 1px);
   background-size: 54px 54px;
   mask-image: radial-gradient(circle at 50% 50%, black 56%, transparent 96%);
 }
 
 .second-brain__edge {
-  stroke: rgba(212, 175, 55, 0.5);
+  stroke: rgb(var(--vindica-gold) / 0.5);
   stroke-width: 0.24;
-  filter: drop-shadow(0 0 6px rgba(212, 175, 55, 0.2));
+  filter: drop-shadow(0 0 6px rgb(var(--vindica-gold) / 0.2));
   animation: edgePulse 3.8s ease-in-out infinite;
 }
 
@@ -487,7 +742,7 @@
 .second-brain__ring {
   position: absolute;
   border-radius: 999px;
-  border: 1px solid rgba(212, 175, 55, 0.22);
+  border: 1px solid rgb(var(--vindica-gold) / 0.22);
   left: 50%;
   top: 50%;
   transform: translate(-50%, -50%);
@@ -515,11 +770,11 @@
   align-items: center;
   justify-content: center;
   border-radius: 999px;
-  border: 1px solid rgba(212, 175, 55, 0.34);
+  border: 1px solid rgb(var(--vindica-gold) / 0.34);
   background:
-    radial-gradient(circle, rgba(212, 175, 55, 0.16), transparent 62%),
+    radial-gradient(circle, rgb(var(--vindica-gold) / 0.16), transparent 62%),
     linear-gradient(145deg, rgba(40, 10, 11, 0.92), rgba(8, 8, 10, 0.92));
-  box-shadow: 0 0 46px rgba(186, 24, 27, 0.22);
+  box-shadow: 0 0 46px rgb(var(--vindica-red) / 0.22);
 }
 
 .second-brain__node {
@@ -540,7 +795,7 @@
 .second-brain__node span {
   font-size: 12px;
   font-weight: 700;
-  color: var(--vindica-ivory);
+  color: rgb(var(--vindica-ivory));
 }
 
 .second-brain__pulse {
@@ -548,7 +803,7 @@
   height: 8px;
   border-radius: 999px;
   background: #ba181b;
-  box-shadow: 0 0 14px rgba(186, 24, 27, 0.8);
+  box-shadow: 0 0 14px rgb(var(--vindica-red) / 0.8);
   animation: nodePulse 1.8s ease-in-out infinite;
 }
 
@@ -562,7 +817,7 @@
   inset: auto 12px -8px 12px;
   height: 12px;
   border-radius: 999px;
-  background: linear-gradient(90deg, rgba(186, 24, 27, 0.2), rgba(212, 175, 55, 0.16));
+  background: linear-gradient(90deg, rgb(var(--vindica-red) / 0.2), rgb(var(--vindica-gold) / 0.16));
   filter: blur(10px);
 }
 
@@ -578,8 +833,8 @@
   position: absolute;
   inset: 0;
   border-radius: 999px;
-  border: 1px solid rgba(212, 175, 55, 0.34);
-  box-shadow: 0 0 22px rgba(212, 175, 55, 0.12);
+  border: 1px solid rgb(var(--vindica-gold) / 0.34);
+  box-shadow: 0 0 22px rgb(var(--vindica-gold) / 0.12);
   animation: goldRing 4.5s ease-in-out infinite;
 }
 
@@ -589,25 +844,25 @@
   height: 56px;
   place-items: center;
   border-radius: 999px;
-  background: radial-gradient(circle, rgba(186, 24, 27, 0.72), rgba(60, 5, 9, 0.92));
+  background: radial-gradient(circle, rgb(var(--vindica-red) / 0.72), rgba(60, 5, 9, 0.92));
   color: white;
   font-size: 20px;
   font-weight: 900;
-  box-shadow: 0 0 26px rgba(186, 24, 27, 0.28);
+  box-shadow: 0 0 26px rgb(var(--vindica-red) / 0.28);
 }
 
 .legal-hero {
   background:
-    linear-gradient(110deg, rgba(186, 24, 27, 0.12), transparent 42%),
-    linear-gradient(180deg, rgba(212, 175, 55, 0.035), transparent 54%),
-    #050507;
+    linear-gradient(110deg, rgb(var(--vindica-red) / 0.12), transparent 42%),
+    linear-gradient(180deg, rgb(var(--vindica-gold) / 0.035), transparent 54%),
+    rgb(var(--vindica-ink-900));
 }
 
 .legal-grid,
 .activation-grid {
   background-image:
-    linear-gradient(rgba(212, 175, 55, 0.055) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(212, 175, 55, 0.055) 1px, transparent 1px);
+    linear-gradient(rgb(var(--vindica-gold) / 0.055) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(var(--vindica-gold) / 0.055) 1px, transparent 1px);
   background-size: 58px 58px;
   mask-image: linear-gradient(90deg, transparent, black 24%, black 76%, transparent);
 }
@@ -621,7 +876,7 @@
   width: 76%;
   height: 1px;
   transform-origin: center;
-  background: linear-gradient(90deg, transparent, rgba(212, 175, 55, 0.42), transparent);
+  background: linear-gradient(90deg, transparent, rgb(var(--vindica-gold) / 0.42), transparent);
 }
 
 .legal-trust-map::before {
@@ -638,7 +893,7 @@
   top: 50%;
   translate: -50% -50%;
   border-radius: 999px;
-  border: 1px solid rgba(212, 175, 55, 0.2);
+  border: 1px solid rgb(var(--vindica-gold) / 0.2);
 }
 
 .legal-orbit--outer {
@@ -650,12 +905,12 @@
 .legal-orbit--inner {
   width: 220px;
   height: 220px;
-  border-color: rgba(186, 24, 27, 0.28);
+  border-color: rgb(var(--vindica-red) / 0.28);
   animation: legalOrbit 10s linear infinite reverse;
 }
 
 .activation-grid {
-  background-color: #030305;
+  background-color: rgb(var(--vindica-ink-950));
   mask-image: radial-gradient(circle at 50% 50%, black 18%, transparent 82%);
 }
 
@@ -663,7 +918,7 @@
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.08),
     0 30px 100px rgba(0, 0, 0, 0.6),
-    0 0 80px rgba(186, 24, 27, 0.12);
+    0 0 80px rgb(var(--vindica-red) / 0.12);
 }
 
 .activation-console::before {
@@ -672,7 +927,7 @@
   inset: -1px;
   pointer-events: none;
   border: 1px solid transparent;
-  background: linear-gradient(115deg, rgba(212, 175, 55, 0.38), transparent 25%, transparent 70%, rgba(186, 24, 27, 0.45)) border-box;
+  background: linear-gradient(115deg, rgb(var(--vindica-gold) / 0.38), transparent 25%, transparent 70%, rgb(var(--vindica-red) / 0.45)) border-box;
   mask: linear-gradient(#fff 0 0) padding-box, linear-gradient(#fff 0 0);
   mask-composite: exclude;
 }

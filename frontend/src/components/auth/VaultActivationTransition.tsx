@@ -29,7 +29,7 @@ export function VaultActivationTransition({
               initial={{ opacity: 0, y: 18 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6 }}
-              className="inline-flex items-center gap-2 border-l-2 border-[#d4af37] pl-3 text-xs font-black uppercase tracking-[0.2em] text-[#f5d7a1]"
+              className="inline-flex items-center gap-2 border-l-2 border-gold-500 pl-3 text-xs font-black uppercase tracking-[0.2em] text-gold-400"
             >
               <ShieldCheck className="h-4 w-4" />
               Vault activation complete
@@ -38,7 +38,7 @@ export function VaultActivationTransition({
               initial={{ opacity: 0, y: 24 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.7, delay: 0.08 }}
-              className="mt-6 text-5xl font-black leading-[0.95] text-[#fff7e8] sm:text-7xl"
+              className="mt-6 text-5xl font-black leading-[0.95] text-ivory sm:text-7xl"
             >
               Your privacy workspace is ready.
             </motion.h1>
@@ -74,7 +74,7 @@ export function VaultActivationTransition({
                   transition={{ duration: 0.55, delay: 0.2 + index * 0.22 }}
                   className="flex items-center gap-4 border-b border-white/8 pb-5"
                 >
-                  <div className="grid h-11 w-11 place-items-center border border-[#d4af37]/25 bg-[#d4af37]/[0.05] text-[#f5d7a1]">
+                  <div className="grid h-11 w-11 place-items-center border border-gold-500/25 bg-gold-500/[0.05] text-gold-400">
                     <Icon className="h-5 w-5" />
                   </div>
                   <div className="flex-1">

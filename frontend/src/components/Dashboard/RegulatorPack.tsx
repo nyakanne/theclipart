@@ -52,7 +52,7 @@ export function RegulatorPack({ scanId, scanStatus }: { scanId: string; scanStat
     <Card className="rounded-xl">
       <CardHeader>
         <div className="flex items-center gap-2">
-          <Gavel className="h-4 w-4 text-brand-400" />
+          <Gavel className="h-4 w-4 text-gold-400" />
           <span className="font-semibold text-white">Regulator and Takedown Ready-Pack</span>
         </div>
         <p className="mt-1 text-xs text-gray-500">

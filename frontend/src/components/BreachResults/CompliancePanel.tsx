@@ -106,7 +106,7 @@ export function CompliancePanel({ compliance }: { compliance: ComplianceScore })
           <CardBody className="space-y-2">
             {compliance.recommendations.map((r, i) => (
               <div key={i} className="flex items-start gap-2">
-                <ChevronRight className="mt-0.5 h-4 w-4 shrink-0 text-brand-400" />
+                <ChevronRight className="mt-0.5 h-4 w-4 shrink-0 text-gold-400" />
                 <p className="text-sm text-gray-300">{r}</p>
               </div>
             ))}

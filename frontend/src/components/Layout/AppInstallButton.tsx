@@ -62,7 +62,7 @@ export function AppInstallButton() {
     <button
       type="button"
       onClick={install}
-      className="hidden items-center gap-2 rounded-full border border-[#d4af37]/25 bg-[#d4af37]/10 px-3 py-2 text-xs font-bold text-[#f5d7a1] transition-colors hover:border-[#d4af37]/45 hover:bg-[#d4af37]/15 md:inline-flex"
+      className="hidden items-center gap-2 rounded-full border border-gold-500/25 bg-gold-500/10 px-3 py-2 text-xs font-bold text-gold-400 transition-colors hover:border-gold-500/45 hover:bg-gold-500/15 md:inline-flex"
       title="Install Vindica as a desktop app"
     >
       {installed ? <MonitorCheck className="h-3.5 w-3.5" /> : <Download className="h-3.5 w-3.5" />}

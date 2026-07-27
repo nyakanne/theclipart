@@ -62,7 +62,7 @@ export function LegalPage({ kind }: { kind: LegalKind }) {
     : 'The rules that keep privacy-defense tools focused on safety and authorized use.'
 
   return (
-    <div className="bg-[#050507] text-white">
+    <div className="bg-ink-900 text-white">
       <section className="legal-hero relative overflow-hidden border-b border-white/10">
         <div className="legal-grid pointer-events-none absolute inset-0" />
         <div className="mx-auto grid min-h-[470px] max-w-7xl items-center gap-12 px-4 py-16 sm:px-6 lg:grid-cols-[1fr_0.8fr] lg:px-8">
@@ -71,12 +71,12 @@ export function LegalPage({ kind }: { kind: LegalKind }) {
               <ArrowLeft className="h-4 w-4" />
               Back to Vindica
             </Link>
-            <p className="mt-10 text-xs font-black uppercase tracking-[0.24em] text-[#f5d7a1]">Trust center</p>
-            <h1 className="mt-4 max-w-3xl text-5xl font-black leading-[0.95] text-[#fff7e8] sm:text-7xl">{title}</h1>
+            <p className="mt-10 text-xs font-black uppercase tracking-[0.24em] text-gold-400">Trust center</p>
+            <h1 className="mt-4 max-w-3xl text-5xl font-black leading-[0.95] text-ivory sm:text-7xl">{title}</h1>
             <p className="mt-6 max-w-2xl text-lg leading-8 text-gray-400">{subtitle}</p>
             <div className="mt-8 flex flex-wrap gap-3 text-xs font-bold uppercase tracking-[0.14em] text-gray-400">
               <span className="border-l-2 border-red-500 pl-3">Effective June 7, 2026</span>
-              <span className="border-l-2 border-[#d4af37] pl-3">Plain-language summary</span>
+              <span className="border-l-2 border-gold-500 pl-3">Plain-language summary</span>
             </div>
           </div>
           <TrustArchitectureGraphic />
@@ -85,7 +85,7 @@ export function LegalPage({ kind }: { kind: LegalKind }) {
 
       <section className="mx-auto grid max-w-7xl gap-10 px-4 py-14 sm:px-6 lg:grid-cols-[270px_1fr] lg:px-8">
         <aside className="h-fit border-l border-white/10 pl-5 lg:sticky lg:top-28">
-          <p className="text-xs font-black uppercase tracking-[0.18em] text-[#f5d7a1]">On this page</p>
+          <p className="text-xs font-black uppercase tracking-[0.18em] text-gold-400">On this page</p>
           <nav className="mt-5 grid gap-3">
             {sections.map((section, index) => (
               <a key={section.title} href={`#legal-${index}`} className="text-sm text-gray-500 transition-colors hover:text-white">
@@ -118,9 +118,9 @@ export function LegalPage({ kind }: { kind: LegalKind }) {
               </div>
             </section>
           ))}
-          <div className="mt-10 border border-[#d4af37]/20 bg-[#d4af37]/[0.04] p-6">
+          <div className="mt-10 border border-gold-500/20 bg-gold-500/[0.04] p-6">
             <div className="flex items-start gap-4">
-              <Scale className="mt-1 h-5 w-5 shrink-0 text-[#f5d7a1]" />
+              <Scale className="mt-1 h-5 w-5 shrink-0 text-gold-400" />
               <div>
                 <h2 className="font-black text-white">Important launch note</h2>
                 <p className="mt-2 text-sm leading-7 text-gray-400">
@@ -149,7 +149,7 @@ function TrustArchitectureGraphic() {
       <div className="legal-orbit legal-orbit--inner" />
       <div className="absolute left-1/2 top-1/2 z-10 grid h-32 w-32 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full border border-red-500/35 bg-black shadow-[0_0_70px_rgba(186,24,27,0.32)]">
         <div className="text-center">
-          <LockKeyhole className="mx-auto h-7 w-7 text-[#f5d7a1]" />
+          <LockKeyhole className="mx-auto h-7 w-7 text-gold-400" />
           <div className="mt-2 text-[10px] font-black uppercase tracking-[0.18em] text-white">Private vault</div>
         </div>
       </div>

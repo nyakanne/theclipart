@@ -15,6 +15,7 @@ import { ExposureGraph } from '@/components/visuals/ExposureGraph'
 import { ExposureLookupPanel } from '@/components/Investigation/ExposureLookupPanel'
 import { ReverseImageSearchPanel } from '@/components/Investigation/ReverseImageSearchPanel'
 import { EvidencePanel } from '@/components/Investigation/EvidencePanel'
+import { ErrorState } from '@/components/ui/ErrorState'
 import { totalSourcesFromScanResult } from './home/utils'
 import { summarizeProviderCoverage } from '@/utils/providerCoverage'
 
@@ -56,7 +57,7 @@ export function ScanPage() {
             <ArrowLeft className="h-5 w-5" />
           </Link>
           <div>
-            <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-[#f5d7a1]">Exposure command file</p>
+            <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-gold-400">Exposure command file</p>
             <h1 className="mt-1 text-3xl font-black tracking-tight text-white">Your Personal Data Exposure Overview</h1>
             <p className="mt-1 font-mono text-xs text-gray-500">{scanId}</p>
           </div>
@@ -108,7 +109,7 @@ export function ScanPage() {
                 <ShieldAlert className="h-7 w-7" />
               </div>
               <div>
-                <h2 className="text-xl font-black text-[#fff7e8]">
+                <h2 className="text-xl font-black text-ivory">
                   {totalSources > 0 ? 'Confirmed exposure evidence found' : 'No confirmed exposure evidence returned'}
                 </h2>
                 <p className="mt-1 text-gray-400">
@@ -136,7 +137,7 @@ export function ScanPage() {
                   onClick={() => setTab(t.id)}
                   className={`flex items-center gap-1.5 whitespace-nowrap border-b-2 px-4 py-3 text-xs font-bold uppercase tracking-[0.14em] transition-colors ${
                     tab === t.id
-                      ? 'border-[#d4af37] text-[#fff7e8]'
+                      ? 'border-gold-500 text-ivory'
                       : 'border-transparent text-gray-400 hover:text-gray-200'
                   }`}
                 >
@@ -170,10 +171,11 @@ export function ScanPage() {
       )}
 
       {statusData?.status === 'failed' && (
-        <div className="rounded-2xl border border-red-800 bg-red-900/20 p-6 text-center">
-          <p className="text-red-300 font-medium">Scan failed</p>
-          <p className="mt-1 text-sm text-gray-400">Please try again or contact support.</p>
-        </div>
+        <ErrorState
+          title="Scan failed"
+          description="Please try again or contact support."
+          onRetry={refresh}
+        />
       )}
     </div>
   )

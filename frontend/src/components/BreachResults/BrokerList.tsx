@@ -9,7 +9,7 @@ import { useQuery } from '@tanstack/react-query'
 const optOutStatusConfig = {
   not_started: { icon: <AlertTriangle className="h-4 w-4" />, color: 'text-red-300', label: 'Action needed' },
   in_progress:  { icon: <Clock className="h-4 w-4" />, color: 'text-red-100', label: 'In progress' },
-  submitted:    { icon: <Send className="h-4 w-4" />, color: 'text-brand-400', label: 'Submitted' },
+  submitted:    { icon: <Send className="h-4 w-4" />, color: 'text-gold-400', label: 'Submitted' },
   confirmed:    { icon: <CheckCircle className="h-4 w-4" />, color: 'text-gray-200', label: 'Confirmed' },
   failed:       { icon: <XCircle className="h-4 w-4" />, color: 'text-red-400', label: 'Failed' },
 }
@@ -109,7 +109,7 @@ export function BrokerList({ listings, scanId, onUpdate }: {
         const status = optOutStatusConfig[b.opt_out_status]
         const canEmail = readiness?.enabled && readiness.eligible_broker_ids.includes(b.id)
         return (
-          <Card key={b.id} className="rounded-none bg-[#10101a]">
+          <Card key={b.id} variant="flat" className="rounded-none">
             <CardHeader>
               <div className="flex items-start justify-between gap-3">
                 <div>
@@ -117,7 +117,7 @@ export function BrokerList({ listings, scanId, onUpdate }: {
                     <Globe className="h-4 w-4 text-gray-500" />
                     <span className="font-semibold text-white">{b.broker_name}</span>
                     {b.dsar_eligible && (
-                      <span className="rounded bg-brand-900/50 px-1.5 py-0.5 text-[10px] text-brand-400">
+                      <span className="rounded bg-gold-500/10 px-1.5 py-0.5 text-[10px] text-gold-400">
                         DSAR
                       </span>
                     )}

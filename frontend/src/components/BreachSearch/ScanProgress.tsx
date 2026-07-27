@@ -16,7 +16,7 @@ export function ScanProgress({ job }: { job: ScanJob }) {
   const progress = job.progress ?? 0
 
   return (
-    <Card glow="blue">
+    <Card glow="red">
       <CardBody className="space-y-6">
         <div className="text-center">
           <motion.div
@@ -24,7 +24,7 @@ export function ScanProgress({ job }: { job: ScanJob }) {
             transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}
             className="mx-auto mb-4 inline-block"
           >
-            <Shield className="h-12 w-12 text-brand-400" />
+            <Shield className="h-12 w-12 text-red-400" />
           </motion.div>
           <h3 className="text-lg font-semibold text-white">Scanning in progress</h3>
           <p className="text-sm text-gray-400 mt-1">{job.current_stage}</p>
@@ -37,7 +37,7 @@ export function ScanProgress({ job }: { job: ScanJob }) {
           </div>
           <div className="h-2 rounded-full bg-gray-800 overflow-hidden">
             <motion.div
-              className="h-full rounded-full bg-gradient-to-r from-brand-600 to-brand-400"
+              className="h-full rounded-full bg-gradient-to-r from-red-700 to-red-400"
               initial={{ width: 0 }}
               animate={{ width: `${progress}%` }}
               transition={{ duration: 0.5 }}
@@ -54,8 +54,8 @@ export function ScanProgress({ job }: { job: ScanJob }) {
               <div key={stage.key} className="flex flex-col items-center gap-1.5">
                 <div className={`
                   flex h-9 w-9 items-center justify-center rounded-full border-2 transition-colors
-                  ${done   ? 'border-brand-500 bg-brand-900/50 text-brand-400' : ''}
-                  ${active ? 'border-brand-400 bg-brand-900/80 text-brand-300 animate-pulse' : ''}
+                  ${done   ? 'border-gold-500 bg-ink-800 text-gold-400' : ''}
+                  ${active ? 'border-red-400 bg-red-900/80 text-red-300 animate-pulse' : ''}
                   ${!done && !active ? 'border-gray-700 bg-gray-800/50 text-gray-600' : ''}
                 `}>
                   <Icon className="h-4 w-4" />
