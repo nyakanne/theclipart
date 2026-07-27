@@ -1,13 +1,20 @@
 import { clsx } from 'clsx'
+import { ShardPanel } from '@/components/ui/ShardPanel'
+import { NeuralField } from '@/components/visuals/NeuralField'
 
 interface CardProps {
   className?: string
   children: React.ReactNode
-  /** 'premium' (default) matches the gold-bordered look used across most of
-   *  the app (the `.premium-panel` treatment in index.css). 'flat' is for
-   *  quieter nested surfaces, e.g. list rows inside a premium-panel container. */
-  variant?: 'premium' | 'flat'
+  /** 'shard' (default) is the fragmented mirror-glass surface — obsidian body,
+   *  angled facets, cursor-tracked specular. 'premium' is the older flat gold
+   *  panel, kept for surfaces that sit inside another shard. 'flat' is for
+   *  quiet nested rows, e.g. list items inside a shard container. */
+  variant?: 'shard' | 'premium' | 'flat'
   glow?: 'red' | 'gold' | 'none'
+  /** Ambient second-brain graph behind the content. */
+  field?: boolean
+  /** Seeds the neural field so sibling cards don't render identical graphs. */
+  fieldSeed?: number
 }
 
 const glowStyles = {
@@ -21,7 +28,23 @@ const variantStyles = {
   flat: 'border border-white/10 bg-ink-700/90 backdrop-blur-sm',
 }
 
-export function Card({ className, children, variant = 'premium', glow = 'none' }: CardProps) {
+export function Card({
+  className,
+  children,
+  variant = 'shard',
+  glow = 'none',
+  field = false,
+  fieldSeed = 7,
+}: CardProps) {
+  if (variant === 'shard') {
+    return (
+      <ShardPanel className={clsx(glowStyles[glow], className)}>
+        {field && <NeuralField density={14} intensity={0.28} seed={fieldSeed} />}
+        <div className="relative">{children}</div>
+      </ShardPanel>
+    )
+  }
+
   return (
     <div className={clsx(variantStyles[variant], glowStyles[glow], className)}>
       {children}

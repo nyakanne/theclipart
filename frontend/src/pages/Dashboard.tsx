@@ -6,8 +6,10 @@ import { useQuery } from '@tanstack/react-query'
 import { api } from '@/services/api'
 import { Card, CardHeader, CardBody } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
+import { ShardPanel } from '@/components/ui/ShardPanel'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { LoadingState } from '@/components/ui/LoadingState'
+import { NeuralField } from '@/components/visuals/NeuralField'
 import type { CommandAction, ScanJob } from '@/types'
 import { useAuthSession } from '@/hooks/useAuthSession'
 import { AuthVaultPrompt } from '@/components/auth/AuthVaultPrompt'
@@ -53,35 +55,41 @@ export function Dashboard() {
         initial={{ opacity: 0, y: 14 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-        className="premium-panel rounded-[28px] p-6 sm:p-8"
       >
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <p className="text-xs font-bold uppercase tracking-[0.24em] text-gold-400">Command vault</p>
-            <h1 className="mt-2 text-3xl font-black text-white sm:text-4xl">Saved scans and live defenses</h1>
-            <p className="mt-3 max-w-2xl text-sm leading-7 text-gray-300">
-              Review active investigations, reopen saved exposure maps, and keep your removals, alerts, and evidence trails in one retained operating surface.
-            </p>
-          </div>
-          <Link to="/">
-            <Button icon={<Plus className="h-4 w-4" />}>New Scan</Button>
-          </Link>
-        </div>
+        <ShardPanel tilt={false} className="rounded-[28px] p-6 sm:p-8">
+          <NeuralField density={26} intensity={0.4} seed={17} />
 
-        <div className="mt-6 grid gap-4 md:grid-cols-3">
-          {[
-            { icon: ShieldAlert, label: 'Active scans', value: `${scans.filter(scan => scan.status === 'scanning' || scan.status === 'queued').length}`, detail: 'Investigations still resolving' },
-            { icon: Bell, label: 'Completed vault items', value: `${scans.filter(scan => scan.status === 'completed').length}`, detail: 'Resolved reports ready to reopen' },
-            { icon: Hash, label: 'Failed or interrupted', value: `${scans.filter(scan => scan.status === 'failed').length}`, detail: 'Needs rerun or review' },
-          ].map(({ icon: Icon, label, value, detail }) => (
-            <div key={label} className="rounded-2xl border border-white/8 bg-black/35 p-4">
-              <Icon className="h-5 w-5 text-gold-400" />
-              <div className="mt-3 text-[10px] font-bold uppercase tracking-[0.18em] text-gray-500">{label}</div>
-              <div className="mt-1 text-3xl font-black text-white">{value}</div>
-              <div className="mt-1 text-xs text-gray-500">{detail}</div>
+          <div className="relative flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.24em] text-gold-400">Command vault</p>
+              <h1 className="mt-2 text-3xl font-black text-white sm:text-4xl">Saved scans and live defenses</h1>
+              <p className="mt-3 max-w-2xl text-sm leading-7 text-gray-300">
+                Review active investigations, reopen saved exposure maps, and keep your removals, alerts, and evidence trails in one retained operating surface.
+              </p>
             </div>
-          ))}
-        </div>
+            <Link to="/">
+              <Button icon={<Plus className="h-4 w-4" />}>New Scan</Button>
+            </Link>
+          </div>
+
+          <div className="relative mt-6 grid gap-4 md:grid-cols-3">
+            {[
+              { icon: ShieldAlert, label: 'Active scans', value: `${scans.filter(scan => scan.status === 'scanning' || scan.status === 'queued').length}`, detail: 'Investigations still resolving', seed: 31 },
+              { icon: Bell, label: 'Completed vault items', value: `${scans.filter(scan => scan.status === 'completed').length}`, detail: 'Resolved reports ready to reopen', seed: 47 },
+              { icon: Hash, label: 'Failed or interrupted', value: `${scans.filter(scan => scan.status === 'failed').length}`, detail: 'Needs rerun or review', seed: 63 },
+            ].map(({ icon: Icon, label, value, detail, seed }) => (
+              <ShardPanel key={label} facets={false} className="rounded-2xl p-4">
+                <NeuralField density={9} intensity={0.24} seed={seed} />
+                <div className="relative">
+                  <Icon className="h-5 w-5 text-gold-400" />
+                  <div className="mt-3 text-[10px] font-bold uppercase tracking-[0.18em] text-gray-500">{label}</div>
+                  <div className="mt-1 text-3xl font-black text-white">{value}</div>
+                  <div className="mt-1 text-xs text-gray-500">{detail}</div>
+                </div>
+              </ShardPanel>
+            ))}
+          </div>
+        </ShardPanel>
       </motion.div>
 
       {!isAuthenticated && (
@@ -126,10 +134,8 @@ export function Dashboard() {
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.4, delay: 0.04 * i, ease: [0.22, 1, 0.36, 1] }}
-                    className={`min-h-44 border p-4 text-left transition-colors ${
-                      isSelected
-                        ? 'border-red-400/60 bg-red-950/25'
-                        : 'border-white/10 bg-black/35 hover:border-white/20'
+                    className={`obsidian-shard obsidian-shard--tilt min-h-44 rounded-2xl p-4 text-left ${
+                      isSelected ? 'border-red-400/60' : ''
                     } disabled:cursor-default disabled:opacity-65`}
                   >
                     <div className="flex items-start justify-between gap-3">
@@ -251,7 +257,7 @@ export function Dashboard() {
         </Link>
       </div>
 
-      <Card>
+      <Card field fieldSeed={23}>
         <CardHeader>
           <span className="font-semibold text-white">Saved evidence</span>
         </CardHeader>
@@ -300,7 +306,7 @@ export function Dashboard() {
         </CardBody>
       </Card>
 
-      <Card>
+      <Card field fieldSeed={59}>
         <CardHeader>
           <span className="font-semibold text-white">Saved vault artifacts</span>
         </CardHeader>
@@ -347,7 +353,7 @@ export function Dashboard() {
         </CardBody>
       </Card>
 
-      <Card>
+      <Card field fieldSeed={83}>
         <CardHeader>
           <span className="font-semibold text-white">Vault timeline</span>
         </CardHeader>

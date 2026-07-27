@@ -129,6 +129,238 @@
   box-shadow: 0 0 26px rgb(var(--vindica-red-glow) / 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.22);
 }
 
+/* ---------------------------------------------------------------------------
+   Obsidian shard — the fragmented mirror-glass surface.
+
+   Reads as a piece of broken volcanic glass: a near-black body with several
+   independently-angled reflective facets, bright seams where those facets
+   meet, and a specular highlight that tracks the cursor (driven by the
+   --gx/--gy custom properties from useGlassPointer).
+
+   Layer order, back to front:
+     body gradient -> facets -> seams -> moving sheen -> edge light -> content
+   --------------------------------------------------------------------------- */
+.obsidian-shard {
+  --gx: 50%;
+  --gy: 0%;
+  --gtx: 0;
+  --gty: 0;
+  --gactive: 0;
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  background:
+    /* Top light-catch: the bright band a polished edge always holds. */
+    linear-gradient(180deg, rgb(var(--vindica-ivory) / 0.1) 0%, transparent 18%),
+    linear-gradient(168deg, rgba(30, 20, 20, 0.94) 0%, rgba(11, 9, 13, 0.96) 46%, rgba(4, 4, 6, 0.98) 100%);
+  border: 1px solid rgb(var(--vindica-gold) / 0.22);
+  box-shadow:
+    inset 0 1px 0 rgb(var(--vindica-ivory) / 0.16),
+    inset 0 -1px 0 rgb(var(--vindica-red) / 0.18),
+    0 30px 90px rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(18px);
+  transform-style: preserve-3d;
+  transition:
+    transform 380ms cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 380ms ease,
+    box-shadow 380ms ease;
+}
+
+/* The moving specular. Sits above the facets so it sweeps across all of them
+   as one light source, which is what sells the separate planes as one object. */
+.obsidian-shard::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  background:
+    radial-gradient(
+      38rem circle at var(--gx) var(--gy),
+      rgb(var(--vindica-ivory) / 0.22),
+      rgb(var(--vindica-gold) / 0.11) 24%,
+      transparent 56%
+    );
+  opacity: calc(0.6 + (var(--gactive) * 0.4));
+  transition: opacity 420ms ease;
+}
+
+/* Refraction edge — a thin bright rim that brightens on the cursor's side. */
+.obsidian-shard::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  pointer-events: none;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(
+    calc(180deg + (var(--gty) * 60deg)),
+    rgb(var(--vindica-gold) / 0.5),
+    rgb(var(--vindica-red-glow) / 0.22) 38%,
+    transparent 70%
+  );
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  opacity: calc(0.55 + (var(--gactive) * 0.45));
+  transition: opacity 420ms ease;
+}
+
+.obsidian-shard:hover {
+  border-color: rgb(var(--vindica-gold) / 0.34);
+  box-shadow:
+    inset 0 1px 0 rgb(var(--vindica-ivory) / 0.14),
+    inset 0 -1px 0 rgb(var(--vindica-red) / 0.2),
+    0 42px 120px rgba(0, 0, 0, 0.58),
+    0 0 40px rgb(var(--vindica-red-glow) / 0.12);
+}
+
+/* Parallax lean toward the cursor. Small on purpose — this is a command
+   surface, not a novelty card. */
+.obsidian-shard--tilt:hover {
+  transform:
+    perspective(1200px)
+    rotateX(calc(var(--gtx) * 2.4deg))
+    rotateY(calc(var(--gty) * 2.4deg))
+    translate3d(0, -2px, 0);
+}
+
+/* Facets — each is an independently clipped plane carrying its own gradient
+   angle, so they catch the light differently the way real shards do. */
+.shard-facet {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  mix-blend-mode: screen;
+  opacity: calc(0.82 + (var(--gactive) * 0.18));
+  transition: opacity 420ms ease;
+}
+
+.shard-facet--a {
+  clip-path: polygon(0 0, 46% 0, 26% 100%, 0 100%);
+  background: linear-gradient(112deg, rgb(var(--vindica-ivory) / 0.16), rgb(var(--vindica-ivory) / 0.03) 44%, transparent 72%);
+}
+
+.shard-facet--b {
+  clip-path: polygon(46% 0, 78% 0, 62% 100%, 26% 100%);
+  background: linear-gradient(196deg, rgb(var(--vindica-gold) / 0.2), rgb(var(--vindica-gold) / 0.04) 48%, transparent 76%);
+}
+
+.shard-facet--c {
+  clip-path: polygon(78% 0, 100% 0, 100% 62%, 62% 100%);
+  background: linear-gradient(58deg, rgb(var(--vindica-red-glow) / 0.18), rgb(var(--vindica-red) / 0.05) 46%, transparent 74%);
+}
+
+.shard-facet--d {
+  clip-path: polygon(100% 62%, 100% 100%, 62% 100%);
+  background: linear-gradient(24deg, rgb(var(--vindica-ivory) / 0.13), transparent 68%);
+}
+
+/* Seams — the bright fracture lines between facets. Two-tone (a hot core with
+   a softer bloom) so they read as a lit edge rather than a drawn line. */
+.shard-seam {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  opacity: calc(0.7 + (var(--gactive) * 0.3));
+  transition: opacity 420ms ease;
+  background:
+    linear-gradient(112deg, transparent calc(46% - 2.5px), rgb(var(--vindica-ivory) / 0.07) 46%, transparent calc(46% + 2.5px)),
+    linear-gradient(112deg, transparent calc(46% - 0.7px), rgb(var(--vindica-ivory) / 0.42) 46%, transparent calc(46% + 0.7px)),
+    linear-gradient(112deg, transparent calc(78% - 2.5px), rgb(var(--vindica-gold) / 0.09) 78%, transparent calc(78% + 2.5px)),
+    linear-gradient(112deg, transparent calc(78% - 0.7px), rgb(var(--vindica-gold) / 0.48) 78%, transparent calc(78% + 0.7px)),
+    linear-gradient(24deg, transparent calc(62% - 0.7px), rgb(var(--vindica-red-glow) / 0.3) 62%, transparent calc(62% + 0.7px));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .obsidian-shard,
+  .obsidian-shard::after,
+  .obsidian-shard::before,
+  .shard-facet,
+  .shard-seam {
+    transition: none;
+  }
+  .obsidian-shard--tilt:hover {
+    transform: none;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Neural field — the obsidian second-brain motif, as ambient background.
+   --------------------------------------------------------------------------- */
+.neural-field {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.neural-field__edge {
+  stroke: rgb(var(--vindica-red-glow) / 0.34);
+  stroke-width: 0.18;
+  fill: none;
+}
+
+.neural-field__pulse {
+  stroke: rgb(var(--vindica-gold) / 0.85);
+  stroke-width: 0.3;
+  stroke-linecap: round;
+  fill: none;
+  filter: drop-shadow(0 0 1.4px rgb(var(--vindica-gold) / 0.75));
+}
+
+.neural-field__node {
+  fill: rgb(var(--vindica-red-glow) / 0.85);
+  filter: drop-shadow(0 0 1.6px rgb(var(--vindica-red-glow) / 0.9));
+}
+
+.neural-field__node--key {
+  fill: rgb(var(--vindica-gold) / 0.95);
+  filter: drop-shadow(0 0 2.2px rgb(var(--vindica-gold) / 0.85));
+}
+
+@keyframes neuralBreathe {
+  0%, 100% { opacity: 0.32; transform: scale(1); }
+  50%      { opacity: 0.85; transform: scale(1.35); }
+}
+
+/* Light travelling along a connection. The range overshoots the viewBox on
+   both sides so the streak enters, crosses, and leaves — giving each edge an
+   intermittent pulse rather than a constantly-lit wire. */
+@keyframes neuralPulse {
+  0%   { stroke-dashoffset: 110; opacity: 0; }
+  12%  { opacity: 1; }
+  88%  { opacity: 1; }
+  100% { stroke-dashoffset: -110; opacity: 0; }
+}
+
+@keyframes neuralDrift {
+  0%, 100% { transform: translate3d(0, 0, 0); }
+  50%      { transform: translate3d(0, -1.2%, 0); }
+}
+
+.neural-field__nodes > circle {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: neuralBreathe 4.8s ease-in-out infinite;
+}
+
+.neural-field__layer {
+  animation: neuralDrift 18s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .neural-field__nodes > circle,
+  .neural-field__layer,
+  .neural-field__pulse {
+    animation: none !important;
+  }
+}
+
 .tilt-card {
   transform-style: preserve-3d;
   transition: transform 220ms ease, box-shadow 220ms ease, border-color 220ms ease;

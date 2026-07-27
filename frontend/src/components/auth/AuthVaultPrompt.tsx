@@ -45,7 +45,7 @@ export function AuthVaultPrompt({
           : 'bg-[radial-gradient(circle_at_18%_24%,rgba(186,24,27,0.28),transparent_15rem),radial-gradient(circle_at_84%_18%,rgba(212,175,55,0.16),transparent_14rem)]'
       )} />
       <div className="relative flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-        <div className="flex items-start gap-4">
+        <div className="flex min-w-0 flex-1 items-start gap-4">
           <div className={clsx(
             'relative mt-1 flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-black/55 text-gold-400',
             tone === 'neutral' ? 'border border-gold-500/30' : 'border border-red-400/45'
@@ -64,14 +64,14 @@ export function AuthVaultPrompt({
             />
             <Lock className="h-6 w-6" />
           </div>
-          <div>
+          <div className="min-w-0">
             <div className="text-[11px] font-bold uppercase tracking-[0.22em] text-gold-400">Privacy lock</div>
             <h3 className={clsx('mt-1 font-black text-white', compact ? 'text-lg' : 'text-2xl')}>{title}</h3>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-gray-300">{body}</p>
           </div>
         </div>
 
-        <div className="flex shrink-0 flex-col items-start gap-3 lg:items-end">
+        <div className="flex shrink-0 flex-col items-start gap-3 lg:max-w-[19rem] lg:items-end">
           <Link
             to="/account"
             className={clsx(
