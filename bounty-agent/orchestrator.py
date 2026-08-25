@@ -286,6 +286,71 @@ def submit(handle: str, finding: dict, report_md: str, dry_run: bool) -> str:
         return "error"
 
 
+# ── M365 / Power Platform hunt ────────────────────────────────────────────────
+
+M365_INDICATORS = [
+    "microsoft.com", "powerapps.com", "powerautomate.com",
+    "sharepoint.com", "onmicrosoft.com", "dynamics.com",
+]
+
+
+def run_m365_hunt(program: dict) -> list[dict]:
+    scope_text = " ".join(
+        s.get("identifier", "") for s in program.get("scope", [])
+    )
+    if not any(ind in scope_text.lower() for ind in M365_INDICATORS):
+        return []
+
+    log("step", "M365/Power Platform assets detected — running power-pwn...")
+    findings = []
+
+    domain = next(
+        (s["identifier"].lstrip("*.") for s in program.get("scope", [])
+         if any(ind in s.get("identifier", "") for ind in M365_INDICATORS)),
+        None,
+    )
+    if not domain:
+        return []
+
+    modules = [
+        ("copilot-hunter", ["--tenant", domain, "--output", "json"]),
+        ("power-pages",    ["--url", f"https://{domain}", "--output", "json"]),
+    ]
+
+    for module, args in modules:
+        ok, out = _run(
+            f"python -m powerpwn {module} {' '.join(args)}",
+            timeout=120,
+        )
+        if ok and out:
+            try:
+                results = json.loads(out) if out.startswith("[") or out.startswith("{") else []
+                if isinstance(results, list):
+                    for r in results:
+                        findings.append({
+                            "name": r.get("title", f"power-pwn/{module}"),
+                            "severity": r.get("severity", "medium"),
+                            "type": "m365",
+                            "module": module,
+                            "detail": json.dumps(r),
+                        })
+                log("ok", f"power-pwn {module}: {len(results)} results")
+            except (json.JSONDecodeError, TypeError):
+                if "vuln" in out.lower() or "exposed" in out.lower():
+                    findings.append({
+                        "name": f"power-pwn/{module} finding",
+                        "severity": "medium",
+                        "type": "m365",
+                        "module": module,
+                        "detail": out[:500],
+                    })
+        else:
+            log("warn", f"power-pwn {module}: {out[:100] if out else 'no output'}")
+
+    log("info", f"M365 hunt complete — {len(findings)} findings")
+    return findings
+
+
 # ── Main ──────────────────────────────────────────────────────────────────────
 
 def run_pipeline(program_handle: str = None, dry_run: bool = False, min_bounty: float = 100):
@@ -308,7 +373,10 @@ def run_pipeline(program_handle: str = None, dry_run: bool = False, min_bounty: 
         if high_sev and recon["live_hosts"]:
             shannon_findings = run_shannon(recon["live_hosts"][0])
 
-        approved = triage(nuclei_findings + shannon_findings, program.get("scope", []))
+        # M365 / Power Platform scan (auto-activates when scope contains M365 assets)
+        m365_findings = run_m365_hunt(program)
+
+        approved = triage(nuclei_findings + shannon_findings + m365_findings, program.get("scope", []))
         pub.commit_findings(approved)
 
         submitted = 0
