@@ -1,0 +1,35 @@
+[build]
+  base    = "bounty-agent/ui/frontend"
+  command = "npm install && npm run build"
+  publish = "bounty-agent/ui/frontend/dist"
+
+[build.environment]
+  NODE_VERSION = "20"
+
+# SPA routing — everything falls through to index.html
+[[redirects]]
+  from   = "/*"
+  to     = "/index.html"
+  status = 200
+
+# API proxy — avoids CORS during local netlify dev
+# In production set VITE_API_URL to your Railway backend URL instead
+[[redirects]]
+  from   = "/api/*"
+  to     = ":VITE_API_URL/api/:splat"
+  status = 200
+  force  = true
+  conditions = {Role = ["admin"]}
+
+[dev]
+  command     = "npm run dev"
+  port        = 5173
+  targetPort  = 5173
+  publish     = "bounty-agent/ui/frontend/dist"
+  framework   = "vite"
+
+[context.production.environment]
+  NODE_ENV = "production"
+
+[context.deploy-preview.environment]
+  NODE_ENV = "production"

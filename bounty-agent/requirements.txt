@@ -1,0 +1,9 @@
+anthropic[claude-agent-sdk]>=0.40.0
+pydantic>=2.0.0
+pydantic-settings>=2.0.0
+httpx>=0.27.0
+pyyaml>=6.0
+gitpython>=3.1.0
+rich>=13.0.0
+# power-pwn: M365/Power Platform offensive security
+powerpwn>=0.4.0
